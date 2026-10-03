@@ -19,7 +19,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.jwcarman.nessyap.contracts.ReasonCode;
 import org.jwcarman.nessyap.erp.po.PoLine;
@@ -144,10 +146,13 @@ public final class MatchEngine {
               "Nothing has been received against purchase order " + po.poNumber(),
               money(value)));
     }
+    // Lines billing the same PO line share its receipts: each draws down what is left, in order.
+    Map<Integer, BigDecimal> remaining = new HashMap<>(in.receivedByPoLine());
     BigDecimal impact = BigDecimal.ZERO;
     List<String> notes = new ArrayList<>();
     for (MatchLine line : onPo) {
-      BigDecimal received = received(in, line);
+      BigDecimal received = remaining.getOrDefault(line.poLineNo(), BigDecimal.ZERO);
+      remaining.put(line.poLineNo(), received.subtract(line.quantity()).max(BigDecimal.ZERO));
       if (line.quantity().compareTo(received) > 0) {
         impact = impact.add(line.quantity().subtract(received).multiply(line.unitPrice()));
         notes.add(

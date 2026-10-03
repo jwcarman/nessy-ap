@@ -199,6 +199,25 @@ class MatchEngineTest {
     }
 
     @Test
+    void counts_every_line_billing_the_same_po_line_against_one_receipt() {
+      List<MatchFinding> findings =
+          base()
+              .withLines(
+                  new MatchLine(1, 1, new BigDecimal("100"), new BigDecimal("10.00")),
+                  new MatchLine(2, 1, new BigDecimal("100"), new BigDecimal("10.00")))
+              .match();
+
+      assertThat(findings)
+          .singleElement()
+          .satisfies(
+              f -> {
+                assertThat(f.code()).isEqualTo(ReasonCode.QTY_OVER_RECEIPT);
+                assertThat(f.amountAtIssue()).isEqualByComparingTo("1000.00");
+                assertThat(f.summary()).isEqualTo("Line 2 billed 100 but 0 received");
+              });
+    }
+
+    @Test
     void flags_no_receipt_when_nothing_arrived() {
       assertThat(base().withReceived(Map.of()).match())
           .singleElement()
