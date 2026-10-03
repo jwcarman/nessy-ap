@@ -81,6 +81,15 @@ resolution := {"effect": "deny", "reason": sprintf("%v is not a resolution", [ac
 	not action in actions
 }
 
+# An agent that asked someone in this turn has not seen the answer. Measured: an agent asked the
+# buyer, then proposed approval on an answer it made up, and the overcharge was paid.
+else := {
+	"effect": "deny",
+	"reason": "you asked someone in this turn: end the turn and wait for the answer before you propose",
+} if {
+	input.facts.askedThisTurn == true
+}
+
 # Nobody is asked to approve a decision that changes nothing: a person's time is the scarce thing.
 else := {"effect": "deny", "reason": "the invoice is already on hold: there is nothing to decide"} if {
 	action == "hold"

@@ -98,6 +98,20 @@ public class Cases {
         .update();
   }
 
+  /** Whether the case's agent asked the buyer, or wrote to the vendor, in this turn. */
+  public boolean askedInTurn(UUID exceptionId, long turn) {
+    return jdbc.sql(
+            """
+            select exists (select 1 from question where exception_id = :case and asked_in_turn = :turn)
+                or exists (
+                    select 1 from outbound_mail where exception_id = :case and asked_in_turn = :turn)
+            """)
+        .param("case", exceptionId)
+        .param("turn", turn)
+        .query(Boolean.class)
+        .single();
+  }
+
   /** Every agent that worked the case, by type and id. */
   public List<Map.Entry<AgentType, AgentId>> agents(UUID exceptionId) {
     return jdbc.sql("select agent_type, agent_id from case_agent where exception_id = :case")

@@ -226,3 +226,11 @@ test_a_hold_on_an_invoice_already_on_hold_asks_nobody if {
 	ap.decision.effect == "deny" with input as proposal("hold", held)
 	ap.decision.to == "buyer" with input as proposal("approve-variance", held)
 }
+
+# An agent that asked someone a question proposes nothing until the answer has reached it.
+test_a_proposal_in_the_turn_that_asked_a_question_waits_for_the_answer if {
+	asked := object.union(price_variance, {"askedThisTurn": true})
+	ap.decision.effect == "deny" with input as proposal("approve-variance", asked)
+	ap.decision.effect == "deny" with input as proposal("hold", asked)
+	ap.decision.to == "buyer" with input as proposal("approve-variance", price_variance)
+}

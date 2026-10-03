@@ -19,3 +19,5 @@ databaseChangeLog:
       file: db/changelog/009-case-agents.sql
   - include:
       file: db/changelog/010-one-waiting-question.sql
+  - include:
+      file: db/changelog/011-asked-in-turn.sql

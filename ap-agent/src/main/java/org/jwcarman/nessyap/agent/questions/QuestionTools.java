@@ -85,12 +85,12 @@ public class QuestionTools {
         if (kase.isEmpty()) {
           return Awaited.ready(new ToolResult.Failure("This agent has no case to ask about."));
         }
-        return Awaited.ready(ask(kase.get(), request.input()));
+        return Awaited.ready(ask(kase.get(), request.input(), request.turn().value()));
       }
     };
   }
 
-  private ToolResult ask(CaseRecord c, Ask ask) {
+  private ToolResult ask(CaseRecord c, Ask ask, long turn) {
     Optional<String> buyer = buyerOf(c);
     if (buyer.isEmpty()) {
       return new ToolResult.Failure(
@@ -101,7 +101,7 @@ public class QuestionTools {
                   + " could not be read, names no buyer, or is not this vendor's.");
     }
     try {
-      questions.ask(c.exceptionId(), buyer.get(), ask.question(), ask.choices());
+      questions.ask(c.exceptionId(), buyer.get(), ask.question(), ask.choices(), turn);
     } catch (IllegalArgumentException | IllegalStateException refused) {
       return new ToolResult.Failure(refused.getMessage());
     }

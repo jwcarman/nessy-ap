@@ -19,6 +19,7 @@ import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.List;
@@ -62,6 +63,13 @@ public class Questions {
    */
   @Transactional
   public Question ask(UUID exceptionId, String askedOf, String text, List<String> choices) {
+    return ask(exceptionId, askedOf, text, choices, null);
+  }
+
+  /** As {@link #ask(UUID, String, String, List)}, recording the agent turn that asked. */
+  @Transactional
+  public Question ask(
+      UUID exceptionId, String askedOf, String text, List<String> choices, Long askedInTurn) {
     if (choices != null && choices.stream().anyMatch(c -> c == null || c.isBlank())) {
       throw new IllegalArgumentException("A choice needs words.");
     }
@@ -99,8 +107,8 @@ public class Questions {
     try {
       jdbc.sql(
               """
-            insert into question (id, exception_id, asked_of, text, choices, asked_at)
-            values (:id, :case, :askedOf, :text, :choices, :at)
+            insert into question (id, exception_id, asked_of, text, choices, asked_at, asked_in_turn)
+            values (:id, :case, :askedOf, :text, :choices, :at, :turn)
             """)
           .param("id", question.id())
           .param("case", exceptionId)
@@ -108,6 +116,7 @@ public class Questions {
           .param("text", text)
           .param("choices", offered.toArray(String[]::new))
           .param("at", Timestamp.from(question.askedAt()))
+          .param("turn", askedInTurn, Types.BIGINT)
           .update();
     } catch (DuplicateKeyException askedAtOnce) {
       // Another question was asked on this case at the same moment, and it waits now.

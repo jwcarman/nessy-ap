@@ -149,7 +149,7 @@ public class MailTools {
       if (kase.isEmpty()) {
         return Awaited.ready(new ToolResult.Failure("This agent has no case to write about."));
       }
-      ToolResult result = send(kase.get(), request.input());
+      ToolResult result = send(kase.get(), request.input(), request.turn().value());
       timeline.record(
           kase.get().exceptionId(),
           "tool",
@@ -163,7 +163,7 @@ public class MailTools {
       return Awaited.ready(result);
     }
 
-    private ToolResult send(CaseRecord c, Letter letter) {
+    private ToolResult send(CaseRecord c, Letter letter, long turn) {
       if (letter.subject() == null
           || letter.subject().isBlank()
           || letter.body() == null
@@ -189,15 +189,19 @@ public class MailTools {
       }
       return switch (recipient.apply(c)) {
         case Recipient.Nobody(String why) -> new ToolResult.Failure(why);
-        case Recipient.To(String address) -> deliver(c, address, letter);
+        case Recipient.To(String address) -> deliver(c, address, letter, turn);
       };
     }
 
-    private ToolResult deliver(CaseRecord c, String address, Letter letter) {
+    private ToolResult deliver(CaseRecord c, String address, Letter letter, long turn) {
       try {
         MailSent sent =
             mailer.send(c.exceptionId(), kind, address, letter.subject(), letter.body());
         timeline.record(c.exceptionId(), "mail-sent", kind + " " + address + ": " + sent.subject());
+        jdbc.sql("update outbound_mail set asked_in_turn = :turn where message_id = :id")
+            .param("turn", turn)
+            .param("id", sent.messageId())
+            .update();
         cases.moveStatus(c.exceptionId(), CaseStatus.INVESTIGATING, CaseStatus.AWAITING_ANSWER);
         return ToolResult.ok(
             new Block.Text(

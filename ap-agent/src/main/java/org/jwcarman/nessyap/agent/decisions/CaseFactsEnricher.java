@@ -57,6 +57,10 @@ public class CaseFactsEnricher implements ApprovalEnricher {
     request.fact("influencedByUnendorsed", nodes.booleanNode(integrity.influencedByUnendorsed()));
     request.fact("instructionsSeen", nodes.booleanNode(integrity.instructionsSeen()));
     request.fact("amountAtIssue", nodes.numberNode(c.amount()));
+    // An agent that asked someone in this turn has not seen the answer: it proposes nothing yet.
+    request.fact(
+        "askedThisTurn",
+        nodes.booleanNode(cases.askedInTurn(c.exceptionId(), request.turn().value())));
     // The ERP measures authority against the invoice total, so routing must see it too.
     // The ERP's invoice view is {"invoice": {...}, "exceptions": [...]}.
     if (erp.invoice(c.invoiceId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode view)) {
