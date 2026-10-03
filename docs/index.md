@@ -7,7 +7,8 @@ untrusted input and a measured evaluation.
 
 !!! abstract "In one paragraph"
     An ERP finds an invoice that does not match its purchase order. One Nessy agent takes the case.
-    It reads the ERP, asks the buyer or the vendor by mail, and proposes a resolution. A policy
+    It reads the ERP, asks the buyer on the workbench or the vendor by mail, and proposes a
+    resolution. A policy
     routes the proposal to the correct person. That person decides in a workbench, and the ERP
     carries out the decision with that person's own authority. The agent never moves money.
 

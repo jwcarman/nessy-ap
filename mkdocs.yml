@@ -78,6 +78,8 @@ nav:
   - Lessons for agentic systems: lessons.md
   - Evaluation:
       - evaluation/index.md
+      - "Writing an evaluation": evaluation/writing-evaluations.md
+      - "The scenarios": evaluation/scenarios.md
       - "Slice 4: authority": evaluation/slice-4-enforcement.md
       - "Slice 5: mail": evaluation/slice-5-mail.md
       - "Slice 6: the full evaluation": evaluation/slice-6-evaluation.md

@@ -59,7 +59,7 @@ flowchart TB
 | Keycloak 26.8 | Identity: users, roles and tokens. It holds no approval limits. |
 | OPA 1.21 | The routing policy (`compose/opa/policy/ap.rego`). It decides who must decide a proposal, or refuses it. |
 | RabbitMQ 4.3 | ERP events, on quorum queues, with a retry queue and a dead-letter queue. |
-| GreenMail 2.1 | The mail server for the desk, the buyers and the vendors. |
+| GreenMail 2.1 | The mail server for the desk and the vendors. A buyer gets only a notice that a question waits on the workbench. |
 | LM Studio | The models: `qwen/qwen3-coder-30b` for the agent and `google/gemma-4-e4b` for the reader, by default. |
 
 ## 3. A case from start to end

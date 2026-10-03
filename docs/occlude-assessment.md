@@ -1,6 +1,6 @@
 # Assessing Occlude for this use case
 
-Nessy AP uses Occlude to hold the mail that vendors and buyers send to the desk. This page is a
+Nessy AP uses Occlude to hold the mail that vendors send to the desk. This page is a
 critique in the same style as [Assessing Nessy](nessy-assessment.md): how easy Occlude was to
 use, how far it reached into the application, how much code it needed, and where it failed us.
 The measurements are from slice 8 on 2026-10-03, with Occlude 0.1.0. Each finding was checked
@@ -87,7 +87,7 @@ import nothing from Occlude.
 | Finding | What it cost us |
 |---|---|
 | **"Who is asking" holds one value for each key.** | A person can have several roles. The desk computes one flag, `works-cases`, from the roles and gives the ceilings only that flag. |
-| **A crash and a decline have the same reason.** | When the derivation's function throws, the refusal's reason is `DECLINED`, the same as when it returns nothing. Only the detail says "failed while reading the value", and the record encrypts the detail. The desk logged neither, so the failure was silent until we read the record. |
+| **A crash and a decline have the same reason.** | When the derivation's function throws, the refusal's reason is `DECLINED`, the same as when it returns nothing. Only the detail says "failed while reading the value", and the record encrypts the detail. The desk logged neither, so the failure was silent until we read the record. A query has the same problem: when it throws, its answer's reason is `NOT_AVAILABLE_HERE`, which looks like a policy outcome. |
 | **The application must log refusals itself.** | Occlude records each refusal but writes nothing to the application log. An operator who watches logs sees nothing. |
 
 ## Where Occlude cannot help
@@ -106,8 +106,11 @@ copy in Nessy's history, and nothing expires it (Nessy finding F13).
 ## What would make Occlude a better fit
 
 In order of value to this application:
-1. **A separate reason for a function that threw**, so a caller can tell a decline from a fault
-   without reading the record.
+1. **A separate reason for a function or a query that threw**, so a caller can tell a decline or
+   a policy outcome from a fault without reading the record.
 2. **Multi-valued attributes in the access context**, so a ceiling can ask "has the role
    `ap-clerk`" of a person with several roles.
-3. **The Jackson pin in the BOM**, so an application gets the fixed version with Occlude.
+3. **A documented Jackson pin.** A pin in Occlude's BOM would not help here: an application on
+   `spring-boot-starter-parent` gets the parent's managed versions ahead of any imported BOM. The
+   application must set `jackson-bom.version` itself, as this one does, and Occlude's
+   documentation should say so.
