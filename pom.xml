@@ -38,6 +38,7 @@
     <module>ap-contracts</module>
     <module>erp-sim</module>
     <module>ap-agent</module>
+    <module>ap-eval</module>
   </modules>
 
   <properties>
