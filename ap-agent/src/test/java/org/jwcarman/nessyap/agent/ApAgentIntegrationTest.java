@@ -15,8 +15,15 @@
  */
 package org.jwcarman.nessyap.agent;
 
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
+import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.erp.ErpStub;
+import org.jwcarman.nessyap.agent.mail.Mailbox;
+import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
+import org.jwcarman.nessyap.contracts.ReasonCode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -35,6 +42,8 @@ public abstract class ApAgentIntegrationTest {
   @Autowired protected ScriptedProvider model;
   @Autowired protected NarrationTap narration;
   @Autowired protected ErpStub erp;
+  @Autowired protected Mailbox mailbox;
+  @Autowired protected Cases caseIndex;
 
   @BeforeEach
   void freshModel() {
@@ -44,5 +53,23 @@ public abstract class ApAgentIntegrationTest {
     // policy treats a vendor it cannot read as having an unverified bank change.
     erp.on("POST", "/token", 200, "{\"access_token\":\"svc\",\"expires_in\":300}");
     erp.onPrefix("GET", "/api/vendors/", 200, "{\"bankAccounts\":[{\"status\":\"ACTIVE\"}]}");
+  }
+
+  /** A case opened in the app's own tables, without telling its agent anything. */
+  protected UUID openCase() {
+    UUID exceptionId = UUID.randomUUID();
+    caseIndex.open(
+        new MatchExceptionRaised(
+            UUID.randomUUID(),
+            Instant.now(),
+            exceptionId,
+            UUID.randomUUID(),
+            "INV-1",
+            UUID.randomUUID(),
+            "PO-1",
+            ReasonCode.NO_PO,
+            "s",
+            new BigDecimal("100.00")));
+    return exceptionId;
   }
 }

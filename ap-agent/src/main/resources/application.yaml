@@ -7,6 +7,9 @@ spring:
     url: jdbc:postgresql://localhost:55432/apagent
     username: nessyap
     password: nessyap
+  mail:
+    host: localhost
+    port: 53025
   rabbitmq:
     host: localhost
     port: 55672
@@ -61,6 +64,18 @@ ap:
     timeout: P3D
   decisions:
     auto: false
+  mail:
+    desk-address: ap-desk@nessy-ap.example
+    people-domain: nessy-ap.example
+    max-per-case: 3
+    poll:
+      enabled: true
+      interval: PT2S
+    imap:
+      host: localhost
+      port: 53143
+      username: ap-desk@nessy-ap.example
+      password: ap-desk
 management:
   endpoints:
     web:

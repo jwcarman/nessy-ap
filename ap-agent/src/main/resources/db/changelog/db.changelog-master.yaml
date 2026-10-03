@@ -7,3 +7,5 @@ databaseChangeLog:
       file: db/changelog/003-decisions.sql
   - include:
       file: db/changelog/004-decision-roles.sql
+  - include:
+      file: db/changelog/005-mail.sql
