@@ -36,10 +36,13 @@ public class AuthorityMatrix {
 
   private final JdbcClient jdbc;
   private final PurchaseOrderRepository purchaseOrders;
+  private final AuthorityMode mode;
 
-  public AuthorityMatrix(JdbcClient jdbc, PurchaseOrderRepository purchaseOrders) {
+  public AuthorityMatrix(
+      JdbcClient jdbc, PurchaseOrderRepository purchaseOrders, AuthorityMode mode) {
     this.jdbc = jdbc;
     this.purchaseOrders = purchaseOrders;
+    this.mode = mode;
   }
 
   /**
@@ -49,6 +52,10 @@ public class AuthorityMatrix {
     if (actor.user() == null) {
       throw new NotAuthorisedException(
           "A person must decide: " + actor.client() + " acts for nobody");
+    }
+    if (mode.trustsIntegrationUser()) {
+      // Recorded, not checked: the weakness trust mode exists to show.
+      return;
     }
     Grant grant =
         grantOf(actor.user(), action)

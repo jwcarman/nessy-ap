@@ -16,8 +16,10 @@
 package org.jwcarman.nessyap.erp.resolution;
 
 import java.util.UUID;
+import org.jwcarman.nessyap.erp.audit.Actor;
 import org.jwcarman.nessyap.erp.invoice.Invoice;
 import org.jwcarman.nessyap.erp.security.Callers;
+import org.jwcarman.nessyap.erp.support.InvalidRequestException;
 import org.jwcarman.nessyap.erp.support.NotFoundException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,9 +32,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ResolutionController {
 
   private final Resolutions resolutions;
+  private final AuthorityMode mode;
 
-  public ResolutionController(Resolutions resolutions) {
+  public ResolutionController(Resolutions resolutions, AuthorityMode mode) {
     this.resolutions = resolutions;
+    this.mode = mode;
   }
 
   @PostMapping("/api/invoices/{invoiceId}/{action}")
@@ -41,10 +45,28 @@ public class ResolutionController {
       @PathVariable String action,
       @RequestHeader("Idempotency-Key") String idempotencyKey,
       @RequestBody ResolutionCommand command,
+      @RequestHeader(value = "X-Acting-User", required = false) String actingUser,
       Authentication caller) {
     ResolutionAction resolution =
         ResolutionAction.fromSlug(action)
             .orElseThrow(() -> new NotFoundException("resolution action", action));
-    return resolutions.apply(Callers.of(caller), idempotencyKey, invoiceId, resolution, command);
+    return resolutions.apply(
+        actorOf(caller, actingUser), idempotencyKey, invoiceId, resolution, command);
+  }
+
+  /**
+   * The caller, and the person it acts for. In trust mode an integration caller names the person in
+   * {@code X-Acting-User}, and the ERP takes its word; it must still name somebody.
+   */
+  private Actor actorOf(Authentication caller, String actingUser) {
+    Actor actor = Callers.of(caller);
+    if (!mode.trustsIntegrationUser() || actor.user() != null) {
+      return actor;
+    }
+    if (actingUser == null || actingUser.isBlank()) {
+      throw new InvalidRequestException(
+          "The integration caller must name who decided: X-Acting-User");
+    }
+    return new Actor(actor.client(), actingUser);
   }
 }
