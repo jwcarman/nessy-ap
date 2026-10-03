@@ -16,9 +16,10 @@
 package org.jwcarman.nessyap.erp.resolution;
 
 import java.util.UUID;
-import org.jwcarman.nessyap.erp.audit.Actor;
 import org.jwcarman.nessyap.erp.invoice.Invoice;
+import org.jwcarman.nessyap.erp.security.Callers;
 import org.jwcarman.nessyap.erp.support.NotFoundException;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -39,10 +40,11 @@ public class ResolutionController {
       @PathVariable UUID invoiceId,
       @PathVariable String action,
       @RequestHeader("Idempotency-Key") String idempotencyKey,
-      @RequestBody ResolutionCommand command) {
+      @RequestBody ResolutionCommand command,
+      Authentication caller) {
     ResolutionAction resolution =
         ResolutionAction.fromSlug(action)
             .orElseThrow(() -> new NotFoundException("resolution action", action));
-    return resolutions.apply(Actor.anonymous(), idempotencyKey, invoiceId, resolution, command);
+    return resolutions.apply(Callers.of(caller), idempotencyKey, invoiceId, resolution, command);
   }
 }

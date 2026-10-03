@@ -17,10 +17,11 @@ package org.jwcarman.nessyap.erp.vendor;
 
 import java.util.List;
 import java.util.UUID;
-import org.jwcarman.nessyap.erp.audit.Actor;
 import org.jwcarman.nessyap.erp.invoice.Invoice;
 import org.jwcarman.nessyap.erp.invoice.InvoiceQueries;
+import org.jwcarman.nessyap.erp.security.Callers;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,8 +44,8 @@ public class VendorController {
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public Vendor create(@RequestBody NewVendor vendor) {
-    return vendors.create(Actor.anonymous(), vendor);
+  public Vendor create(@RequestBody NewVendor vendor, Authentication caller) {
+    return vendors.create(Callers.of(caller), vendor);
   }
 
   @GetMapping("/{id}")
@@ -55,8 +56,8 @@ public class VendorController {
   @PostMapping("/{id}/bank-changes")
   @ResponseStatus(HttpStatus.CREATED)
   public BankAccount proposeBankChange(
-      @PathVariable UUID id, @RequestBody BankChangeProposal proposal) {
-    return vendors.proposeBankChange(Actor.anonymous(), id, proposal);
+      @PathVariable UUID id, @RequestBody BankChangeProposal proposal, Authentication caller) {
+    return vendors.proposeBankChange(Callers.of(caller), id, proposal);
   }
 
   @GetMapping("/{id}/invoices")

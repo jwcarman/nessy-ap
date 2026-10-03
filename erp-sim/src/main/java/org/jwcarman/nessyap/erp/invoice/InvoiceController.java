@@ -18,8 +18,9 @@ package org.jwcarman.nessyap.erp.invoice;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
-import org.jwcarman.nessyap.erp.audit.Actor;
+import org.jwcarman.nessyap.erp.security.Callers;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,8 +44,8 @@ public class InvoiceController {
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public InvoiceView receive(@RequestBody NewInvoice invoice) {
-    return queries.get(intake.receive(Actor.anonymous(), invoice).id());
+  public InvoiceView receive(@RequestBody NewInvoice invoice, Authentication caller) {
+    return queries.get(intake.receive(Callers.of(caller), invoice).id());
   }
 
   @GetMapping("/similar")
