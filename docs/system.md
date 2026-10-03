@@ -8,11 +8,12 @@ stops, and each control that keeps money safe. The design of record is
 
 An accounts-payable (AP) team receives invoices. The ERP matches each invoice against its purchase
 order (PO) and its goods receipts. When the match fails, the ERP raises a match exception. The desk
-gives each exception to an agent. The agent investigates, asks people by mail when it needs to, and
-proposes a resolution. A person with the correct authority decides. The ERP carries out the
-decision as that person.
+gives each exception to an agent. The agent investigates, asks the buyer on the workbench or the
+vendor by mail when it needs to, and proposes a resolution. A person with the correct authority
+decides. The ERP carries out the decision as that person.
 
-The agent never moves money. It reads, writes mail to addresses of record, and proposes.
+The agent never moves money. It reads, asks, writes mail to the vendor's address of record, and
+proposes.
 
 ## 2. The parts
 
@@ -38,7 +39,7 @@ flowchart TB
   PG[(Postgres)]
 
   PEOPLE -- sign in --> KC
-  PEOPLE -- decide in the workbench --> AGENT
+  PEOPLE -- answer questions, decide in the workbench --> AGENT
   EVAL -.-> AGENT
   AGENT -- each proposal and vendor mail --> OPA
   AGENT -- inference --> LLM
@@ -53,13 +54,13 @@ flowchart TB
 | Part | What it is |
 |---|---|
 | `erp-sim` | A simulated ERP. It owns invoices, POs, receipts, vendors, the authority matrix and the audit. It publishes events through a transactional outbox. |
-| `ap-agent` | One Nessy agent per exception, on Nessy's queued door. It also serves the workbench (Thymeleaf) and a JSON API. |
+| `ap-agent` | One Nessy agent per exception, on Nessy's queued door, and one no-tools reader agent per vendor reply, on the direct door. It also serves the workbench (Thymeleaf) and a JSON API. Vendor mail is held by Occlude. All of Nessy's stored history is encrypted. |
 | `ap-eval` | Runs seeded scenarios against the running stack and scores each run. |
 | Keycloak 26.8 | Identity: users, roles and tokens. It holds no approval limits. |
 | OPA 1.21 | The routing policy (`compose/opa/policy/ap.rego`). It decides who must decide a proposal, or refuses it. |
 | RabbitMQ 4.3 | ERP events, on quorum queues, with a retry queue and a dead-letter queue. |
 | GreenMail 2.1 | The mail server for the desk, the buyers and the vendors. |
-| LM Studio | The model, `qwen/qwen3-coder-30b` by default. |
+| LM Studio | The models: `qwen/qwen3-coder-30b` for the agent and `google/gemma-4-e4b` for the reader, by default. |
 
 ## 3. A case from start to end
 
@@ -71,17 +72,25 @@ sequenceDiagram
   participant D as ap-agent (desk)
   participant A as Agent (model)
   participant P as OPA policy
-  participant B as Buyer / vendor
+  participant V as Vendor (mail)
+  participant R as Reader (no tools)
   participant H as Person (workbench)
 
   ERP->>MQ: match-exception.raised
   MQ->>D: event (deduplicated by event id)
   D->>A: tell: exception raised
   A->>ERP: read invoice, PO, receipts, vendor (service token)
-  opt the agent needs an answer
-    A->>B: email at the address of record
-    B-->>D: reply by mail (Camel inbox route)
-    D->>A: tell: reply, quoted, sender known or not
+  opt the agent needs the buyer
+    A->>H: ask_buyer: a question on the buyer's worklist
+    H-->>D: the buyer answers, signed in
+    D->>A: tell: the buyer's own word
+  end
+  opt the agent needs the vendor
+    A->>V: email at the address of record
+    V-->>D: reply by mail (Camel inbox route)
+    D->>R: the reply, held by Occlude, read with no tools
+    R-->>D: a typed reading (intent, offers, price, PO, instructions?)
+    D->>A: tell: the typed reading, never the text
   end
   A->>P: propose a resolution
   alt policy refuses
@@ -99,9 +108,13 @@ sequenceDiagram
 2. ap-agent reads the event. In one transaction, it records the event id, opens the case and tells
    the case's agent. A repeated event changes nothing.
 3. The agent reads the invoice, the PO, the receipts and the vendor.
-4. If the agent needs a person outside the desk, it writes to the buyer of record or to the
-   vendor's contact of record. The reply comes back by mail. The desk's inbox route reads it and
-   tells the agent.
+4. If the agent needs the buyer, it asks on the workbench (`ask_buyer`). The question goes to the
+   buyer the ERP names on a PO that belongs to the case's vendor, and a short notice mail tells
+   the buyer it waits. The buyer answers signed in, and the answer reaches the agent as the
+   buyer's own word. If the agent needs the vendor, it writes to the vendor's contact of record.
+   The reply comes back by mail, is held by Occlude, and is read by a model with no tools into
+   a typed reading. The agent gets the reading, never the text. While it waits, the case is
+   `AWAITING_ANSWER`, and the invoice stays stopped by its exception.
 5. The agent proposes a resolution: approve-variance, short-pay, hold, reject or
    request-credit-memo.
 6. OPA routes the proposal to a role (clerk, buyer, AP manager or controller), or refuses it.
@@ -109,7 +122,10 @@ sequenceDiagram
 8. The workbench sends the command to the ERP with that person's own token. The ERP checks the
    person's authority again and applies the command, or refuses it.
 9. The agent reads the outcome. A refusal or a denial is information, and the agent can propose
-   again.
+   again. Every turn ends with a move: a proposal, a question, or a letter.
+
+The desk records every agent that works a case (its own agent, and each reader) and reports what
+the case cost, per model, from Nessy's stored history (`/api/cases/{id}/usage`).
 
 ## 4. Where trust stops
 
@@ -173,6 +189,9 @@ money safe, because a model can be persuaded.
 | Mail goes only to addresses of record, at most 3 per case per recipient | `MailTools` | Mail to an attacker's address; mail floods | `MailToolsTest` |
 | A case whose mail tried to give instructions cannot move money | OPA (`instructionsSeen` from the case's integrity label) | A persuasive reply turning into a payment | `injected-reply` 5/5 held; `ap_test.rego` |
 | Untrusted mail is never in the agent's context or in plaintext at rest | Occlude (labels, reveals, record); Nessy's storage codec (AES-256-GCM, a key of its own) | Prompt injection through mail; a database copy of vendor text | `QuarantineDeclarationsTest`, `ReaderWiredTest` |
+| A citation the agent never read is shown to the approver | The desk (`Grounding`: only ids a successful tool returned count) | An approver trusting evidence the agent made up or only glimpsed | `GroundingTest`; scored in every evaluation run |
+| Nobody approves a decision that changes nothing | OPA (a hold on an invoice already on hold is refused) | People's time spent on no-ops; a case stranded by an ERP refusal | `ap_test.rego`, `PolicyRoutingTest` |
+| One question waits per case, and only the person asked may answer, once | Postgres (a unique partial index) and `Answers` (row lock) | A buyer flooded with questions; an answer from the wrong person | `QuestionsTest`, `QuestionAnswerTest` |
 | Each inbox message is handled once and never blocks the inbox | Camel route: idempotent consumer, transacted, dead letter channel | Double replies; one bad message stopping all mail | `DeskInboxRouteTest`, `DeskInboxDeadLetterTest` |
 
 ### The desk's inbox route
@@ -218,10 +237,15 @@ flowchart LR
   Nothing in the desk lowers the flag; a person settles the invoice in the ERP.
 - **Stored history is never expired.** Nessy keeps every agent's history, encrypted, with no
   retention rule (Nessy finding F13).
-- **The eval's approver approves everything.** A real approver sees the evidence. The eval measures
-  the agent and the controls, not the people.
+- **A turn that fails leaves its case with nobody acting.** When the model server drops a request,
+  Nessy ends the turn (finding F15), and nothing puts the case in front of a person. The
+  workbench shows the case as investigating.
+- **No reminder for an unanswered question.** A case that waits on a silent person waits; the
+  workbench shows on whom.
+- **The eval's approver approves**, except where a scenario scripts a denial. A real approver
+  sees the evidence and the warning for any citation the agent never read.
 - **Not tested yet:** an approval that expires during a decision, a restart between proposal and
-  decision, and frontier models.
+  decision, outages of mail, OPA or Postgres, and frontier models.
 
 ## 8. How to run it
 

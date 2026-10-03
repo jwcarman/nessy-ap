@@ -71,6 +71,8 @@ decisions and audit.
   application. Tool schemas come from Java records.
 - **A one-shot is a direct harness.** The quarantined reader is a `DirectHarness` with no tools
   and a typed answer. Value types such as `PoNumber` reach the model as plain strings.
+- **Cost per case.** `UsageReports` gives any agent's usage by model, projected from its stored
+  events, so the desk prices each case from every agent that worked it, after any restart.
 - **Measured from the start.** Nessy publishes usage as OpenTelemetry-style metrics, with input,
   output, cache and reasoning counts for each model.
 - **Agent tests without mocks.** A scripted inference provider drives the real engine, so the
@@ -81,7 +83,7 @@ decisions and audit.
 | Finding | What it cost us |
 |---|---|
 | **F1.** A tool cannot see its own approval. | A table of decisions, keyed by turn and call id, so that `propose_resolution` can find the decision that let it run. |
-| **F3.** No read API for an agent's story. | The audit trail uses an internal engine type. The direct door returns a turn's token total; the queued door returns nothing, and no door gives usage by model and kind. |
+| **F3.** No read API for an agent's story. | The audit trail and the evidence check use an internal engine type. Usage is now readable, by model, through `UsageReports` (added to Nessy during this work); the story itself is not. |
 | **F4.** A late decision has no channel. | A separate path that tells the agent after its approval expired. |
 | **F5.** No scripted model for tests. | About 90 lines of test support that every Nessy application will write again. |
 | **F6.** Narration cannot be joined to a tool call. | The application writes its own timeline for people to read. Fixed on Nessy `main` since. |
@@ -93,6 +95,7 @@ decisions and audit.
 | **F12.** Nothing checks that the policy knows a gated tool. | A new tool met an old policy, and a fraudulent vendor received mail. The policy now denies any tool it does not name. |
 | **F13.** Stored history has no retention or cleanup. | The quarantined reader's history holds the text of every reply, outside Occlude. Nessy's storage codec encrypts it (the desk uses codec-crypto), but nothing expires it, and Occlude's erasure cannot reach it. |
 | **F14.** The direct door fails inside a caller's transaction, and nothing anticipated it. | We called it inside the mail route's transaction (our mistake: a model call held a transaction open). Every live read failed with an internal error, and no test saw it. The reader now suspends the transaction. |
+| **F15.** A dropped connection to the model ends the turn. | The OpenAI adapter reports a transport failure as "unknown", and the engine retries only "transient" failures. Under parallel load on LM Studio, each dropped request left a case with nobody acting on it. |
 
 Two smaller points:
 - **The `Tool` interface is verbose for simple tools.** Each tool implements four methods.
@@ -108,7 +111,7 @@ In order of value to this application:
 1. **Release the fixes on `main` (F6, F8, F10).** Nobody can build on the queued door without F8.
 2. **Make approvals complete:** a tool sees its approval (F1), a late decision has a channel (F4),
    and call keys are unique (F7). Together these would remove about 100 lines and a class of bug.
-3. **A read API for an agent's story, with usage as a whole (F3, F10).** Audit and cost are the
+3. **A read API for an agent's story (F3).** Usage is done (`UsageReports`); the story is not. Audit and cost are the
    first questions an enterprise asks.
 4. **Provenance on input (F11).** Let an application say how far each input is trusted, so that
    the renderer, the policy and the trail can use it. The Occlude experiment in this repository

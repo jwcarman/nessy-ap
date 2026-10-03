@@ -75,12 +75,16 @@ nav:
   - Home: index.md
   - Getting started: getting-started.md
   - How it works: system.md
+  - Lessons for agentic systems: lessons.md
   - Evaluation:
       - evaluation/index.md
       - "Slice 4: authority": evaluation/slice-4-enforcement.md
       - "Slice 5: mail": evaluation/slice-5-mail.md
       - "Slice 6: the full evaluation": evaluation/slice-6-evaluation.md
       - "Slice 7: the Camel inbox": evaluation/slice-7-camel-inbox.md
+      - "Slice 8: mail in quarantine": evaluation/slice-8-quarantine.md
+      - "Slice 9: people answer on the workbench": evaluation/slice-9-workbench.md
+      - "The client evaluation": evaluation/client-evaluation.md
   - Nessy:
       - Assessing Nessy for this use case: nessy-assessment.md
       - Findings: findings.md
