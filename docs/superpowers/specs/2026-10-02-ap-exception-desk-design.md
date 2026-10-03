@@ -152,7 +152,10 @@ credit memos to clerks (a credit memo holds the invoice and asks the vendor;
 no money moves), so the matrix follows the routing; the two must agree or the
 ERP refuses what the policy routed. The amount checked is what the command
 authorises: a short-pay's amount, otherwise the invoice total. The grants live
-in the ERP's `authority_grant` table, keyed by username.
+in the ERP's `authority_grant` table, keyed by username. Routing measures the
+same amount (the policy sees `invoiceTotal`), never less: a $40 variance on a
+$12,000 invoice goes to the controller, because the buyer's $10,000 limit would
+be refused by the ERP. An unknown total routes to the controller.
 
 Nobody may release a hold on a vendor with an unverified bank change. The
 agent's client-credentials token may **read** and may never issue a command.

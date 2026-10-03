@@ -10,7 +10,7 @@ proposal(action, facts) := {
 	"facts": facts,
 }
 
-price_variance := {"reasonCode": "PRICE_VARIANCE", "amountAtIssue": 40, "buyer": "bob", "bankChangeUnverified": false}
+price_variance := {"reasonCode": "PRICE_VARIANCE", "amountAtIssue": 40, "invoiceTotal": 5000, "buyer": "bob", "bankChangeUnverified": false}
 
 test_reads_are_allowed if {
 	ap.decision == {"effect": "allow"} with input as {"toolName": "get_invoice", "arguments": {}, "facts": {}}
@@ -31,12 +31,12 @@ test_a_small_price_variance_goes_to_the_pos_buyer if {
 test_other_approvals_go_to_the_ap_manager if {
 	ap.decision.to == "ap-manager" with input as proposal(
 		"approve-variance",
-		{"reasonCode": "UNPLANNED_CHARGE", "amountAtIssue": 1600, "bankChangeUnverified": false},
+		{"reasonCode": "UNPLANNED_CHARGE", "amountAtIssue": 1600, "invoiceTotal": 5000, "bankChangeUnverified": false},
 	)
 }
 
 test_a_rejection_goes_to_the_ap_manager if {
-	ap.decision.to == "ap-manager" with input as proposal("reject", {"reasonCode": "DUPLICATE", "amountAtIssue": 1000, "bankChangeUnverified": false})
+	ap.decision.to == "ap-manager" with input as proposal("reject", {"reasonCode": "DUPLICATE", "amountAtIssue": 1000, "invoiceTotal": 1000, "bankChangeUnverified": false})
 }
 
 test_above_ten_thousand_goes_to_the_controller if {
@@ -73,7 +73,7 @@ test_an_unknown_action_is_denied if {
 }
 
 test_a_missing_buyer_falls_back_to_the_ap_manager if {
-	ap.decision.to == "ap-manager" with input as proposal("approve-variance", {"reasonCode": "PRICE_VARIANCE", "amountAtIssue": 40, "bankChangeUnverified": false})
+	ap.decision.to == "ap-manager" with input as proposal("approve-variance", {"reasonCode": "PRICE_VARIANCE", "amountAtIssue": 40, "invoiceTotal": 5000, "bankChangeUnverified": false})
 }
 
 test_a_payment_with_no_word_on_the_bank_details_is_denied if {
@@ -101,5 +101,24 @@ test_a_short_pay_of_nothing_is_denied if {
 		"toolName": "propose_resolution",
 		"arguments": {"action": "short-pay", "amount": -5, "rationale": "r", "evidence": []},
 		"facts": {"reasonCode": "QTY_OVER_RECEIPT", "amountAtIssue": 400, "bankChangeUnverified": false},
+	}
+}
+
+test_a_small_variance_on_an_invoice_over_the_limit_goes_to_the_controller if {
+	ap.decision.to == "controller" with input as proposal(
+		"approve-variance",
+		{"reasonCode": "PRICE_VARIANCE", "amountAtIssue": 40, "invoiceTotal": 12000, "buyer": "bob", "bankChangeUnverified": false},
+	)
+}
+
+test_an_unknown_invoice_total_goes_to_the_controller if {
+	ap.decision.to == "controller" with input as proposal("reject", {"reasonCode": "DUPLICATE", "amountAtIssue": 1000, "bankChangeUnverified": false})
+}
+
+test_a_short_pay_is_judged_by_what_it_pays_not_the_invoice_total if {
+	ap.decision.to == "ap-manager" with input as {
+		"toolName": "propose_resolution",
+		"arguments": {"action": "short-pay", "amount": 9000, "rationale": "r", "evidence": []},
+		"facts": {"reasonCode": "QTY_OVER_RECEIPT", "amountAtIssue": 400, "invoiceTotal": 12000, "bankChangeUnverified": false},
 	}
 }

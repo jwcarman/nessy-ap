@@ -52,8 +52,15 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
   private AgentId agentId;
 
   private void propose(ReasonCode code, String amountAtIssue, String proposal) {
+    propose(code, amountAtIssue, "5000.00", proposal);
+  }
+
+  private void propose(
+      ReasonCode code, String amountAtIssue, String invoiceTotal, String proposal) {
     UUID vendor = UUID.randomUUID();
+    UUID invoice = UUID.randomUUID();
     erp.on("GET", "/api/purchase-orders/PO-1", 200, "{\"poNumber\":\"PO-1\",\"buyer\":\"bob\"}");
+    erp.on("GET", "/api/invoices/" + invoice, 200, "{\"total\":" + invoiceTotal + "}");
     model.script(steps(call("c1", "propose_resolution", proposal)));
     exceptionId = UUID.randomUUID();
     MatchExceptionRaised raised =
@@ -61,7 +68,7 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
             UUID.randomUUID(),
             Instant.now(),
             exceptionId,
-            UUID.randomUUID(),
+            invoice,
             "INV-1",
             vendor,
             "PO-1",
@@ -105,6 +112,23 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
 
     assertThat(pending.requiredRole()).isEqualTo(role);
     assertThat(pending.requiredUser()).isEqualTo(user);
+  }
+
+  @Test
+  void a_small_variance_on_an_invoice_over_the_limit_goes_where_the_erp_will_accept_it() {
+    propose(
+        ReasonCode.PRICE_VARIANCE,
+        "40.00",
+        "12000.00",
+        "{\"action\":\"approve-variance\",\"rationale\":\"r\",\"evidence\":[]}");
+
+    PendingDecision pending =
+        await()
+            .atMost(PATIENCE)
+            .until(() -> decisions.forCase(exceptionId), list -> !list.isEmpty())
+            .getFirst();
+
+    assertThat(pending.requiredRole()).isEqualTo("controller");
   }
 
   @Test

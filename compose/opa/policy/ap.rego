@@ -28,11 +28,18 @@ at_issue := input.facts.amountAtIssue if is_number(input.facts.amountAtIssue)
 
 short_pay_amount := input.arguments.amount if is_number(input.arguments.amount)
 
+# The ERP checks a decider's authority against the invoice total (a short-pay's own amount for a
+# short-pay), so routing must never send a decision lower than the ERP will accept. An unknown total
+# reads as above every limit but the controller's.
+invoice_total := input.facts.invoiceTotal if is_number(input.facts.invoiceTotal)
+
+else := limit + 1
+
 # What a decision puts at stake. A short-pay is judged by the larger of what it pays and what the
 # exception questioned, so the model cannot choose a small amount to choose a junior reviewer.
 amount := max({short_pay_amount, at_issue}) if action == "short-pay"
 
-else := at_issue
+else := max({at_issue, invoice_total})
 
 resolution := {"effect": "deny", "reason": sprintf("%v is not a resolution", [action])} if {
 	not action in actions
