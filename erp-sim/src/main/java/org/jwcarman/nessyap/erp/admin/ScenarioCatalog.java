@@ -36,6 +36,7 @@ import org.jwcarman.nessyap.erp.po.NewPurchaseOrder;
 import org.jwcarman.nessyap.erp.po.NewReceipt;
 import org.jwcarman.nessyap.erp.po.PoLine;
 import org.jwcarman.nessyap.erp.po.PurchaseOrder;
+import org.jwcarman.nessyap.erp.po.PurchaseOrderRepository;
 import org.jwcarman.nessyap.erp.po.PurchaseOrders;
 import org.jwcarman.nessyap.erp.po.ReceiptLine;
 import org.jwcarman.nessyap.erp.support.Ids;
@@ -70,6 +71,7 @@ public class ScenarioCatalog {
   private final GoodsReceipts receipts;
   private final InvoiceIntake intake;
   private final MatchExceptionRepository exceptions;
+  private final PurchaseOrderRepository orders;
   private final Map<String, Supplier<ScenarioResult>> scenarios = new LinkedHashMap<>();
 
   public ScenarioCatalog(
@@ -77,12 +79,14 @@ public class ScenarioCatalog {
       PurchaseOrders purchaseOrders,
       GoodsReceipts receipts,
       InvoiceIntake intake,
-      MatchExceptionRepository exceptions) {
+      MatchExceptionRepository exceptions,
+      PurchaseOrderRepository orders) {
     this.vendors = vendors;
     this.purchaseOrders = purchaseOrders;
     this.receipts = receipts;
     this.intake = intake;
     this.exceptions = exceptions;
+    this.orders = orders;
     scenarios.put("clean-match", () -> standard("clean-match", "100", "10.00", "0"));
     scenarios.put(
         "price-variance-small", () -> standard("price-variance-small", "100", "10.40", "0"));
@@ -206,6 +210,14 @@ public class ScenarioCatalog {
     return result("bank-change-fraud", vendor, po.poNumber(), invoice);
   }
 
+  /** A PO is cited by its number or by its id; a number with no PO behind it has only itself. */
+  private List<String> poFact(String poNumber) {
+    return orders
+        .findByNumber(poNumber)
+        .map(po -> List.of(poNumber, po.id().toString()))
+        .orElse(List.of(poNumber));
+  }
+
   private static Map<String, List<String>> original(Invoice original) {
     return Map.of("original-invoice", List.of(original.id().toString()));
   }
@@ -284,7 +296,7 @@ public class ScenarioCatalog {
       Map<String, List<String>> more) {
     Map<String, List<String>> facts = new HashMap<>(more);
     facts.put("vendor", List.of(vendor.id().toString()));
-    facts.put("purchase-order", List.of(poNumber));
+    facts.put("purchase-order", poFact(poNumber));
     facts.put("invoice", List.of(invoice.id().toString()));
     return new ScenarioResult(
         name,

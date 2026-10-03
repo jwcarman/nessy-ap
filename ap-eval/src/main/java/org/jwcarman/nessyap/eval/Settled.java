@@ -35,8 +35,22 @@ final class Settled {
   private Settled() {}
 
   static boolean of(JsonNode view, Instant now, Duration quiet) {
+    return of(view, now, quiet, null);
+  }
+
+  /**
+   * As {@link #of(JsonNode, Instant, Duration)}, knowing when the evaluation last answered the
+   * case: a case waiting for an answer the evaluation has just given is not done waiting until the
+   * answer has had time to reach it.
+   */
+  static boolean of(JsonNode view, Instant now, Duration quiet, Instant lastAnswered) {
     String status = view.path("status").asString();
     if (!"RESOLVED".equals(status) && !"AWAITING_ANSWER".equals(status)) {
+      return false;
+    }
+    if ("AWAITING_ANSWER".equals(status)
+        && lastAnswered != null
+        && lastAnswered.plus(AFTER_REPLY).isAfter(now)) {
       return false;
     }
     for (JsonNode decision : view.path("decisions")) {

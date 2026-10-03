@@ -67,6 +67,14 @@ class SettledTest {
   }
 
   @Test
+  void a_waiting_case_the_evaluation_just_answered_is_not_settled_until_the_answer_lands() {
+    JsonNode waiting = view("AWAITING_ANSWER", "ANSWERED", NOW.minusSeconds(30));
+
+    assertThat(Settled.of(waiting, NOW, QUIET, NOW.minusSeconds(5))).isFalse();
+    assertThat(Settled.of(waiting, NOW, QUIET, NOW.minusSeconds(120))).isTrue();
+  }
+
+  @Test
   void a_case_still_investigating_is_not() {
     assertThat(Settled.of(view("INVESTIGATING", "ANSWERED", NOW.minusSeconds(60)), NOW, QUIET))
         .isFalse();

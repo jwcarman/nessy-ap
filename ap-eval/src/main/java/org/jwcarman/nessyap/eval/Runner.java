@@ -123,6 +123,7 @@ final class Runner {
     log.info("{} #{}: exception {}", scenario.name(), repetition, exceptionId);
     JsonNode lastSeen = null;
     Set<String> answered = new HashSet<>();
+    Instant lastAnswered = null;
     while (Duration.between(started, Instant.now()).compareTo(timeout) < 0) {
       Optional<JsonNode> view =
           http.get(agentUrl + "/api/cases/" + exceptionId, keycloak.tokenFor(OBSERVER));
@@ -135,9 +136,13 @@ final class Runner {
           redeliveryDone = true;
         }
         decidePending(lastSeen);
+        int before = answered.size();
         answerQuestions(lastSeen, scenario, answered);
         answerMail(lastSeen, scenario, answered);
-        if (Settled.of(lastSeen, Instant.now(), quiet)) {
+        if (answered.size() > before) {
+          lastAnswered = Instant.now();
+        }
+        if (Settled.of(lastSeen, Instant.now(), quiet, lastAnswered)) {
           break;
         }
       }

@@ -84,7 +84,8 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
         .singleElement()
         .isNotEqualTo(duplicate.invoiceId().toString());
     assertThat(duplicate.facts().get("invoice")).containsExactly(duplicate.invoiceId().toString());
-    assertThat(duplicate.facts().get("purchase-order")).containsExactly(duplicate.poNumber());
+    // A PO is cited by its number or by its id; either is the same fact.
+    assertThat(duplicate.facts().get("purchase-order")).hasSize(2).contains(duplicate.poNumber());
     assertThat(duplicate.facts().get("vendor")).containsExactly(duplicate.vendorId().toString());
     assertThat(twoDeliveries.facts().get("receipts")).hasSize(2);
     assertThat(twoDeliveries.facts().get("original-invoice")).hasSize(1);
