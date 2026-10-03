@@ -162,6 +162,14 @@ A transactional outbox publishes to RabbitMQ: `match-exception.raised`,
 `receipt.posted`, `invoice.resolved`, `vendor.bank-change.proposed`. Each event
 carries a stable event id. Delivery is at-least-once.
 
+**Topology** (ruled 2026-10-03): `erp-sim` declares only `erp.events`, with an
+alternate exchange `erp.events.unrouted` feeding a quorum queue of the same
+name, so an event no queue is bound for is kept rather than confirmed and
+dropped. Each consumer declares its own quorum queue and bindings. Compose
+additionally pre-provisions the whole topology from a RabbitMQ definitions
+file (slice 2), so start order does not matter, and RabbitMQ has a data
+volume.
+
 ### 2.7 Fault injection and seeding
 
 Admin endpoints (dev profile, admin role): per-route latency and 5xx rate

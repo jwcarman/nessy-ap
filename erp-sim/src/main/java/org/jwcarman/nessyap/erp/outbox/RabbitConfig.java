@@ -16,16 +16,43 @@
 package org.jwcarman.nessyap.erp.outbox;
 
 import org.jwcarman.nessyap.contracts.ErpEvents;
-import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Exchange;
+import org.springframework.amqp.core.ExchangeBuilder;
+import org.springframework.amqp.core.FanoutExchange;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * The ERP's side of the topology: the exchange it publishes to, and a catch-all for events nobody
+ * has bound a queue for. Consumers declare their own queues and bindings.
+ */
 @Configuration(proxyBeanMethods = false)
 public class RabbitConfig {
 
-  /** The exchange every ERP event goes to. Consumers bind their own queues to it. */
   @Bean
-  public TopicExchange erpEvents() {
-    return new TopicExchange(ErpEvents.EXCHANGE, true, false);
+  public Exchange erpEvents() {
+    return ExchangeBuilder.topicExchange(ErpEvents.EXCHANGE)
+        .durable(true)
+        .alternate(ErpEvents.UNROUTED_EXCHANGE)
+        .build();
+  }
+
+  @Bean
+  public FanoutExchange unroutedEvents() {
+    return new FanoutExchange(ErpEvents.UNROUTED_EXCHANGE, true, false);
+  }
+
+  @Bean
+  public Queue unroutedQueue() {
+    return QueueBuilder.durable(ErpEvents.UNROUTED_QUEUE).quorum().build();
+  }
+
+  @Bean
+  public Binding unroutedBinding(Queue unroutedQueue, FanoutExchange unroutedEvents) {
+    return BindingBuilder.bind(unroutedQueue).to(unroutedEvents);
   }
 }

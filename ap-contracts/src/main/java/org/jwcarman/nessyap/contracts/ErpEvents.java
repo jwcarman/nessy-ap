@@ -21,6 +21,15 @@ public final class ErpEvents {
   /** The durable topic exchange every ERP event is published to. */
   public static final String EXCHANGE = "erp.events";
 
+  /**
+   * Where an event goes when no queue is bound for its routing key: the alternate exchange of
+   * {@link #EXCHANGE}. Without it RabbitMQ confirms the publish and drops the message.
+   */
+  public static final String UNROUTED_EXCHANGE = "erp.events.unrouted";
+
+  /** The queue that collects unrouted events, so they can be seen and replayed. */
+  public static final String UNROUTED_QUEUE = "erp.events.unrouted";
+
   private ErpEvents() {}
 
   public static String routingKey(ErpEvent event) {

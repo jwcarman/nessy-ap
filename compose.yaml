@@ -12,11 +12,15 @@ services:
       - postgres-data:/var/lib/postgresql
   rabbitmq:
     image: rabbitmq:4-management-alpine
+    hostname: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: nessyap
       RABBITMQ_DEFAULT_PASS: nessyap
     ports:
       - "55672:5672"
       - "55673:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
 volumes:
   postgres-data:
+  rabbitmq-data:

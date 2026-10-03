@@ -33,7 +33,7 @@ import org.testcontainers.rabbitmq.RabbitMQContainer;
 @TestConfiguration(proxyBeanMethods = false)
 public class ErpContainers {
 
-  /** A queue that hears every ERP event, so a test can see what was published. */
+  /** A queue that hears vendor events, so a test can see what was published. */
   public static final String TAP_QUEUE = "test.erp-events.tap";
 
   @Bean
@@ -55,6 +55,6 @@ public class ErpContainers {
 
   @Bean
   Binding tapBinding(Queue tapQueue) {
-    return BindingBuilder.bind(tapQueue).to(new TopicExchange(ErpEvents.EXCHANGE)).with("#");
+    return BindingBuilder.bind(tapQueue).to(new TopicExchange(ErpEvents.EXCHANGE)).with("vendor.#");
   }
 }
