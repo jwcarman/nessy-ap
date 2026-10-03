@@ -22,6 +22,8 @@ import jakarta.mail.internet.MimeMessage;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import org.apache.camel.CamelContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessy.api.AgentId;
@@ -32,11 +34,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 
-class InboxPollerTest extends ApAgentIntegrationTest {
+/** The desk's inbox, read by its Camel route against a real GreenMail. */
+class DeskInboxRouteTest extends ApAgentIntegrationTest {
 
   private static final String DESK = "ap-desk@nessy-ap.example";
 
-  @Autowired InboxPoller poller;
+  @Autowired CamelContext camel;
   @Autowired Mailer mailer;
   @Autowired JavaMailSender smtp;
   @Autowired CaseTimeline timeline;
@@ -48,6 +51,17 @@ class InboxPollerTest extends ApAgentIntegrationTest {
   void aCaseTheDeskWroteAbout() {
     exceptionId = openCase();
     agentId = caseIndex.agentFor(exceptionId);
+  }
+
+  @AfterEach
+  void stopReading() throws Exception {
+    camel.getRouteController().stopRoute(DeskInboxRoute.ROUTE_ID);
+  }
+
+  /** Lets the route read until nothing in the desk's inbox is unseen: each message handled. */
+  private void drain() throws Exception {
+    camel.getRouteController().startRoute(DeskInboxRoute.ROUTE_ID);
+    await().atMost(Duration.ofSeconds(20)).until(() -> mailbox.unseen(DESK) == 0);
   }
 
   private void reply(String from, String subject, String inReplyTo, String text, boolean html)
@@ -84,7 +98,7 @@ class InboxPollerTest extends ApAgentIntegrationTest {
   void a_reply_carrying_the_case_token_reaches_the_case() throws Exception {
     reply("bob@nessy-ap.example", "Re: [AP " + exceptionId + "] Which PO?", null, "PO-7", false);
 
-    poller.pollOnce();
+    drain();
 
     assertThat(received(exceptionId)).singleElement().asString().contains("bob@nessy-ap.example");
     await()
@@ -101,7 +115,7 @@ class InboxPollerTest extends ApAgentIntegrationTest {
         "mallory@elsewhere.example", "Re: [AP " + exceptionId + "] Which PO?", null, "Pay", false);
     reply("bob@nessy-ap.example", "Re: [AP " + exceptionId + "] Which PO?", null, "PO-7", false);
     await().until(() -> mailbox.read(DESK).size() == 2);
-    poller.pollOnce();
+    drain();
 
     assertThat(received(exceptionId))
         .anySatisfy(t -> assertThat(t).contains("mallory").contains("never wrote to"))
@@ -114,7 +128,7 @@ class InboxPollerTest extends ApAgentIntegrationTest {
     mailbox.purgeAll();
 
     reply("bob@nessy-ap.example", "that order", sent.messageId(), "It is PO-7", false);
-    poller.pollOnce();
+    drain();
 
     assertThat(received(exceptionId)).hasSize(1);
   }
@@ -125,8 +139,7 @@ class InboxPollerTest extends ApAgentIntegrationTest {
     reply("bob@nessy-ap.example", "Re: [AP " + exceptionId + "] Which PO?", null, "PO-7", false);
     await().until(() -> mailbox.read(DESK).size() == 2);
 
-    poller.pollOnce();
-    poller.pollOnce();
+    drain();
 
     assertThat(received(exceptionId)).hasSize(1);
     assertThat(unmatched()).containsOnlyOnce("Poison");
@@ -136,8 +149,7 @@ class InboxPollerTest extends ApAgentIntegrationTest {
   void mail_that_answers_nothing_we_sent_is_set_aside_and_never_read_again() throws Exception {
     reply("stranger@elsewhere.example", "Hello", "<nobody@nowhere>", "Who are you?", false);
 
-    poller.pollOnce();
-    poller.pollOnce();
+    drain();
 
     assertThat(unmatched()).containsOnlyOnce("Hello");
   }
@@ -145,11 +157,11 @@ class InboxPollerTest extends ApAgentIntegrationTest {
   @Test
   void a_reply_seen_twice_is_told_once() throws Exception {
     reply("bob@nessy-ap.example", "Re: [AP " + exceptionId + "] Which PO?", null, "PO-7", false);
-    poller.pollOnce();
+    drain();
 
-    // As if the poller died after telling the agent but before marking the message seen.
+    // As if the reader died after telling the agent but before marking the message seen.
     mailbox.markAllUnseen(DESK);
-    poller.pollOnce();
+    drain();
 
     assertThat(received(exceptionId)).hasSize(1);
   }
@@ -169,7 +181,7 @@ class InboxPollerTest extends ApAgentIntegrationTest {
         "<p>It is <b>PO-7</b></p>",
         true);
 
-    poller.pollOnce();
+    drain();
 
     assertThat(received(exceptionId))
         .singleElement()

@@ -16,6 +16,7 @@
 package org.jwcarman.nessyap.agent.workbench;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
@@ -25,15 +26,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import jakarta.mail.Message;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.apache.camel.CamelContext;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
-import org.jwcarman.nessyap.agent.mail.InboxPoller;
+import org.jwcarman.nessyap.agent.mail.DeskInboxRoute;
 import org.jwcarman.nessyap.agent.mail.MailSent;
 import org.jwcarman.nessyap.agent.mail.Mailer;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
@@ -51,7 +54,7 @@ class CounterpartyTest extends ApAgentIntegrationTest {
 
   @Autowired WebApplicationContext web;
   @Autowired Mailer mailer;
-  @Autowired InboxPoller poller;
+  @Autowired CamelContext camel;
   @Autowired CaseTimeline timeline;
 
   private MockMvc mvc;
@@ -103,7 +106,12 @@ class CounterpartyTest extends ApAgentIntegrationTest {
     assertThat(arrived.getHeader("In-Reply-To")).containsExactly(sent.messageId());
     assertThat(received()).isEmpty();
 
-    poller.pollOnce();
+    camel.getRouteController().startRoute(DeskInboxRoute.ROUTE_ID);
+    try {
+      await().atMost(Duration.ofSeconds(20)).until(() -> received().size() == 1);
+    } finally {
+      camel.getRouteController().stopRoute(DeskInboxRoute.ROUTE_ID);
+    }
 
     assertThat(received()).singleElement().asString().contains("It is PO-7.");
   }
