@@ -46,7 +46,7 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
                       ? "which cites no purchase order"
                       : "against purchase order " + VendorReference.shown(e.poNumber()),
                   e.amountAtIssue().toPlainString(),
-                  e.summary());
+                  summary(e));
       case CaseInput.ReceiptArrived(var r) ->
           "Goods receipt %s was just posted against purchase order %s. If this case is waiting on goods, look at the receipts again."
               .formatted(r.receiptId(), r.poNumber());
@@ -67,6 +67,20 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
           "Decision %s (%s) was %s. Re-read the invoice before doing anything else."
               .formatted(decisionId, action, outcome);
     };
+  }
+
+  /**
+   * The ERP's summary is its own sentence, but it quotes the vendor's references ("No purchase
+   * order X exists"): each one is shown only as a reference would be shown anywhere else.
+   */
+  private static String summary(MatchExceptionRaised e) {
+    String summary = e.summary() == null ? "" : e.summary();
+    for (String reference : new String[] {e.invoiceNumber(), e.poNumber()}) {
+      if (reference != null && !reference.isEmpty()) {
+        summary = summary.replace(reference, VendorReference.shown(reference));
+      }
+    }
+    return summary;
   }
 
   /** An answer settles a wait, so it always ends by asking for a move. */

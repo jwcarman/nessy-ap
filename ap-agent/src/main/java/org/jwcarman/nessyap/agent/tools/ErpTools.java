@@ -228,12 +228,20 @@ public class ErpTools {
         : read.apply(number);
   }
 
+  /**
+   * Masks account numbers, and withholds the address a bank change came from: whoever asked for the
+   * change wrote it, and in a fraud that is the attacker. The agent needs only that a change is
+   * waiting for verification.
+   */
   private static JsonNode maskAccounts(JsonNode vendor) {
     for (JsonNode account : vendor.path("bankAccounts")) {
       if (account instanceof ObjectNode editable && account.hasNonNull("accountNumber")) {
         String number = account.get("accountNumber").asString();
         String last4 = number.length() <= 4 ? number : number.substring(number.length() - 4);
         editable.put("accountNumber", "*".repeat(Math.max(0, number.length() - 4)) + last4);
+      }
+      if (account instanceof ObjectNode editable && account.hasNonNull("proposedByEmail")) {
+        editable.put("proposedByEmail", "(withheld: written by whoever asked for the change)");
       }
     }
     return vendor;
