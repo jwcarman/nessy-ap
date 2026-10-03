@@ -17,12 +17,13 @@ package org.jwcarman.nessyap.eval;
 
 import java.util.HashMap;
 import java.util.Map;
+import tools.jackson.databind.JsonNode;
 
 /**
  * What a case cost, as a whole: per model, the input, output, cache read, cache write and reasoning
- * counts Nessy publishes. A count the vendor never reported is null, never zero: no number is
- * better than a wrong one, and a bare token total would hide what was cached and what was
- * reasoning.
+ * counts, read from the desk's projection of Nessy's stored history. A count the vendor never
+ * reported is null, never zero: no number is better than a wrong one, and a bare token total would
+ * hide what was cached and what was reasoning.
  */
 public record Usage(Map<String, Counts> byModel) {
 
@@ -30,41 +31,30 @@ public record Usage(Map<String, Counts> byModel) {
   public static final Usage UNKNOWN = new Usage(Map.of());
 
   /** One model's counts; each null when never reported. */
-  public record Counts(Long input, Long output, Long cacheRead, Long cacheWrite, Long reasoning) {
-
-    static final Counts NONE = new Counts(null, null, null, null, null);
-
-    Counts minus(Counts before) {
-      return new Counts(
-          minus(input, before.input),
-          minus(output, before.output),
-          minus(cacheRead, before.cacheRead),
-          minus(cacheWrite, before.cacheWrite),
-          minus(reasoning, before.reasoning));
-    }
-
-    private static Long minus(Long after, Long before) {
-      if (after == null) {
-        return null;
-      }
-      return before == null ? after : after - before;
-    }
-  }
+  public record Counts(Long input, Long output, Long cacheRead, Long cacheWrite, Long reasoning) {}
 
   public Usage {
     byModel = Map.copyOf(byModel);
   }
 
-  /** What was used between {@code before} and this reading of the same running totals. */
-  public Usage since(Usage before) {
-    Map<String, Counts> spent = new HashMap<>();
-    byModel.forEach(
-        (model, counts) -> {
-          Counts used = counts.minus(before.byModel.getOrDefault(model, Counts.NONE));
-          if (!used.equals(Counts.NONE)) {
-            spent.put(model, used);
-          }
-        });
-    return new Usage(spent);
+  /** A case's usage as the desk reports it at {@code /api/cases/{id}/usage}. */
+  public static Usage ofCase(JsonNode spent) {
+    Map<String, Counts> byModel = new HashMap<>();
+    for (JsonNode model : spent.path("byModel")) {
+      byModel.put(
+          model.path("model").asString(),
+          new Counts(
+              count(model, "input"),
+              count(model, "output"),
+              count(model, "cacheRead"),
+              count(model, "cacheWrite"),
+              count(model, "reasoning")));
+    }
+    return new Usage(byModel);
+  }
+
+  private static Long count(JsonNode model, String kind) {
+    JsonNode count = model.path(kind);
+    return count.isNumber() ? count.asLong() : null;
   }
 }

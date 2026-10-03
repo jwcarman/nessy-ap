@@ -132,6 +132,9 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
     assertThat(readAsClerk(line).body()).isEqualTo("PO-7");
     assertThat(caseIndex.find(exceptionId).orElseThrow().status())
         .isEqualTo(CaseStatus.INVESTIGATING);
+    assertThat(caseIndex.agents(exceptionId))
+        .extracting(a -> a.getKey().value())
+        .containsExactlyInAnyOrder("ap-exception-resolver", "reply-reader");
     await()
         .atMost(Duration.ofSeconds(20))
         .until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);

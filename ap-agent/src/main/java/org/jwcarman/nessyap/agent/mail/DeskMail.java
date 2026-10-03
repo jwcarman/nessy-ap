@@ -32,7 +32,9 @@ import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
+import org.jwcarman.nessyap.agent.quarantine.ModelReplyReader;
 import org.jwcarman.nessyap.agent.quarantine.Quarantine;
+import org.jwcarman.nessyap.agent.quarantine.QuarantineConfig;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
 import org.jwcarman.nessyap.agent.support.Ids;
@@ -122,14 +124,15 @@ public class DeskMail {
     UUID exceptionId = mail.exceptionId();
     CaseRecord kase = cases.find(exceptionId).orElseThrow();
     // The boundary: from here on the mail's words live only in the quarantine.
-    Quarantine.Reading reading =
-        quarantine.receive(
-            new Reply(
-                kase.vendorId(), mail.messageId(), mail.sender(), mail.subject(), mail.text()));
+    Reply reply =
+        new Reply(kase.vendorId(), mail.messageId(), mail.sender(), mail.subject(), mail.text());
+    Quarantine.Reading reading = quarantine.receive(reply);
     ReplyReading claim = reading.claim();
     String from = from(exceptionId, mail.sender());
     cases.markReadUnendorsed(exceptionId, claim.containsInstructions());
     cases.setStatus(exceptionId, CaseStatus.INVESTIGATING);
+    // The reader that read this reply worked the case too: its usage is the case's.
+    cases.addAgent(exceptionId, QuarantineConfig.READER, ModelReplyReader.agentFor(reply));
     timeline.record(
         exceptionId, "mail-received", from + ": " + summary(reading), reading.reply().id());
     agent.tell(

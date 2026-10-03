@@ -15,3 +15,5 @@ databaseChangeLog:
       file: db/changelog/007-quarantine.sql
   - include:
       file: db/changelog/008-questions.sql
+  - include:
+      file: db/changelog/009-case-agents.sql

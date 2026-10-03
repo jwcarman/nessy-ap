@@ -23,9 +23,12 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Clock;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.jwcarman.nessy.api.AgentId;
+import org.jwcarman.nessy.api.AgentType;
+import org.jwcarman.nessyap.agent.AgentConfiguration;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReasonCode;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -78,6 +81,33 @@ public class Cases {
         .param("amount", raised.amountAtIssue())
         .param("now", now)
         .update();
+    addAgent(raised.exceptionId(), AgentConfiguration.AGENT_TYPE, agentFor(raised.exceptionId()));
+  }
+
+  /** Records an agent that worked the case. Recording one twice changes nothing. */
+  public void addAgent(UUID exceptionId, AgentType type, AgentId agentId) {
+    jdbc.sql(
+            """
+            insert into case_agent (exception_id, agent_type, agent_id)
+            values (:case, :type, :agent)
+            on conflict do nothing
+            """)
+        .param("case", exceptionId)
+        .param("type", type.value())
+        .param("agent", agentId.value())
+        .update();
+  }
+
+  /** Every agent that worked the case, by type and id. */
+  public List<Map.Entry<AgentType, AgentId>> agents(UUID exceptionId) {
+    return jdbc.sql("select agent_type, agent_id from case_agent where exception_id = :case")
+        .param("case", exceptionId)
+        .query(
+            (rs, row) ->
+                Map.entry(
+                    new AgentType(rs.getString("agent_type")),
+                    new AgentId(rs.getObject("agent_id", UUID.class))))
+        .list();
   }
 
   public List<AgentId> openCasesForPo(String poNumber) {

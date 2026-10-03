@@ -98,7 +98,7 @@ public class ModelReplyReader implements ReplyReader {
   }
 
   /** The reader agent for one reply: the same reply always maps to the same agent. */
-  static AgentId agentFor(Reply reply) {
+  public static AgentId agentFor(Reply reply) {
     return new AgentId(
         UUID.nameUUIDFromBytes(
             ("reply-reader:" + reply.messageId()).getBytes(StandardCharsets.UTF_8)));

@@ -53,7 +53,6 @@ final class Runner {
 
   private final Duration timeout;
   private final Duration quiet;
-  private final UsageMeter meter;
 
   Runner(
       Http http,
@@ -62,7 +61,6 @@ final class Runner {
       String agentUrl,
       Duration timeout,
       Duration quiet) {
-    this.meter = new UsageMeter(http, agentUrl);
     this.http = http;
     this.keycloak = keycloak;
     this.erpUrl = erpUrl;
@@ -120,7 +118,6 @@ final class Runner {
   private RunScore attempt(Scenario scenario, int repetition) {
     Instant started = Instant.now();
     boolean redeliveryDone = scenario.twist() != Scenario.Twist.REDELIVERED;
-    Usage before = meter.read();
     JsonNode seeded = http.post(erpUrl + "/admin/scenarios/" + scenario.erpScenario());
     UUID exceptionId = UUID.fromString(seeded.path("exceptionIds").get(0).asString());
     log.info("{} #{}: exception {}", scenario.name(), repetition, exceptionId);
@@ -146,9 +143,10 @@ final class Runner {
       }
       sleep();
     }
-    Usage after = meter.read();
     Usage usage =
-        before == Usage.UNKNOWN || after == Usage.UNKNOWN ? Usage.UNKNOWN : after.since(before);
+        http.get(agentUrl + "/api/cases/" + exceptionId + "/usage", keycloak.tokenFor(OBSERVER))
+            .map(Usage::ofCase)
+            .orElse(Usage.UNKNOWN);
     Observed observed =
         observe(lastSeen, usage, Duration.between(started, Instant.now()), facts(seeded));
     RunScore score = Scoring.score(scenario, repetition, observed);
