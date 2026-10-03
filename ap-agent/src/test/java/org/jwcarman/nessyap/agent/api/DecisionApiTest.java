@@ -173,7 +173,7 @@ class DecisionApiTest extends ApAgentIntegrationTest {
   }
 
   @Test
-  void the_trail_shows_the_auditor_who_decided_and_what_the_turns_cost() throws Exception {
+  void the_trail_shows_the_auditor_who_decided_and_the_agents_turns() throws Exception {
     PendingDecision proposal = awaitProposal();
     mvc.perform(
         post("/api/decisions/{id}", proposal.id())
@@ -187,7 +187,7 @@ class DecisionApiTest extends ApAgentIntegrationTest {
         .andExpect(jsonPath("$.decisions[0].decidedBy").value("clara"))
         .andExpect(jsonPath("$.decisions[0].requiredRole").value("ap-clerk"))
         .andExpect(jsonPath("$.decisions[0].replyToken").doesNotExist())
-        .andExpect(jsonPath("$.turns[0].tokens").isNumber())
+        .andExpect(jsonPath("$.turns[0].exchanges").isNumber())
         .andExpect(jsonPath("$.timeline").isNotEmpty());
   }
 

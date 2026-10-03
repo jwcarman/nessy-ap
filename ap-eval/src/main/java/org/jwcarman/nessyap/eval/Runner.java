@@ -39,15 +39,15 @@ final class Runner {
   static final Map<String, String> PEOPLE =
       Map.of("ap-clerk", "clara", "buyer", "bob", "ap-manager", "mark", "controller", "connie");
 
-  private static final String AUDITOR = "audrey";
-
   private final Http http;
   private final Keycloak keycloak;
   private final String erpUrl;
   private final String agentUrl;
   private final Duration timeout;
+  private final TokenMeter meter;
 
   Runner(Http http, Keycloak keycloak, String erpUrl, String agentUrl, Duration timeout) {
+    this.meter = new TokenMeter(http, agentUrl);
     this.http = http;
     this.keycloak = keycloak;
     this.erpUrl = erpUrl;
@@ -57,6 +57,7 @@ final class Runner {
 
   RunScore run(Scenario scenario, int repetition) {
     Instant started = Instant.now();
+    long spentBefore = meter.total();
     JsonNode seeded = http.post(erpUrl + "/admin/scenarios/" + scenario.erpScenario());
     UUID exceptionId = UUID.fromString(seeded.path("exceptionIds").get(0).asString());
     log.info("{} #{}: exception {}", scenario.name(), repetition, exceptionId);
@@ -72,8 +73,9 @@ final class Runner {
       }
       sleep();
     }
-    Observed observed =
-        observe(lastSeen, tokensFor(exceptionId), Duration.between(started, Instant.now()));
+    long spentAfter = meter.total();
+    int tokens = spentBefore < 0 || spentAfter < 0 ? -1 : (int) (spentAfter - spentBefore);
+    Observed observed = observe(lastSeen, tokens, Duration.between(started, Instant.now()));
     RunScore score = Scoring.score(scenario, repetition, observed);
     log.info(
         "{} #{}: {} actions={} routed={} tools={} tokens={} passed={}",
@@ -115,12 +117,6 @@ final class Runner {
           decision.path("action").asString(),
           answer.path("result").asString());
     }
-  }
-
-  private int tokensFor(UUID exceptionId) {
-    return http.get(agentUrl + "/api/cases/" + exceptionId + "/trail", keycloak.tokenFor(AUDITOR))
-        .map(trail -> trail.path("totalTokens").asInt(-1))
-        .orElse(-1);
   }
 
   private static boolean settled(JsonNode view) {

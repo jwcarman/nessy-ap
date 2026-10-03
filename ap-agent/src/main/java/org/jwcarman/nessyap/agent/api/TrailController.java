@@ -45,14 +45,13 @@ public class TrailController {
   private static final int MAX_TURNS = 200;
 
   /** One agent turn, as the trail shows it. */
-  public record TurnView(long turn, boolean complete, int exchanges, int tokens, String ended) {
+  public record TurnView(long turn, boolean complete, int exchanges, String ended) {
 
     static TurnView of(Turn turn) {
       return new TurnView(
           turn.id().value(),
           turn.complete(),
           turn.exchanges().size(),
-          turn.tokens(),
           turn.result() == null ? null : turn.result().getClass().getSimpleName());
     }
   }
@@ -61,8 +60,7 @@ public class TrailController {
       CaseRecord kase,
       List<CaseTimeline.CaseEvent> timeline,
       List<DecisionView> decisions,
-      List<TurnView> turns,
-      int totalTokens) {}
+      List<TurnView> turns) {}
 
   private final Cases cases;
   private final CaseTimeline timeline;
@@ -94,7 +92,6 @@ public class TrailController {
         c,
         timeline.of(exceptionId),
         decisions.forCase(exceptionId).stream().map(DecisionView::of).toList(),
-        turns,
-        turns.stream().mapToInt(TurnView::tokens).sum());
+        turns);
   }
 }

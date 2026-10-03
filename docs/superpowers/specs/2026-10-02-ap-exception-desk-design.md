@@ -433,6 +433,14 @@ Nessy design conversations, not changes made from this repo.
   should shape the decision, not follow it. Nessy has no way to hand an agent
   input mid-turn, nor to end a turn while one of its calls waits on a person.
 
+- **F10 — `Turn.tokens` is always 0.** `Transcript` builds every `Turn` with
+  `tokens = 0`, and the field is undocumented. Usage is stored (each inference
+  event carries model, input and output counts) and published to Micrometer as
+  `gen_ai.client.token.usage` per agent type, but nothing hands an app the
+  usage of one agent or one turn. `ap-eval` measures a case by the metric's
+  difference before and after it, which works only because cases run one at a
+  time.
+
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`
 give an idempotent answer path (§3.3); `PolicyApprover` + `Verdict.Delegate`
