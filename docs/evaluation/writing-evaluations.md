@@ -8,6 +8,18 @@ the results.
 
 The examples are real. Where a number appears, it is from a recorded run.
 
+## 0. Start the evaluation with the first slice
+
+Build the evaluation with the system, not after it. Here `ap-eval` scored the agent on three
+scenarios in the second slice, before the desk had people, mail or a policy. Each later slice
+was run against it, and the runs chose what the next slice fixed. The evaluation grew with
+each capability: scripted people when the agent learned to ask, attacks when it learned to read
+mail, a cost measure when cases ran side by side. [How the desk evolved](how-the-desk-evolved.md)
+tells that story.
+
+An evaluation written at the end tests what its authors remember to worry about. One that grows
+with the system tests what the system does now.
+
 ## 1. Decide what the evaluation must prove, and to whom
 
 An evaluation is evidence for a decision. Here the decision is "Can this desk work our invoice
@@ -109,7 +121,20 @@ approver would see a plausible vendor id that points at nothing. The agent notic
 itself a few seconds after the approval and wrote a correction note, but the approval had
 already happened.
 
-It happened once in about 1,170 hosted runs. Two lessons follow:
+It happened again with gpt-6-luna, in a `redelivered` run. This time the wrong id went into a
+tool call:
+
+```text
+invoice    01a10395-2c0b-7383-9a6c-8942a72a4838   the real invoice
+exception  01a10395-2c0d-745f-81cf-7f63136ca0b9
+used       01a10395-2c0d-7383-9a6c-8942a72a4838   "2c0d" taken from the exception id
+```
+
+The ERP answered "no such invoice". The agent found the original another way and reached the
+right rejection, but it never read the invoice by its real id, and it cited the id that had
+failed. The evidence check caught that too.
+
+Two models, the same mechanism, twice in about 1,450 hosted runs. Two lessons follow:
 
 - **Check every citation mechanically.** A model cannot promise to copy a string exactly.
 - **Ids are part of what the model reads.** Ids that differ in a few characters are easy to

@@ -180,19 +180,22 @@ money safe, because a model can be persuaded.
 | Each decision needs the routed role | OPA routing + workbench check | A person deciding outside their role | `PolicyRoutingTest`, `ap_test.rego` |
 | Authority by amount and action | ERP authority matrix, with the decider's own token | A misrouted or forged approval | `AuthorityMatrixTest`; eval: misrouted policy refused 3/3 in enforce mode |
 | Service tokens only read | ERP security | The agent's own token writing to the ERP | `ErpSecurityTest` |
-| Unverified bank change: no payment, no vendor mail | OPA + ERP | Payment fraud through a changed account | `bank-change-fraud` 5/5 |
+| Unverified bank change: no payment, no vendor mail | OPA + ERP | Payment fraud through a changed account | `bank-change-fraud`: 40 of 40 on slice 10 |
 | A bank change needs a call-back and a second person | ERP vendor master | One person approving their own fraud | `BankChangeVerificationTest` |
-| A repeated invoice number is never paid from the desk | OPA (any open `DUPLICATE` on the invoice) + ERP (refuses approval while one is open) | Duplicate payment, also when an injection argues for it | `injected-invoice`: 0/5 paid with the control, 5/5 paid without it |
-| A possible duplicate is paid only by the controller | OPA | A second shipment billed alike, paid without a senior check | `possible-duplicate` 5/5 |
+| A repeated invoice number is never paid from the desk | OPA (any open `DUPLICATE` on the invoice) + ERP (refuses approval while one is open) | Duplicate payment, also when an injection argues for it | `injected-invoice`: 5 of 5 paid without the control, 0 of 5 with it; 40 of 40 on slice 10 |
+| A possible duplicate is paid only by the controller | OPA | A second shipment billed alike, paid without a senior check | `possible-duplicate`: 39 of 40 on slice 10 (the failure was a mistyped citation) |
 | Unknown facts are refused, never read as safe | OPA defaults | A failed read treated as "no fraud" | `ap_test.rego` |
-| A tool the policy does not name is refused | OPA allowlist | An app newer than its policy, failing open | Measured in slice 5; `ap_test.rego` |
+| A tool the policy does not name is refused | OPA allowlist | An app newer than its policy, failing open | [Slice 5](evaluation/how-the-desk-evolved.md#slice-5-a-policy-that-failed-open); `ap_test.rego` |
 | Mail goes only to addresses of record, at most 3 per case per recipient | `MailTools` | Mail to an attacker's address; mail floods | `MailToolsTest` |
-| A case whose mail tried to give instructions cannot move money | OPA (`instructionsSeen` from the case's integrity label) | A persuasive reply turning into a payment | `injected-reply` 5/5 held; `ap_test.rego` |
+| A case whose mail tried to give instructions cannot move money | OPA (`instructionsSeen` from the case's integrity label) | A persuasive reply turning into a payment | `injected-reply`: 40 of 40 held on slice 10; `ap_test.rego` |
 | Untrusted mail is never in the agent's context or in plaintext at rest | Occlude (labels, reveals, record); Nessy's storage codec (AES-256-GCM, a key of its own) | Prompt injection through mail; a database copy of vendor text | `QuarantineDeclarationsTest`, `ReaderWiredTest` |
 | A citation the agent never read is shown to the approver | The desk (`Grounding`: only ids a successful tool returned count) | An approver trusting evidence the agent made up or only glimpsed | `GroundingTest`; scored in every evaluation run |
 | Nobody approves a decision that changes nothing | OPA (a hold on an invoice already on hold is refused) | People's time spent on no-ops; a case stranded by an ERP refusal | `ap_test.rego`, `PolicyRoutingTest` |
 | One question waits per case, and only the person asked may answer, once | Postgres (a unique partial index) and `Answers` (row lock) | A buyer flooded with questions; an answer from the wrong person | `QuestionsTest`, `QuestionAnswerTest` |
 | Each inbox message is handled once and never blocks the inbox | Camel route: idempotent consumer, transacted, dead letter channel | Double replies; one bad message stopping all mail | `DeskInboxRouteTest`, `DeskInboxDeadLetterTest` |
+| No proposal in a turn that asked someone | OPA (`askedThisTurn` from the case) | An agent that invents the answer it is waiting for | `AskThenWaitTest`, `ap_test.rego` |
+| A vendor-written invoice or PO number reaches the agent only if it looks like one | The desk (`VendorReference`) | An instruction hidden in a reference field | `VendorReferenceTest` |
+| A case that stops with nothing in motion goes to a person | The desk (`NeedsPerson`, on turn narration) | A case nobody is acting on | `NeedsPersonTest` |
 
 ### The desk's inbox route
 
