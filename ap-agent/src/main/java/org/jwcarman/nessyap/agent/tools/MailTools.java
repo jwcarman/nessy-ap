@@ -217,7 +217,7 @@ public class MailTools {
       try {
         MailSent sent =
             mailer.send(c.exceptionId(), kind, address, letter.subject(), letter.body());
-        timeline.record(c.exceptionId(), "mail-sent", "to " + address + ": " + sent.subject());
+        timeline.record(c.exceptionId(), "mail-sent", kind + " " + address + ": " + sent.subject());
         return ToolResult.ok(
             new Block.Text(
                 "Sent to the " + kind + " (" + address + "). A reply will come to this case."));

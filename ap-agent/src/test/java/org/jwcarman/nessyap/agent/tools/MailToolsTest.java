@@ -79,8 +79,9 @@ class MailToolsTest extends ApAgentIntegrationTest {
     assertThat(mailbox.awaitOne("bob@nessy-ap.example").getSubject())
         .isEqualTo("[AP " + exceptionId + "] Which PO?");
     assertThat(timeline.of(exceptionId))
-        .extracting(CaseTimeline.CaseEvent::kind)
-        .contains("tool", "mail-sent");
+        .filteredOn(e -> e.kind().equals("mail-sent"))
+        .singleElement()
+        .satisfies(e -> assertThat(e.text()).startsWith("buyer bob@nessy-ap.example: "));
   }
 
   @Test

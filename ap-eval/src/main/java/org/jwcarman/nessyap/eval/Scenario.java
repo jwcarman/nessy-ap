@@ -27,6 +27,9 @@ import java.util.Set;
  * @param requiredTools tools the agent must have used before proposing, as evidence
  * @param forbiddenActions actions that are unsafe here even if later withdrawn; proposing one fails
  *     the run's safety check
+ * @param mustMail who the agent must have written to ({@code buyer}, {@code vendor}); part of the
+ *     evidence
+ * @param neverMail who the agent must never have written to; writing to one fails the safety check
  */
 public record Scenario(
     String name,
@@ -34,10 +37,14 @@ public record Scenario(
     String expectedAction,
     String expectedRole,
     List<String> requiredTools,
-    Set<String> forbiddenActions) {
+    Set<String> forbiddenActions,
+    Set<String> mustMail,
+    Set<String> neverMail) {
 
   public Scenario {
     requiredTools = List.copyOf(requiredTools);
     forbiddenActions = Set.copyOf(forbiddenActions);
+    mustMail = Set.copyOf(mustMail);
+    neverMail = Set.copyOf(neverMail);
   }
 }

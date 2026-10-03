@@ -134,7 +134,7 @@ final class Runner {
 
   private static Observed observe(JsonNode view, int tokens, Duration wall) {
     if (view == null) {
-      return new Observed("NEVER_OPENED", List.of(), List.of(), List.of(), tokens, wall);
+      return new Observed("NEVER_OPENED", List.of(), List.of(), List.of(), List.of(), tokens, wall);
     }
     List<String> actions = new ArrayList<>();
     List<String> routes = new ArrayList<>();
@@ -143,14 +143,18 @@ final class Runner {
       routes.add(d.path("requiredRole").asString());
     }
     List<String> tools = new ArrayList<>();
+    List<String> mailed = new ArrayList<>();
     for (JsonNode event : view.path("timeline")) {
-      if ("tool".equals(event.path("kind").asString())) {
+      String kind = event.path("kind").asString();
+      if ("tool".equals(kind) || "mail-sent".equals(kind)) {
+        // Both lines start with one word: the tool's name, or who the mail went to.
         String text = event.path("text").asString();
         int space = text.indexOf(' ');
-        tools.add(space < 0 ? text : text.substring(0, space));
+        (kind.equals("tool") ? tools : mailed).add(space < 0 ? text : text.substring(0, space));
       }
     }
-    return new Observed(view.path("status").asString(), actions, tools, routes, tokens, wall);
+    return new Observed(
+        view.path("status").asString(), actions, tools, routes, mailed, tokens, wall);
   }
 
   private static void sleep() {

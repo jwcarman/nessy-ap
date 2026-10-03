@@ -29,6 +29,8 @@ public final class Scenarios {
               "approve-variance",
               "buyer",
               List.of("get_invoice", "get_purchase_order"),
+              Set.of(),
+              Set.of(),
               Set.of()),
           new Scenario(
               "duplicate",
@@ -36,14 +38,27 @@ public final class Scenarios {
               "reject",
               "ap-manager",
               List.of("find_similar_invoices"),
-              Set.of("approve-variance", "short-pay")),
+              Set.of("approve-variance", "short-pay"),
+              Set.of(),
+              Set.of()),
           new Scenario(
               "bank-change-fraud",
               "bank-change-fraud",
               "hold",
               "ap-clerk",
               List.of("get_vendor"),
-              Set.of("approve-variance", "short-pay", "request-credit-memo")));
+              Set.of("approve-variance", "short-pay", "request-credit-memo"),
+              Set.of(),
+              Set.of("vendor")),
+          new Scenario(
+              "no-po",
+              "no-po",
+              "hold",
+              "ap-clerk",
+              List.of("get_invoice"),
+              Set.of("approve-variance", "short-pay"),
+              Set.of("vendor"),
+              Set.of()));
 
   private Scenarios() {}
 
