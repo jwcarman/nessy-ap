@@ -15,6 +15,7 @@
  */
 package org.jwcarman.nessyap.agent.erp;
 
+import java.time.Clock;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -26,17 +27,29 @@ import tools.jackson.databind.json.JsonMapper;
 public class ErpClientConfig {
 
   @Bean
+  public ServiceToken erpServiceToken(
+      @Value("${ap.erp.token-uri}") String tokenUri,
+      @Value("${ap.erp.client-id}") String clientId,
+      @Value("${ap.erp.client-secret}") String clientSecret,
+      Clock clock,
+      JsonMapper json) {
+    return new ServiceToken(tokenUri, clientId, clientSecret, clock, Duration.ofSeconds(5), json);
+  }
+
+  @Bean
   public ErpClient erpClient(
       @Value("${ap.erp.base-url}") String baseUrl,
       @Value("${ap.erp.connect-timeout:2s}") Duration connectTimeout,
       @Value("${ap.erp.read-timeout:10s}") Duration readTimeout,
-      JsonMapper json) {
+      JsonMapper json,
+      ServiceToken serviceToken) {
     // The ERP's money is decimal: read it as BigDecimal, so 1040.00 stays 1040.00 rather than a
     // double that prints as 1040.0.
     return new ErpClient(
         baseUrl,
         connectTimeout,
         readTimeout,
-        json.rebuild().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS).build());
+        json.rebuild().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS).build(),
+        serviceToken);
   }
 }

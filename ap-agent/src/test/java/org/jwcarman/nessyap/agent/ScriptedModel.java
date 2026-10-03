@@ -34,7 +34,10 @@ public class ScriptedModel {
 
   @Bean
   DynamicPropertyRegistrar erpUrl(ErpStub erpStub) {
-    return registry -> registry.add("ap.erp.base-url", erpStub::baseUrl);
+    return registry -> {
+      registry.add("ap.erp.base-url", erpStub::baseUrl);
+      registry.add("ap.erp.token-uri", () -> erpStub.baseUrl() + "/token");
+    };
   }
 
   @Bean

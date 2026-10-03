@@ -1,3 +1,7 @@
 databaseChangeLog:
   - include:
       file: db/changelog/001-erp-schema.sql
+  - include:
+      file: db/changelog/002-authority.sql
+  - include:
+      file: db/changelog/003-bank-verification.sql

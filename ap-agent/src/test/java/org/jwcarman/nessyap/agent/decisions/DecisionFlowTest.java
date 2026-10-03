@@ -113,7 +113,9 @@ class DecisionFlowTest extends ApAgentIntegrationTest {
   }
 
   private List<ErpStub.Seen> posts() {
-    return erp.seen().stream().filter(seen -> seen.method().equals("POST")).toList();
+    return erp.seen().stream()
+        .filter(seen -> seen.method().equals("POST") && seen.target().startsWith("/api/"))
+        .toList();
   }
 
   @Test
@@ -297,6 +299,46 @@ class DecisionFlowTest extends ApAgentIntegrationTest {
     assertThat(posts())
         .extracting(post -> String.valueOf(post.header("Authorization")))
         .containsExactly("Bearer token-of-connie", "null");
+  }
+
+  @Test
+  void an_erp_that_wants_a_person_keeps_the_decision_for_its_decider_to_carry_through() {
+    PendingDecision proposal = awaitProposal();
+    erp.on("POST", "/api/invoices/" + INVOICE + "/approve-variance", 503, "{\"code\":\"DOWN\"}");
+    executor.decide(proposal.id(), "connie", true, "fine", "token-of-connie");
+    PendingDecision stuck = decisions.find(proposal.id()).orElseThrow();
+    assertThat(stuck.status()).isEqualTo(DecisionStatus.DECIDED);
+    erp.on(
+        "POST",
+        "/api/invoices/" + INVOICE + "/approve-variance",
+        401,
+        "{\"status\":401,\"code\":\"HTTP_401\",\"detail\":\"no token\"}");
+
+    sweeper.sweep(Duration.ZERO);
+
+    PendingDecision waiting = decisions.find(proposal.id()).orElseThrow();
+    assertThat(waiting.status()).isEqualTo(DecisionStatus.DECIDED);
+    assertThat(waiting.erpResult()).isEqualTo(DecisionExecutor.NEEDS_THE_DECIDER);
+    long postsBefore = posts().size();
+    sweeper.sweep(Duration.ZERO);
+    assertThat(posts()).as("the sweeper leaves it for the decider").hasSize((int) postsBefore);
+
+    erp.on("POST", "/api/invoices/" + INVOICE + "/approve-variance", 200, APPROVED_JSON);
+    assertThat(executor.retryAsDecider(proposal.id(), "connie", "token-of-connie")).isTrue();
+
+    awaitTurnEnded(1);
+    assertThat(decisions.find(proposal.id()).orElseThrow().status())
+        .isEqualTo(DecisionStatus.ANSWERED);
+    assertThat(posts().getLast().header("Authorization")).isEqualTo("Bearer token-of-connie");
+  }
+
+  @Test
+  void only_the_decider_may_lend_their_authority_to_a_retry() {
+    PendingDecision proposal = awaitProposal();
+    erp.on("POST", "/api/invoices/" + INVOICE + "/approve-variance", 503, "{\"code\":\"DOWN\"}");
+    executor.decide(proposal.id(), "connie", true, "fine", "token-of-connie");
+
+    assertThat(executor.retryAsDecider(proposal.id(), "mark", "token-of-mark")).isFalse();
   }
 
   @Test

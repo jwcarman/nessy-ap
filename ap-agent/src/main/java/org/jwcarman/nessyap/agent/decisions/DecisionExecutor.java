@@ -42,6 +42,9 @@ import tools.jackson.databind.JsonNode;
 @Component
 public class DecisionExecutor {
 
+  /** What a decision is marked when the ERP wants its decider's own token to carry it through. */
+  public static final String NEEDS_THE_DECIDER = "needs the decider";
+
   private static final Logger log = LoggerFactory.getLogger(DecisionExecutor.class);
 
   private final Decisions decisions;
@@ -91,6 +94,27 @@ public class DecisionExecutor {
                 .filter(d -> d.status() == DecisionStatus.DECIDED)
                 .ifPresent(d -> carryThrough(d, authority)));
     return result;
+  }
+
+  /**
+   * Carries a decided-but-unfinished decision through again with its decider's own token. Only the
+   * person who decided may lend it their authority.
+   *
+   * @return false when this person is not the decider, or there is nothing left to carry through
+   */
+  public boolean retryAsDecider(UUID decisionId, String username, String accessToken) {
+    Boolean done =
+        tx.execute(
+            status -> {
+              var found =
+                  decisions
+                      .lock(decisionId)
+                      .filter(d -> d.status() == DecisionStatus.DECIDED)
+                      .filter(d -> username.equals(d.decidedBy()));
+              found.ifPresent(d -> carryThrough(d, accessToken));
+              return found.isPresent();
+            });
+    return Boolean.TRUE.equals(done);
   }
 
   private DecisionResult record(
@@ -153,6 +177,15 @@ public class DecisionExecutor {
     switch (outcome) {
       case ErpOutcome.Ok<JsonNode> ok ->
           answer(d, ApprovalResult.approvedBy(d.id().toString()), "applied", true);
+      case ErpOutcome.Refused<JsonNode>(int s, String code, String detail)
+          when accessToken == null && (s == 401 || s == 403) -> {
+        // The ERP wants a person and none is lending their authority (the sweeper, or someone
+        // arriving after the decision). That is not the decider saying no: keep it for them.
+        decisions.rememberRefusal(d.id(), NEEDS_THE_DECIDER);
+        targets
+            .timeline()
+            .record(d.exceptionId(), "decision", "the ERP needs " + d.decidedBy() + " to retry");
+      }
       case ErpOutcome.Refused<JsonNode>(int s, String code, String detail) ->
           refused(d, code, detail);
       case ErpOutcome.Unavailable<JsonNode>(String reason) ->

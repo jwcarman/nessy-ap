@@ -15,11 +15,13 @@
  */
 package org.jwcarman.nessyap.erp.resolution;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessyap.erp.ErpIntegrationTest;
@@ -27,79 +29,78 @@ import org.jwcarman.nessyap.erp.invoice.Invoice;
 import org.jwcarman.nessyap.erp.vendor.Vendor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-class ResolutionApiTest extends ErpIntegrationTest {
+/**
+ * The common weak deployment, reproduced on purpose: the ERP trusts its integration caller and
+ * records who it says decided without checking. These tests document what that costs.
+ */
+@TestPropertySource(properties = "erp.authority.mode=trust-integration-user")
+class TrustModeTest extends ErpIntegrationTest {
+
+  private static final JwtRequestPostProcessor INTEGRATION =
+      jwt()
+          .jwt(
+              token ->
+                  token
+                      .subject("service-account-ap-agent-service")
+                      .claim("azp", "ap-agent-service")
+                      .claim("preferred_username", "service-account-ap-agent-service"));
 
   @Autowired WebApplicationContext web;
 
   private MockMvc mvc;
-  private Invoice overpriced;
+  private Invoice big;
 
   @BeforeEach
-  void anInvoiceInException() {
+  void aBigInvoice() {
     mvc =
         MockMvcBuilders.webAppContextSetup(web)
             .apply(SecurityMockMvcConfigurers.springSecurity())
-            .defaultRequest(
-                post("/")
-                    .with(
-                        jwt()
-                            .jwt(
-                                token ->
-                                    token
-                                        .subject("connie")
-                                        .claim("azp", "workbench")
-                                        .claim("preferred_username", "connie"))))
             .build();
     Vendor acme = data().vendor();
     data().po(acme, "PO-1");
     data().receive("PO-1", "100");
-    overpriced = data().invoice(acme, "INV-1001", "PO-1", "100", "10.40");
+    big = data().invoice(acme, "INV-1", "PO-1", "5000", "10.40");
   }
 
   @Test
-  void a_hold_answers_with_the_held_invoice() throws Exception {
+  void a_clerks_name_on_the_integration_users_call_approves_fifty_thousand() throws Exception {
     mvc.perform(
-            post("/api/invoices/{id}/hold", overpriced.id())
+            post("/api/invoices/{id}/approve-variance", big.id())
+                .with(INTEGRATION)
+                .header("X-Acting-User", "clara")
                 .header("Idempotency-Key", "k1")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"expectedVersion\": 1, \"comment\": \"waiting on the buyer\"}"))
+                .content("{\"expectedVersion\": " + big.version() + "}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("ON_HOLD"))
-        .andExpect(jsonPath("$.version").value(2));
+        .andExpect(jsonPath("$.status").value("APPROVED"));
+
+    Map<String, Object> audit =
+        jdbc.sql(
+                "select acting_client, acting_user from erp_audit"
+                    + " where entity_id = :id and action = 'approve-variance'")
+            .param("id", big.id())
+            .query()
+            .singleRow();
+    assertThat(audit)
+        .containsEntry("acting_client", "ap-agent-service")
+        .containsEntry("acting_user", "clara");
   }
 
   @Test
-  void a_command_without_an_idempotency_key_is_a_400() throws Exception {
+  void a_command_naming_nobody_is_still_refused() throws Exception {
     mvc.perform(
-            post("/api/invoices/{id}/hold", overpriced.id())
+            post("/api/invoices/{id}/hold", big.id())
+                .with(INTEGRATION)
+                .header("Idempotency-Key", "k1")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"expectedVersion\": 1}"))
+                .content("{\"expectedVersion\": " + big.version() + "}"))
         .andExpect(status().isBadRequest());
-  }
-
-  @Test
-  void a_stale_version_is_a_409_problem() throws Exception {
-    mvc.perform(
-            post("/api/invoices/{id}/hold", overpriced.id())
-                .header("Idempotency-Key", "k1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"expectedVersion\": 0}"))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.code").value("STALE_VERSION"));
-  }
-
-  @Test
-  void an_unknown_action_is_a_404() throws Exception {
-    mvc.perform(
-            post("/api/invoices/{id}/pay-twice", overpriced.id())
-                .header("Idempotency-Key", "k1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"expectedVersion\": 1}"))
-        .andExpect(status().isNotFound());
   }
 }

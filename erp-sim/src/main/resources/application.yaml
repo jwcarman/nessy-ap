@@ -20,6 +20,10 @@ spring:
     problemdetails:
       enabled: true
 erp:
+  security:
+    jwk-set-uri: http://localhost:58080/realms/nessy-ap/protocol/openid-connect/certs
+    issuer: http://localhost:58080/realms/nessy-ap
+    audience: erp-sim
   matching:
     price-tolerance-percent: 2
   outbox:

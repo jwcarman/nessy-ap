@@ -140,11 +140,22 @@ authority matrix:
 
 | Role | May decide |
 |---|---|
-| AP clerk (`clara`) | `hold` only; otherwise works the queue |
-| Buyer (`bob`) | `approve-variance` / `request-credit-memo` on **their own** POs, up to $10,000 |
-| AP manager (`mark`) | `hold`, `release-hold`, `short-pay`, `reject`, `UNPLANNED_CHARGE` approvals, up to $10,000 |
-| Controller (`connie`) | anything, any amount |
+| AP clerk (`clara`) | `hold`, `request-credit-memo` (neither moves money) |
+| Buyer (`bob`) | `approve-variance` on **their own** POs, up to $10,000 |
+| AP manager (`mark`) | every action, up to $10,000 |
+| Controller (`connie`) | every action, any amount |
 | Auditor (`audrey`) | read only |
+
+**Amended 2026-10-03 (slice 4), awaiting James's ruling:** the original table
+gave clerks `hold` only and buyers credit memos. The routing policy sends
+credit memos to clerks (a credit memo holds the invoice and asks the vendor;
+no money moves), so the matrix follows the routing; the two must agree or the
+ERP refuses what the policy routed. The amount checked is what the command
+authorises: a short-pay's amount, otherwise the invoice total. The grants live
+in the ERP's `authority_grant` table, keyed by username. Routing measures the
+same amount (the policy sees `invoiceTotal`), never less: a $40 variance on a
+$12,000 invoice goes to the controller, because the buyer's $10,000 limit would
+be refused by the ERP. An unknown total routes to the controller.
 
 Nobody may release a hold on a vendor with an unverified bank change. The
 agent's client-credentials token may **read** and may never issue a command.

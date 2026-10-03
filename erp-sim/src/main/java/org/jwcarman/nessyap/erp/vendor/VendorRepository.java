@@ -71,6 +71,76 @@ public class VendorRepository {
         .update();
   }
 
+  /** Where verification of one account stands. */
+  public record Verification(
+      BankAccountStatus status, String callBackBy, Boolean callBackConfirmed) {}
+
+  public Optional<Verification> verificationOf(UUID vendorId, UUID accountId) {
+    return jdbc.sql(
+            """
+            select status, call_back_by, call_back_confirmed from vendor_bank_account
+            where vendor_id = :vendorId and id = :accountId
+            """)
+        .param("vendorId", vendorId)
+        .param("accountId", accountId)
+        .query(
+            (rs, row) ->
+                new Verification(
+                    BankAccountStatus.valueOf(rs.getString("status")),
+                    rs.getString("call_back_by"),
+                    rs.getObject("call_back_confirmed", Boolean.class)))
+        .optional();
+  }
+
+  public void recordCallBack(
+      UUID accountId, String by, String phone, boolean confirmed, Instant at) {
+    jdbc.sql(
+            """
+            update vendor_bank_account
+            set call_back_by = :by, call_back_phone = :phone, call_back_confirmed = :confirmed,
+                called_at = :at, status = case when :confirmed then status else 'REJECTED' end
+            where id = :id
+            """)
+        .param("by", by)
+        .param("phone", phone)
+        .param("confirmed", confirmed)
+        .param("at", Timestamp.from(at))
+        .param("id", accountId)
+        .update();
+  }
+
+  /** The confirmed account becomes the one paid; the one it replaces is superseded. */
+  public boolean confirm(UUID vendorId, UUID accountId, String by, Instant at) {
+    // Only a change still waiting, with a confirmed call-back, is activated: a confirm that read
+    // the
+    // change before a denial (or another confirm) landed must not undo it.
+    int activated =
+        jdbc.sql(
+                """
+                update vendor_bank_account
+                set status = 'ACTIVE', confirmed_by = :by, confirmed_at = :at
+                where id = :id and vendor_id = :vendorId
+                  and status = 'PENDING_VERIFICATION' and call_back_confirmed
+                """)
+            .param("by", by)
+            .param("at", Timestamp.from(at))
+            .param("id", accountId)
+            .param("vendorId", vendorId)
+            .update();
+    if (activated == 0) {
+      return false;
+    }
+    jdbc.sql(
+            """
+            update vendor_bank_account set status = 'SUPERSEDED'
+            where vendor_id = :vendorId and status = 'ACTIVE' and id <> :id
+            """)
+        .param("vendorId", vendorId)
+        .param("id", accountId)
+        .update();
+    return true;
+  }
+
   public Optional<Vendor> find(UUID id) {
     return jdbc.sql("select * from vendor where id = :id")
         .param("id", id)

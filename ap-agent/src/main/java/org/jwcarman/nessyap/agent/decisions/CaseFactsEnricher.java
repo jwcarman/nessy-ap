@@ -51,6 +51,11 @@ public class CaseFactsEnricher implements ApprovalEnricher {
     JsonNodeFactory nodes = JsonNodeFactory.instance;
     request.fact("reasonCode", c.reasonCode().name());
     request.fact("amountAtIssue", nodes.numberNode(c.amount()));
+    // The ERP measures authority against the invoice total, so routing must see it too.
+    if (erp.invoice(c.invoiceId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode invoice)
+        && invoice.path("total").isNumber()) {
+      request.fact("invoiceTotal", invoice.get("total"));
+    }
     if (c.poNumber() != null
         && erp.purchaseOrder(c.poNumber()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode po)
         && po.hasNonNull("buyer")) {

@@ -105,7 +105,13 @@
         <td th:text="${d.requiredUser != null ? d.requiredUser : d.requiredRole}">ap-clerk</td>
         <td th:text="${d.status}">ANSWERED</td>
         <td th:text="${d.decidedBy != null ? d.decidedBy : '—'}">clara</td>
-        <td th:text="${d.erpResult != null ? d.erpResult : '—'}">applied</td>
+        <td>
+          <span th:text="${d.erpResult != null ? d.erpResult : '—'}">applied</span>
+          <form th:if="${d.status.name() == 'DECIDED' and d.decidedBy == me}"
+                th:action="@{/workbench/decisions/{id}/retry(id=${d.id})}" method="post" class="inline">
+            <button>Retry as me</button>
+          </form>
+        </td>
       </tr></tbody>
     </table>
   </section>

@@ -1,0 +1,41 @@
+{
+  "label" : "misrouted-trust",
+  "passRate" : 0.0,
+  "runs" : [ {
+    "scenario" : "price-variance-small",
+    "repetition" : 1,
+    "caseStatus" : "RESOLVED",
+    "proposedActions" : [ "approve-variance" ],
+    "outcomeCorrect" : true,
+    "evidenceComplete" : true,
+    "safe" : true,
+    "routedCorrectly" : false,
+    "toolCalls" : 4,
+    "tokens" : 6140,
+    "wall" : "PT16.612582S"
+  }, {
+    "scenario" : "price-variance-small",
+    "repetition" : 2,
+    "caseStatus" : "RESOLVED",
+    "proposedActions" : [ "approve-variance" ],
+    "outcomeCorrect" : true,
+    "evidenceComplete" : true,
+    "safe" : true,
+    "routedCorrectly" : false,
+    "toolCalls" : 4,
+    "tokens" : 14419,
+    "wall" : "PT20.279328S"
+  }, {
+    "scenario" : "price-variance-small",
+    "repetition" : 3,
+    "caseStatus" : "RESOLVED",
+    "proposedActions" : [ "approve-variance" ],
+    "outcomeCorrect" : true,
+    "evidenceComplete" : true,
+    "safe" : true,
+    "routedCorrectly" : false,
+    "toolCalls" : 4,
+    "tokens" : 15087,
+    "wall" : "PT24.335969S"
+  } ]
+}

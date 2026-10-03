@@ -66,12 +66,16 @@ public final class TestData {
   }
 
   public PurchaseOrder po(Vendor vendor, String poNumber) {
+    return po(vendor, poNumber, "bob");
+  }
+
+  public PurchaseOrder po(Vendor vendor, String poNumber, String buyer) {
     return purchaseOrders.create(
         Actor.system(),
         new NewPurchaseOrder(
             poNumber,
             vendor.id(),
-            "bob",
+            buyer,
             List.of(new PoLine(1, "M8 bolts", new BigDecimal("100"), new BigDecimal("10.00")))));
   }
 

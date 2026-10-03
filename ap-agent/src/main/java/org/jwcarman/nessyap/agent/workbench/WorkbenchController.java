@@ -178,6 +178,34 @@ public class WorkbenchController {
     return "redirect:/workbench/cases/" + d.exceptionId();
   }
 
+  /**
+   * Carries a decision through again as the person who made it, when the ERP wanted their own
+   * authority and nobody was there to lend it (the sweeper, or the ERP was briefly down).
+   */
+  @PostMapping("/decisions/{decisionId}/retry")
+  public String retry(
+      @PathVariable UUID decisionId,
+      Authentication me,
+      @RegisteredOAuth2AuthorizedClient OAuth2AuthorizedClient client,
+      RedirectAttributes redirect) {
+    PendingDecision d =
+        decisions
+            .find(decisionId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No such decision"));
+    boolean carried =
+        executor.retryAsDecider(
+            decisionId,
+            me.getName(),
+            client == null ? null : client.getAccessToken().getTokenValue());
+    redirect.addFlashAttribute(
+        "message",
+        carried
+            ? "Carried out again: " + outcomeOf(decisionId, true)
+            : "Only " + d.decidedBy() + ", who decided this, can carry it through.");
+    return "redirect:/workbench/cases/" + d.exceptionId();
+  }
+
   @PostMapping("/cases/{exceptionId}/notes")
   public String note(
       @PathVariable UUID exceptionId,

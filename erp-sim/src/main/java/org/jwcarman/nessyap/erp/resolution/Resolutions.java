@@ -44,6 +44,7 @@ public class Resolutions {
   private final Idempotency idempotency;
   private final ResolutionRecorder recorder;
   private final JsonMapper json;
+  private final AuthorityMatrix authority;
 
   public Resolutions(
       InvoiceRepository invoices,
@@ -51,7 +52,9 @@ public class Resolutions {
       VendorMaster vendors,
       Idempotency idempotency,
       ResolutionRecorder recorder,
-      JsonMapper json) {
+      JsonMapper json,
+      AuthorityMatrix authority) {
+    this.authority = authority;
     this.invoices = invoices;
     this.exceptions = exceptions;
     this.vendors = vendors;
@@ -86,6 +89,7 @@ public class Resolutions {
       Actor actor, UUID invoiceId, ResolutionAction action, ResolutionCommand command) {
     Invoice invoice =
         invoices.find(invoiceId).orElseThrow(() -> new NotFoundException("invoice", invoiceId));
+    authority.check(actor, action, invoice, authorised(invoice, action, command));
     long expected = command.expectedVersion();
     if (invoice.version() != expected) {
       throw new StaleVersionException(invoiceId, expected);
@@ -107,6 +111,14 @@ public class Resolutions {
     }
     recorder.record(actor, invoiceId, action, command, now);
     return invoices.find(invoiceId).orElseThrow();
+  }
+
+  /** What a command authorises paying: a short-pay's own amount, otherwise the whole invoice. */
+  private static BigDecimal authorised(
+      Invoice invoice, ResolutionAction action, ResolutionCommand command) {
+    return action == ResolutionAction.SHORT_PAY && command.amount() != null
+        ? command.amount()
+        : invoice.total();
   }
 
   private static BigDecimal approvedAmount(

@@ -38,8 +38,22 @@ public class ErpClient {
   private final Duration readTimeout;
   private final JsonMapper json;
   private final HttpClient http;
+  private final ServiceToken serviceToken;
 
   public ErpClient(String baseUrl, Duration connectTimeout, Duration readTimeout, JsonMapper json) {
+    this(baseUrl, connectTimeout, readTimeout, json, null);
+  }
+
+  /**
+   * @param serviceToken the agent's own credential, sent on reads; null to read unauthenticated
+   */
+  public ErpClient(
+      String baseUrl,
+      Duration connectTimeout,
+      Duration readTimeout,
+      JsonMapper json,
+      ServiceToken serviceToken) {
+    this.serviceToken = serviceToken;
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     this.readTimeout = readTimeout;
     this.json = json;
@@ -124,8 +138,44 @@ public class ErpClient {
     return send(request);
   }
 
+  /** Records a call to the vendor's contact of record, as the person who made it. */
+  public ErpOutcome<JsonNode> recordCallBack(
+      UUID vendorId, UUID accountId, String phone, boolean vendorConfirmed, String bearerToken) {
+    return postAs(
+        "/api/vendors/" + vendorId + "/bank-changes/" + accountId + "/call-back",
+        Map.of("phone", phone, "vendorConfirmed", vendorConfirmed),
+        bearerToken);
+  }
+
+  /** Confirms a called-back change, as a second person. */
+  public ErpOutcome<JsonNode> confirmBankChange(UUID vendorId, UUID accountId, String bearerToken) {
+    return postAs(
+        "/api/vendors/" + vendorId + "/bank-changes/" + accountId + "/confirm",
+        Map.of(),
+        bearerToken);
+  }
+
+  private ErpOutcome<JsonNode> postAs(String path, Object body, String bearerToken) {
+    HttpRequest.Builder request =
+        HttpRequest.newBuilder(uri(path))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
+    if (bearerToken != null) {
+      request.header("Authorization", "Bearer " + bearerToken);
+    }
+    return send(request);
+  }
+
   private ErpOutcome<JsonNode> get(String path) {
-    return send(HttpRequest.newBuilder(uri(path)).GET());
+    HttpRequest.Builder request = HttpRequest.newBuilder(uri(path)).GET();
+    if (serviceToken != null) {
+      var token = serviceToken.current();
+      if (token.isEmpty()) {
+        return new ErpOutcome.Unavailable<>("no service token for the ERP");
+      }
+      request.header("Authorization", "Bearer " + token.get());
+    }
+    return send(request);
   }
 
   private ErpOutcome<JsonNode> send(HttpRequest.Builder request) {

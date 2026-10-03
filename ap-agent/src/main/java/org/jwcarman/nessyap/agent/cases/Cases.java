@@ -110,6 +110,18 @@ public class Cases {
         .list();
   }
 
+  /** The vendors of recent cases: whose bank changes the AP team is likely to be asked about. */
+  public List<UUID> recentVendors(int limit) {
+    return jdbc.sql(
+            """
+            select vendor_id from ap_case group by vendor_id
+            order by max(opened_at) desc limit :limit
+            """)
+        .param("limit", limit)
+        .query(UUID.class)
+        .list();
+  }
+
   public void setStatus(UUID exceptionId, CaseStatus status) {
     jdbc.sql("update ap_case set status = :status, updated_at = :now where exception_id = :id")
         .param("status", status.name())

@@ -177,6 +177,32 @@ class WorkbenchTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void a_decider_can_carry_their_own_stalled_decision_through() throws Exception {
+    PendingDecision proposal = awaitProposal();
+    erp.on("POST", "/api/invoices/" + INVOICE + "/short-pay", 503, "{\"code\":\"DOWN\"}");
+    mvc.perform(
+        post("/workbench/decisions/{id}", proposal.id())
+            .param("verdict", "approve")
+            .with(as("connie", "controller"))
+            .with(csrf()));
+    erp.on("POST", "/api/invoices/" + INVOICE + "/short-pay", 200, INVOICE_JSON);
+
+    mvc.perform(
+            post("/workbench/decisions/{id}/retry", proposal.id())
+                .with(as("mark", "controller"))
+                .with(csrf()))
+        .andExpect(flash().attribute("message", containsString("Only connie")));
+    mvc.perform(
+            post("/workbench/decisions/{id}/retry", proposal.id())
+                .with(as("connie", "controller"))
+                .with(csrf()))
+        .andExpect(flash().attribute("message", containsString("Carried out")));
+
+    assertThat(decisions.find(proposal.id()).orElseThrow().status())
+        .isEqualTo(DecisionStatus.ANSWERED);
+  }
+
+  @Test
   void a_clerk_cannot_decide_what_the_policy_gave_the_controller() throws Exception {
     PendingDecision proposal = awaitProposal();
 
@@ -205,7 +231,7 @@ class WorkbenchTest extends ApAgentIntegrationTest {
         .andExpect(status().is3xxRedirection());
 
     assertThat(erp.seen())
-        .filteredOn(seen -> seen.method().equals("POST"))
+        .filteredOn(seen -> seen.method().equals("POST") && seen.target().startsWith("/api/"))
         .singleElement()
         .satisfies(post -> assertThat(post.header("Authorization")).startsWith("Bearer "));
     assertThat(decisions.find(proposal.id()).orElseThrow().decidedBy()).isEqualTo("connie");

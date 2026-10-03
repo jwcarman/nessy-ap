@@ -16,8 +16,9 @@
 package org.jwcarman.nessyap.erp.po;
 
 import java.util.List;
-import org.jwcarman.nessyap.erp.audit.Actor;
+import org.jwcarman.nessyap.erp.security.Callers;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,8 +39,8 @@ public class PurchaseOrderController {
 
   @PostMapping("/api/purchase-orders")
   @ResponseStatus(HttpStatus.CREATED)
-  public PurchaseOrder create(@RequestBody NewPurchaseOrder order) {
-    return orders.create(Actor.anonymous(), order);
+  public PurchaseOrder create(@RequestBody NewPurchaseOrder order, Authentication caller) {
+    return orders.create(Callers.of(caller), order);
   }
 
   @GetMapping("/api/purchase-orders/{poNumber}")
@@ -54,7 +55,7 @@ public class PurchaseOrderController {
 
   @PostMapping("/api/receipts")
   @ResponseStatus(HttpStatus.CREATED)
-  public GoodsReceipt post(@RequestBody NewReceipt receipt) {
-    return receipts.post(Actor.anonymous(), receipt);
+  public GoodsReceipt post(@RequestBody NewReceipt receipt, Authentication caller) {
+    return receipts.post(Callers.of(caller), receipt);
   }
 }

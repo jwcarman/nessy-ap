@@ -166,7 +166,7 @@ class DecisionApiTest extends ApAgentIntegrationTest {
         .andExpect(jsonPath("$.result").value("DECIDED"));
 
     assertThat(erp.seen())
-        .filteredOn(seen -> seen.method().equals("POST"))
+        .filteredOn(seen -> seen.method().equals("POST") && seen.target().startsWith("/api/"))
         .singleElement()
         .satisfies(
             post -> assertThat(post.header("Authorization")).isEqualTo("Bearer token-of-clara"));

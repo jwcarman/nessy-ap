@@ -151,6 +151,7 @@ public class Decisions {
             """
             select id from pending_decision
             where status = 'DECIDED' and decided_at <= :cutoff
+              and (erp_result is null or erp_result <> 'needs the decider')
             order by decided_at
             """)
         .param("cutoff", Timestamp.from(cutoff))
