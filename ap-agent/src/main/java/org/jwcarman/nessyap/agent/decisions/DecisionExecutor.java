@@ -149,10 +149,14 @@ public class DecisionExecutor {
 
   private void carryThrough(PendingDecision d, String accessToken) {
     if (!Boolean.TRUE.equals(d.approved())) {
+      // The decline arrives inside the turn that proposed. Without the second sentence a model
+      // that obeys "propose once per turn" ends the turn here, and the case stalls.
       String reason =
           "Declined by "
               + d.decidedBy()
-              + (d.decisionComment() == null ? "" : ": " + d.decisionComment());
+              + (d.decisionComment() == null ? "" : ": " + d.decisionComment())
+              + ". This proposal is closed and the turn is still yours: check what the reason"
+              + " points at, then propose again now.";
       answer(d, ApprovalResult.deniedBy(reason, d.id().toString()), "declined", false);
       return;
     }

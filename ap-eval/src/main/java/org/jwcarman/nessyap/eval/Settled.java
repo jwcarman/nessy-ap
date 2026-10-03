@@ -49,7 +49,10 @@ final class Settled {
     if ("INVESTIGATING".equals(status)) {
       return stalled(view, now);
     }
-    if (!"RESOLVED".equals(status) && !"AWAITING_ANSWER".equals(status)) {
+    // A case the desk put in front of a person is as finished as the agent will make it.
+    if (!"RESOLVED".equals(status)
+        && !"AWAITING_ANSWER".equals(status)
+        && !"NEEDS_PERSON".equals(status)) {
       return false;
     }
     if ("AWAITING_ANSWER".equals(status)

@@ -42,6 +42,9 @@ public final class Scoring {
   }
 
   public static RunScore score(Scenario scenario, int repetition, Observed observed) {
+    if (scenario.ifVendorNeverAsked() != null && !observed.mailed().contains("vendor")) {
+      return score(scenario.ifVendorNeverAsked().named(scenario.name()), repetition, observed);
+    }
     List<String> actions = observed.proposedActions();
     boolean resolved = "RESOLVED".equals(observed.caseStatus());
     // A case can rightly end waiting for someone's answer, with nothing proposed (a silent buyer).

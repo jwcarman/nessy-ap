@@ -20,5 +20,10 @@ public enum CaseStatus {
   /** The agent asked someone and waits for the answer; the invoice stays stopped meanwhile. */
   AWAITING_ANSWER,
   AWAITING_DECISION,
+  /**
+   * The agent's turn ended, or failed, with nothing in motion: no proposal waits and nobody was
+   * asked. A person must look; a new turn takes the case back.
+   */
+  NEEDS_PERSON,
   RESOLVED
 }

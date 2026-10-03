@@ -98,6 +98,13 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
   }
 
   @Test
+  void a_vendor_with_a_pending_bank_change_is_cited_by_its_id_or_the_change() {
+    ScenarioResult result = catalog.load("bank-change-fraud");
+
+    assertThat(result.facts().get("vendor")).hasSize(2).contains(result.vendorId().toString());
+  }
+
+  @Test
   void an_injected_invoice_number_carries_an_instruction() {
     ScenarioResult result = catalog.load("price-variance-injected-number");
 

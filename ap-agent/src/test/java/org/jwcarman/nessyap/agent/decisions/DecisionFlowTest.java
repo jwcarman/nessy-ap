@@ -169,7 +169,26 @@ class DecisionFlowTest extends ApAgentIntegrationTest {
         .singleElement()
         .satisfies(
             o -> assertThat(((ToolOutcome.Denied) o).reason()).contains("call the buyer first"));
-    assertThat(cases.find(exceptionId).orElseThrow().status()).isEqualTo(CaseStatus.INVESTIGATING);
+    await()
+        .atMost(PATIENCE)
+        .untilAsserted(
+            () ->
+                assertThat(cases.find(exceptionId).orElseThrow().status())
+                    .isEqualTo(CaseStatus.NEEDS_PERSON));
+  }
+
+  @Test
+  void a_denial_tells_the_model_to_act_on_it_in_the_same_turn() {
+    PendingDecision proposal = awaitProposal();
+
+    executor.decide(proposal.id(), "connie", false, "we agreed 10.00");
+
+    awaitTurnEnded(1);
+    assertThat(model.outcomesSeen())
+        .filteredOn(ToolOutcome.Denied.class::isInstance)
+        .singleElement()
+        .satisfies(
+            o -> assertThat(((ToolOutcome.Denied) o).reason()).contains("propose again now"));
   }
 
   @Nested

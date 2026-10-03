@@ -51,6 +51,12 @@ class SettledTest {
   }
 
   @Test
+  void a_case_put_in_front_of_a_person_that_has_been_quiet_long_enough_is_settled() {
+    assertThat(Settled.of(view("NEEDS_PERSON", "ANSWERED", NOW.minusSeconds(9)), NOW, QUIET))
+        .isTrue();
+  }
+
+  @Test
   void a_resolved_case_still_busy_is_not() {
     assertThat(Settled.of(view("RESOLVED", "ANSWERED", NOW.minusSeconds(2)), NOW, QUIET)).isFalse();
   }

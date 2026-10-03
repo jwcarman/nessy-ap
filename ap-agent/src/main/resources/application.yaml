@@ -83,6 +83,8 @@ ap:
       provider: ${AP_READER_PROVIDER:${nessy.provider}}
       model: ${AP_READER_MODEL:google/gemma-4-e4b}
       timeout: PT30S
+      # A reasoning model spends part of this on thinking before it writes the reading.
+      max-tokens: ${AP_READER_MAX_TOKENS:1024}
   # Where people answer the agent's questions; the notice mail links here.
   workbench:
     url: ${AP_WORKBENCH_URL:http://localhost:8082}

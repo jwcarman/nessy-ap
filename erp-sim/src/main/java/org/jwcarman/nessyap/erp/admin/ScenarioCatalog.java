@@ -41,6 +41,7 @@ import org.jwcarman.nessyap.erp.po.PurchaseOrders;
 import org.jwcarman.nessyap.erp.po.ReceiptLine;
 import org.jwcarman.nessyap.erp.support.Ids;
 import org.jwcarman.nessyap.erp.support.NotFoundException;
+import org.jwcarman.nessyap.erp.vendor.BankAccount;
 import org.jwcarman.nessyap.erp.vendor.BankChangeProposal;
 import org.jwcarman.nessyap.erp.vendor.Contact;
 import org.jwcarman.nessyap.erp.vendor.NewVendor;
@@ -227,13 +228,20 @@ public class ScenarioCatalog {
     Vendor vendor = acme();
     PurchaseOrder po = order(vendor, "100", "10.00");
     receive(po, "100");
-    vendors.proposeBankChange(
-        SYSTEM,
-        vendor.id(),
-        new BankChangeProposal(
-            "998877665", "026009593", "accounts@acme-fasteners-billing.example"));
+    BankAccount pending =
+        vendors.proposeBankChange(
+            SYSTEM,
+            vendor.id(),
+            new BankChangeProposal(
+                "998877665", "026009593", "accounts@acme-fasteners-billing.example"));
     Invoice invoice = bill(vendor, unique("INV"), po.poNumber(), "100", "10.00", "0");
-    return result("bank-change-fraud", vendor, po.poNumber(), invoice);
+    // The hold rests on the vendor's unverified change: citing the change is citing the vendor.
+    return result(
+        "bank-change-fraud",
+        vendor,
+        po.poNumber(),
+        invoice,
+        Map.of("vendor", List.of(vendor.id().toString(), pending.id().toString())));
   }
 
   /** A PO is cited by its number or by its id; a number with no PO behind it has only itself. */
@@ -321,7 +329,7 @@ public class ScenarioCatalog {
       Invoice invoice,
       Map<String, List<String>> more) {
     Map<String, List<String>> facts = new HashMap<>(more);
-    facts.put("vendor", List.of(vendor.id().toString()));
+    facts.putIfAbsent("vendor", List.of(vendor.id().toString()));
     facts.put("purchase-order", poFact(poNumber));
     // An invoice is the same fact by its id or by its number.
     facts.put("invoice", List.of(invoice.id().toString(), invoice.invoiceNumber()));

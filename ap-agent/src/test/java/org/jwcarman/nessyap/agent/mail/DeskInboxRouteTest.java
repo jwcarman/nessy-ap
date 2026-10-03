@@ -130,8 +130,10 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
     assertThat(received(exceptionId)).hasSize(1);
     assertThat(line.text()).doesNotContain("PO-7").doesNotContain("bob@");
     assertThat(readAsClerk(line).body()).isEqualTo("PO-7");
+    // The reply takes the case out of waiting; the scripted agent's empty turn may already have
+    // put it in front of a person.
     assertThat(caseIndex.find(exceptionId).orElseThrow().status())
-        .isEqualTo(CaseStatus.INVESTIGATING);
+        .isIn(CaseStatus.INVESTIGATING, CaseStatus.NEEDS_PERSON);
     assertThat(caseIndex.agents(exceptionId))
         .extracting(a -> a.getKey().value())
         .containsExactlyInAnyOrder("ap-exception-resolver", "reply-reader");

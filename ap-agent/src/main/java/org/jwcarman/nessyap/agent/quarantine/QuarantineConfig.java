@@ -80,6 +80,7 @@ public class QuarantineConfig {
       @Value("${ap.quarantine.reader.provider}") String provider,
       @Value("${ap.quarantine.reader.model}") String model,
       @Value("${ap.quarantine.reader.timeout}") Duration timeout,
+      @Value("${ap.quarantine.reader.max-tokens}") int maxTokens,
       PlatformTransactionManager transactions) {
     DirectHarness<Reply, ModelReading> reader =
         harnesses.create(
@@ -94,7 +95,7 @@ public class QuarantineConfig {
                             inference
                                 .provider(provider)
                                 .model(model)
-                                .maxTokens(256)
+                                .maxTokens(maxTokens)
                                 .timeout(timeout)));
     TransactionTemplate outsideTransaction = new TransactionTemplate(transactions);
     outsideTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_NOT_SUPPORTED);

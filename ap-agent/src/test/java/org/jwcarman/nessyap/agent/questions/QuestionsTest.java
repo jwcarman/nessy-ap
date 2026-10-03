@@ -48,8 +48,9 @@ class QuestionsTest extends ApAgentIntegrationTest {
     Answers.Answered second = answers.answer(q.id(), "bob", "Not agreed", null);
 
     assertThat(first).isInstanceOf(Answers.Answered.Told.class);
+    // The answer takes the case out of waiting; the agent's turn may already have ended.
     assertThat(caseIndex.find(exceptionId).orElseThrow().status())
-        .isEqualTo(CaseStatus.INVESTIGATING);
+        .isIn(CaseStatus.INVESTIGATING, CaseStatus.NEEDS_PERSON);
     assertThat(second).isInstanceOf(Answers.Answered.AlreadyAnswered.class);
     assertThat(questions.forCase(exceptionId))
         .singleElement()
