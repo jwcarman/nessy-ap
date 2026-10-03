@@ -19,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.jwcarman.nessyap.erp.support.ErpReset;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
@@ -32,6 +33,7 @@ public abstract class ErpIntegrationTest {
 
   @Autowired protected JdbcClient jdbc;
   @Autowired private ErpReset erpReset;
+  @Autowired private ApplicationContext context;
 
   @BeforeEach
   void startFromEmptyTables() {
@@ -40,5 +42,9 @@ public abstract class ErpIntegrationTest {
 
   protected long count(String table) {
     return jdbc.sql("select count(*) from " + table).query(Long.class).single();
+  }
+
+  protected TestData data() {
+    return new TestData(context);
   }
 }
