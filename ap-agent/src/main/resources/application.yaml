@@ -10,6 +10,11 @@ spring:
   mail:
     host: localhost
     port: 53025
+    # A send happens inside the agent's turn: never wait on a hung server for long.
+    properties:
+      "[mail.smtp.connectiontimeout]": 10000
+      "[mail.smtp.timeout]": 10000
+      "[mail.smtp.writetimeout]": 10000
   rabbitmq:
     host: localhost
     port: 55672

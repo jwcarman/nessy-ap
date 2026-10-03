@@ -44,8 +44,11 @@ public sealed interface CaseInput {
   /** A person working the case wrote something to the agent. */
   record PersonNote(String author, String text) implements CaseInput {}
 
-  /** A vendor or buyer answered something the agent asked. */
-  record CounterpartyReply(String from, String text) implements CaseInput {}
+  /**
+   * Mail arrived on the case. {@code knownSender} says whether the desk wrote to that address on
+   * this case; anyone can put a case's reference in a subject line.
+   */
+  record CounterpartyReply(String from, String text, boolean knownSender) implements CaseInput {}
 
   /** A decision reached the ERP after the agent had stopped waiting for it. */
   record DecisionApplied(UUID decisionId, String action, String outcome) implements CaseInput {}

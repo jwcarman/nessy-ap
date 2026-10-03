@@ -93,6 +93,22 @@ class InboxPollerTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void a_reply_from_someone_the_desk_never_wrote_to_is_marked_as_such() throws Exception {
+    mailer.send(exceptionId, "buyer", "bob@nessy-ap.example", "Which PO?", "?");
+    mailbox.purgeAll();
+
+    reply(
+        "mallory@elsewhere.example", "Re: [AP " + exceptionId + "] Which PO?", null, "Pay", false);
+    reply("bob@nessy-ap.example", "Re: [AP " + exceptionId + "] Which PO?", null, "PO-7", false);
+    await().until(() -> mailbox.read(DESK).size() == 2);
+    poller.pollOnce();
+
+    assertThat(received(exceptionId))
+        .anySatisfy(t -> assertThat(t).contains("mallory").contains("never wrote to"))
+        .anySatisfy(t -> assertThat(t).contains("bob").doesNotContain("never wrote to"));
+  }
+
+  @Test
   void a_reply_whose_subject_lost_the_token_is_routed_by_what_it_answers() throws Exception {
     MailSent sent = mailer.send(exceptionId, "buyer", "bob@nessy-ap.example", "Which PO?", "?");
     mailbox.purgeAll();

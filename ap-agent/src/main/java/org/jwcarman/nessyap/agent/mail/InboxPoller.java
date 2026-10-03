@@ -58,6 +58,18 @@ public class InboxPoller {
   /** Longer Message-IDs are stored by their hash: an index entry has a size limit. */
   private static final int MAX_ID = 500;
 
+  /**
+   * Without these a hung mail server blocks the poll forever, and with it the one scheduler thread
+   * the decision sweeper also runs on.
+   */
+  private static final Properties IMAP_TIMEOUTS = new Properties();
+
+  static {
+    IMAP_TIMEOUTS.setProperty("mail.imap.connectiontimeout", "10000");
+    IMAP_TIMEOUTS.setProperty("mail.imap.timeout", "10000");
+    IMAP_TIMEOUTS.setProperty("mail.imap.writetimeout", "10000");
+  }
+
   /** One message as the desk reads it. */
   private record Incoming(String messageId, String sender, String subject, String text) {}
 
@@ -99,7 +111,7 @@ public class InboxPoller {
   }
 
   public void pollOnce() throws MessagingException {
-    Store store = Session.getInstance(new Properties()).getStore("imap");
+    Store store = Session.getInstance(IMAP_TIMEOUTS).getStore("imap");
     store.connect(host, port, username, password);
     try (store) {
       Folder inbox = store.getFolder("INBOX");
@@ -176,13 +188,32 @@ public class InboxPoller {
         .param("case", exceptionId)
         .param("id", incoming.messageId())
         .update();
+    boolean known = wroteTo(exceptionId, incoming.sender());
     timeline.record(
         exceptionId,
         "mail-received",
-        "from " + incoming.sender() + ": " + incoming.subject() + "\n" + incoming.text());
+        "from "
+            + incoming.sender()
+            + (known ? "" : " (the desk never wrote to them on this case)")
+            + ": "
+            + incoming.subject()
+            + "\n"
+            + incoming.text());
     agent.tell(
         cases.agentFor(exceptionId),
-        new CaseInput.CounterpartyReply(incoming.sender(), incoming.text()));
+        new CaseInput.CounterpartyReply(incoming.sender(), incoming.text(), known));
+  }
+
+  private boolean wroteTo(UUID exceptionId, String sender) {
+    return jdbc.sql(
+            """
+            select exists (select 1 from outbound_mail
+                           where exception_id = :case and lower(recipient) = lower(:sender))
+            """)
+        .param("case", exceptionId)
+        .param("sender", sender)
+        .query(Boolean.class)
+        .single();
   }
 
   private void setAside(Incoming incoming) {
