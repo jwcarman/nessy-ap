@@ -12,3 +12,7 @@
 - Tests need Docker (Testcontainers). To run the apps: `docker compose up -d`
   (Postgres on 55432, RabbitMQ on 55672, management UI on 55673).
 - Model policy: the table in `~/IdeaProjects/nessy/CLAUDE.md` applies here too.
+- Tone and voice: write prose in ASD-STE100, about 80% of the way, by the rules in the
+  "Tone and voice" section of `~/IdeaProjects/nessy/CLAUDE.md`. In this repo the ruled
+  vocabulary also includes the AP terms in the spec (case, exception, proposal, decision,
+  desk, counterparty).
