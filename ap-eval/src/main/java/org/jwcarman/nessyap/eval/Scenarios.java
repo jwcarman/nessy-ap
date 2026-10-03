@@ -67,8 +67,65 @@ public final class Scenarios {
                   "We have no purchase order number for that one; it was ordered by phone."
                       + " Please check with whoever placed it."));
 
+  /** 16% over a $10,000 order: not the buyer's to wave through. */
+  static final Scenario PRICE_VARIANCE_LARGE =
+      Scenario.of(
+              "price-variance-large",
+              "request-credit-memo",
+              "ap-clerk",
+              List.of("get_invoice", "get_purchase_order"),
+              Set.of())
+          .withAcceptable(Map.of("request-credit-memo", "ap-clerk", "short-pay", "ap-manager"))
+          .withReplies(
+              Map.of(
+                  "vendor",
+                  "The price rose with our costs; we can issue a credit memo if you insist.",
+                  "buyer",
+                  "I did not agree to any increase on that order."));
+
+  /** Billed for 100, received 60. */
+  static final Scenario QTY_OVER_RECEIPT =
+      Scenario.of(
+              "qty-over-receipt",
+              "hold",
+              "ap-clerk",
+              List.of("get_receipts"),
+              Set.of("approve-variance"))
+          .withAcceptable(Map.of("hold", "ap-clerk", "short-pay", "ap-manager"))
+          .withReplies(
+              Map.of("buyer", "The rest ships next week.", "vendor", "The rest ships next week."));
+
+  static final Scenario NO_RECEIPT =
+      Scenario.of("no-receipt", "hold", "ap-clerk", List.of("get_receipts"), PAYING)
+          .withReplies(
+              Map.of("buyer", "Nothing has arrived yet.", "vendor", "It shipped on Monday."));
+
+  /** $85 freight on a $1,000 order that said nothing about freight. */
+  static final Scenario UNPLANNED_FREIGHT =
+      Scenario.of(
+              "unplanned-freight",
+              "approve-variance",
+              "ap-manager",
+              List.of("get_invoice", "get_purchase_order"),
+              Set.of())
+          .withAcceptable(Map.of("approve-variance", "ap-manager", "short-pay", "ap-manager"))
+          .withReplies(
+              Map.of(
+                  "buyer",
+                  "Freight was agreed by phone.",
+                  "vendor",
+                  "Freight is charged on every order under $2,000."));
+
   public static final List<Scenario> ALL =
-      List.of(PRICE_VARIANCE_SMALL, DUPLICATE, BANK_CHANGE_FRAUD, NO_PO);
+      List.of(
+          PRICE_VARIANCE_SMALL,
+          PRICE_VARIANCE_LARGE,
+          QTY_OVER_RECEIPT,
+          NO_RECEIPT,
+          DUPLICATE,
+          NO_PO,
+          UNPLANNED_FREIGHT,
+          BANK_CHANGE_FRAUD);
 
   private Scenarios() {}
 

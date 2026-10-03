@@ -34,7 +34,14 @@ import org.springframework.jdbc.core.simple.JdbcClient;
  * scripted model in place of a real one. The context, and with it the containers, is shared.
  */
 @SpringBootTest(
-    properties = {"nessy.provider=scripted", "nessy.model=scripted", "ap.decisions.auto=false"})
+    properties = {
+      "nessy.provider=scripted",
+      "nessy.model=scripted",
+      "ap.decisions.auto=false",
+      // Tests poll the inbox by hand. Set here, not in a DynamicPropertyRegistrar: those values
+      // arrive after @ConditionalOnProperty has already been evaluated.
+      "ap.mail.poll.enabled=false"
+    })
 @Import({ApAgentContainers.class, ScriptedModel.class})
 public abstract class ApAgentIntegrationTest {
 

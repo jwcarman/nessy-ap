@@ -83,7 +83,6 @@ public class ApAgentContainers {
       registry.add("ap.mail.imap.host", greenMail::getHost);
       registry.add("ap.mail.imap.port", () -> greenMail.getMappedPort(3143));
       registry.add("ap.mail.imap.password", () -> "ap-desk@nessy-ap.example");
-      registry.add("ap.mail.poll.enabled", () -> "false");
     };
   }
 
