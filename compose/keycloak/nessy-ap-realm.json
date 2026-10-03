@@ -1,0 +1,187 @@
+{
+  "realm": "nessy-ap",
+  "enabled": true,
+  "displayName": "Nessy AP (dev realm: passwords are the usernames)",
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 3600,
+  "roles": {
+    "realm": [
+      {
+        "name": "ap-clerk",
+        "description": "Works the AP exception queue; may place holds"
+      },
+      {
+        "name": "buyer",
+        "description": "Places purchase orders; accepts price variances on their own POs"
+      },
+      {
+        "name": "ap-manager",
+        "description": "Approves holds, short-pays, rejections and charges up to 10,000"
+      },
+      {
+        "name": "controller",
+        "description": "Decides anything, any amount"
+      },
+      {
+        "name": "auditor",
+        "description": "Reads every case and its trail"
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "clara",
+      "enabled": true,
+      "email": "clara@nessy-ap.example",
+      "emailVerified": true,
+      "firstName": "Clara",
+      "lastName": "Clerk",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "clara",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ap-clerk",
+        "default-roles-nessy-ap"
+      ]
+    },
+    {
+      "username": "bob",
+      "enabled": true,
+      "email": "bob@nessy-ap.example",
+      "emailVerified": true,
+      "firstName": "Bob",
+      "lastName": "Buyer",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "bob",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "buyer",
+        "default-roles-nessy-ap"
+      ]
+    },
+    {
+      "username": "mark",
+      "enabled": true,
+      "email": "mark@nessy-ap.example",
+      "emailVerified": true,
+      "firstName": "Mark",
+      "lastName": "Manager",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "mark",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ap-manager",
+        "default-roles-nessy-ap"
+      ]
+    },
+    {
+      "username": "connie",
+      "enabled": true,
+      "email": "connie@nessy-ap.example",
+      "emailVerified": true,
+      "firstName": "Connie",
+      "lastName": "Controller",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "connie",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "controller",
+        "default-roles-nessy-ap"
+      ]
+    },
+    {
+      "username": "audrey",
+      "enabled": true,
+      "email": "audrey@nessy-ap.example",
+      "emailVerified": true,
+      "firstName": "Audrey",
+      "lastName": "Auditor",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "audrey",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "auditor",
+        "default-roles-nessy-ap"
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "workbench",
+      "name": "AP workbench",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "workbench-secret",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8082/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8082"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:8082/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "erp-sim audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "erp-sim",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "ap-eval",
+      "name": "AP evaluation runner (dev only)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "erp-sim audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "erp-sim",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ]
+}

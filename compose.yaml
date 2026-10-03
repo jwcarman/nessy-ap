@@ -20,6 +20,23 @@ services:
       - rabbitmq-data:/var/lib/rabbitmq
       - ./compose/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
       - ./compose/rabbitmq/10-definitions.conf:/etc/rabbitmq/conf.d/10-definitions.conf:ro
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4
+    command: ["start-dev", "--import-realm", "--http-port=8080"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "58080:8080"
+    volumes:
+      - ./compose/keycloak:/opt/keycloak/data/import:ro
+  opa:
+    image: openpolicyagent/opa:0.68.0
+    command: ["run", "--server", "--addr", "0.0.0.0:8181", "--watch", "/policy"]
+    ports:
+      - "58181:8181"
+    volumes:
+      - ./compose/opa/policy:/policy:ro
 volumes:
   postgres-data:
   rabbitmq-data:
