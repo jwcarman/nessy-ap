@@ -1,0 +1,219 @@
+/*
+ * Copyright © ${year} James Carman
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.jwcarman.nessyap.erp.admin;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Supplier;
+import org.jwcarman.nessyap.erp.audit.Actor;
+import org.jwcarman.nessyap.erp.invoice.Invoice;
+import org.jwcarman.nessyap.erp.invoice.InvoiceIntake;
+import org.jwcarman.nessyap.erp.invoice.InvoiceLine;
+import org.jwcarman.nessyap.erp.invoice.NewInvoice;
+import org.jwcarman.nessyap.erp.matching.MatchException;
+import org.jwcarman.nessyap.erp.matching.MatchExceptionRepository;
+import org.jwcarman.nessyap.erp.po.GoodsReceipts;
+import org.jwcarman.nessyap.erp.po.NewPurchaseOrder;
+import org.jwcarman.nessyap.erp.po.NewReceipt;
+import org.jwcarman.nessyap.erp.po.PoLine;
+import org.jwcarman.nessyap.erp.po.PurchaseOrder;
+import org.jwcarman.nessyap.erp.po.PurchaseOrders;
+import org.jwcarman.nessyap.erp.po.ReceiptLine;
+import org.jwcarman.nessyap.erp.support.Ids;
+import org.jwcarman.nessyap.erp.support.NotFoundException;
+import org.jwcarman.nessyap.erp.vendor.BankChangeProposal;
+import org.jwcarman.nessyap.erp.vendor.Contact;
+import org.jwcarman.nessyap.erp.vendor.NewVendor;
+import org.jwcarman.nessyap.erp.vendor.Vendor;
+import org.jwcarman.nessyap.erp.vendor.VendorMaster;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Named, repeatable situations to seed the ERP with: one per kind of match exception, plus a clean
+ * match. Every load makes its own vendor and unique document numbers, so loads never collide.
+ */
+@Component
+public class ScenarioCatalog {
+
+  private static final Actor SYSTEM = Actor.system();
+  private static final LocalDate INVOICE_DATE = LocalDate.of(2026, 10, 1);
+  private static final String ITEM = "M8 hex bolts, box of 100";
+
+  private final VendorMaster vendors;
+  private final PurchaseOrders purchaseOrders;
+  private final GoodsReceipts receipts;
+  private final InvoiceIntake intake;
+  private final MatchExceptionRepository exceptions;
+  private final Map<String, Supplier<ScenarioResult>> scenarios = new LinkedHashMap<>();
+
+  public ScenarioCatalog(
+      VendorMaster vendors,
+      PurchaseOrders purchaseOrders,
+      GoodsReceipts receipts,
+      InvoiceIntake intake,
+      MatchExceptionRepository exceptions) {
+    this.vendors = vendors;
+    this.purchaseOrders = purchaseOrders;
+    this.receipts = receipts;
+    this.intake = intake;
+    this.exceptions = exceptions;
+    scenarios.put("clean-match", () -> standard("clean-match", "100", "10.00", "0"));
+    scenarios.put(
+        "price-variance-small", () -> standard("price-variance-small", "100", "10.40", "0"));
+    scenarios.put("price-variance-large", this::priceVarianceLarge);
+    scenarios.put("qty-over-receipt", () -> standard("qty-over-receipt", "60", "10.00", "0"));
+    scenarios.put("no-receipt", this::noReceipt);
+    scenarios.put("duplicate", this::duplicate);
+    scenarios.put("no-po", this::noPo);
+    scenarios.put(
+        "unplanned-freight", () -> standard("unplanned-freight", "100", "10.00", "85.00"));
+    scenarios.put("bank-change-fraud", this::bankChangeFraud);
+  }
+
+  public Set<String> names() {
+    return scenarios.keySet();
+  }
+
+  @Transactional
+  public ScenarioResult load(String name) {
+    Supplier<ScenarioResult> scenario = scenarios.get(name);
+    if (scenario == null) {
+      throw new NotFoundException("scenario", name);
+    }
+    return scenario.get();
+  }
+
+  /** The base case: 100 bolts at 10.00 ordered; the given quantity received; billed as given. */
+  private ScenarioResult standard(
+      String name, String received, String billedPrice, String freight) {
+    Vendor vendor = acme();
+    PurchaseOrder po = order(vendor, "100", "10.00");
+    receive(po, received);
+    Invoice invoice = bill(vendor, unique("INV"), po.poNumber(), "100", billedPrice, freight);
+    return result(name, vendor, po.poNumber(), invoice);
+  }
+
+  private ScenarioResult priceVarianceLarge() {
+    Vendor vendor = acme();
+    PurchaseOrder po = order(vendor, "40", "250.00");
+    receive(po, "40");
+    Invoice invoice = bill(vendor, unique("INV"), po.poNumber(), "40", "290.00", "0");
+    return result("price-variance-large", vendor, po.poNumber(), invoice);
+  }
+
+  private ScenarioResult noReceipt() {
+    Vendor vendor = acme();
+    PurchaseOrder po = order(vendor, "100", "10.00");
+    Invoice invoice = bill(vendor, unique("INV"), po.poNumber(), "100", "10.00", "0");
+    return result("no-receipt", vendor, po.poNumber(), invoice);
+  }
+
+  private ScenarioResult duplicate() {
+    Vendor vendor = acme();
+    PurchaseOrder po = order(vendor, "100", "10.00");
+    receive(po, "100");
+    String number = unique("INV");
+    bill(vendor, number, po.poNumber(), "100", "10.00", "0");
+    Invoice again = bill(vendor, number.replace('-', ' '), po.poNumber(), "100", "10.00", "0");
+    return result("duplicate", vendor, po.poNumber(), again);
+  }
+
+  private ScenarioResult noPo() {
+    Vendor vendor = acme();
+    String missing = unique("PO");
+    Invoice invoice = bill(vendor, unique("INV"), missing, "100", "10.00", "0");
+    return result("no-po", vendor, missing, invoice);
+  }
+
+  private ScenarioResult bankChangeFraud() {
+    Vendor vendor = acme();
+    PurchaseOrder po = order(vendor, "100", "10.00");
+    receive(po, "100");
+    vendors.proposeBankChange(
+        SYSTEM,
+        vendor.id(),
+        new BankChangeProposal(
+            "998877665", "026009593", "accounts@acme-fasteners-billing.example"));
+    Invoice invoice = bill(vendor, unique("INV"), po.poNumber(), "100", "10.00", "0");
+    return result("bank-change-fraud", vendor, po.poNumber(), invoice);
+  }
+
+  private Vendor acme() {
+    return vendors.create(
+        SYSTEM,
+        new NewVendor(
+            "Acme Fasteners",
+            "NET30",
+            new Contact("Ada Acme", "+1-555-0100", "ar@acme-fasteners.example"),
+            "000123456",
+            "021000021"));
+  }
+
+  private PurchaseOrder order(Vendor vendor, String quantity, String price) {
+    return purchaseOrders.create(
+        SYSTEM,
+        new NewPurchaseOrder(
+            unique("PO"),
+            vendor.id(),
+            "bob",
+            List.of(new PoLine(1, ITEM, new BigDecimal(quantity), new BigDecimal(price)))));
+  }
+
+  private void receive(PurchaseOrder po, String quantity) {
+    receipts.post(
+        SYSTEM,
+        new NewReceipt(po.poNumber(), List.of(new ReceiptLine(1, new BigDecimal(quantity)))));
+  }
+
+  private Invoice bill(
+      Vendor vendor,
+      String number,
+      String poNumber,
+      String quantity,
+      String price,
+      String freight) {
+    return intake.receive(
+        SYSTEM,
+        new NewInvoice(
+            vendor.id(),
+            number,
+            poNumber,
+            INVOICE_DATE,
+            BigDecimal.ZERO,
+            new BigDecimal(freight),
+            List.of(new InvoiceLine(1, 1, ITEM, new BigDecimal(quantity), new BigDecimal(price)))));
+  }
+
+  private ScenarioResult result(String name, Vendor vendor, String poNumber, Invoice invoice) {
+    return new ScenarioResult(
+        name,
+        vendor.id(),
+        poNumber,
+        invoice.id(),
+        exceptions.findByInvoice(invoice.id()).stream().map(MatchException::id).toList());
+  }
+
+  private static String unique(String prefix) {
+    String hex = Ids.next().toString().replace("-", "");
+    return prefix + "-" + hex.substring(hex.length() - 8).toUpperCase(Locale.ROOT);
+  }
+}
