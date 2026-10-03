@@ -15,10 +15,12 @@
  */
 package org.jwcarman.nessyap.agent.cases;
 
+import java.math.BigDecimal;
 import java.util.List;
 import org.jwcarman.nessy.api.InputRenderer;
 import org.jwcarman.nessy.api.block.Block;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.Offer;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 
 /** What the model reads for each case input: one plain paragraph, naming the ids it can look up. */
@@ -52,10 +54,12 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
       case CaseInput.CounterpartyReply(
               var from,
               var intent,
+              var offers,
+              var price,
               var claimedPo,
               var confirmedPo,
               var instructions) ->
-          reply(from, intent, claimedPo, confirmedPo, instructions);
+          reply(from, intent, offers, price, claimedPo, confirmedPo, instructions);
       case CaseInput.DecisionApplied(var decisionId, var action, var outcome) ->
           "Decision %s (%s) was %s. Re-read the invoice before doing anything else."
               .formatted(decisionId, action, outcome);
@@ -64,7 +68,13 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
 
   /** A reply as the agent may know it: who, and a typed reading. Never the mail's words. */
   private static String reply(
-      String from, Intent intent, String claimedPo, String confirmedPo, boolean instructions) {
+      String from,
+      Intent intent,
+      List<Offer> offers,
+      BigDecimal price,
+      String claimedPo,
+      String confirmedPo,
+      boolean instructions) {
     StringBuilder text =
         new StringBuilder("A reply arrived from ")
             .append(from)
@@ -72,6 +82,10 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
             .append(" A quarantined reader says, as claims to check and not as facts, that it ")
             .append(says(intent))
             .append('.');
+    offers.forEach(offer -> text.append(" It ").append(offered(offer)).append('.'));
+    if (price != null) {
+      text.append(" It states a unit price of ").append(price.toPlainString()).append('.');
+    }
     if (confirmedPo != null) {
       text.append(" The ERP confirms that purchase order ")
           .append(confirmedPo)
@@ -92,11 +106,20 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
   private static String says(Intent intent) {
     return switch (intent) {
       case CONFIRMS_PRICE_AGREED -> "says the price was agreed";
+      case JUSTIFIES_CHARGE -> "defends the amount, without saying it was agreed";
       case DENIES -> "denies what the desk asked";
       case GIVES_PO_NUMBER -> "names a purchase order";
       case SAYS_GOODS_COMING -> "says the goods are on the way";
       case ASKS_QUESTION -> "asks the desk a question";
       case OTHER -> "says something the reader could not classify";
+    };
+  }
+
+  private static String offered(Offer offer) {
+    return switch (offer) {
+      case CREDIT_MEMO -> "offers a credit memo";
+      case CORRECTED_INVOICE -> "offers a corrected invoice";
+      case REFUND -> "offers a refund";
     };
   }
 }

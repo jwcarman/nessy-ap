@@ -17,8 +17,11 @@ package org.jwcarman.nessyap.agent.cases;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.Offer;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReceiptPosted;
 
@@ -54,6 +57,8 @@ public sealed interface CaseInput {
   record CounterpartyReply(
       String from,
       Intent intent,
+      List<Offer> offers,
+      BigDecimal statedUnitPrice,
       String claimedPo,
       String confirmedPo,
       boolean containsInstructions)

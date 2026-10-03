@@ -17,6 +17,7 @@ package org.jwcarman.nessyap.agent.quarantine;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +32,7 @@ import org.jwcarman.nessy.api.TurnStats;
 import org.jwcarman.nessy.api.block.Block;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ModelReading;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.Offer;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
 import org.springframework.transaction.support.TransactionOperations;
@@ -75,17 +77,22 @@ class ModelReplyReaderTest {
         new FakeReader(
             r ->
                 new Outcome.Answered<>(
-                    new ModelReading(Intent.GIVES_PO_NUMBER, "PO-7", false), stats()));
+                    new ModelReading(Intent.GIVES_PO_NUMBER, List.of(), null, "PO-7", false),
+                    stats()));
 
     assertThat(new ModelReplyReader(fake, TransactionOperations.withoutTransaction()).read(REPLY))
-        .isEqualTo(new ReplyReading(VENDOR, Intent.GIVES_PO_NUMBER, new PoNumber("PO-7"), false));
+        .isEqualTo(
+            new ReplyReading(
+                VENDOR, Intent.GIVES_PO_NUMBER, List.of(), null, new PoNumber("PO-7"), false));
   }
 
   @Test
   void each_reply_has_its_own_reader_agent_and_the_same_reply_always_the_same_one() {
     FakeReader fake =
         new FakeReader(
-            r -> new Outcome.Answered<>(new ModelReading(Intent.OTHER, null, false), stats()));
+            r ->
+                new Outcome.Answered<>(
+                    new ModelReading(Intent.OTHER, List.of(), null, null, false), stats()));
     ModelReplyReader reader =
         new ModelReplyReader(fake, TransactionOperations.withoutTransaction());
     Reply another = new Reply(VENDOR, "<m2@acme.example>", "ann@acme.example", "Re", "Hi");
@@ -112,10 +119,49 @@ class ModelReplyReaderTest {
         new FakeReader(
             r ->
                 new Outcome.Answered<>(
-                    new ModelReading(Intent.CONFIRMS_PRICE_AGREED, "***", false), stats()));
+                    new ModelReading(Intent.CONFIRMS_PRICE_AGREED, List.of(), null, "***", false),
+                    stats()));
 
     assertThat(new ModelReplyReader(fake, TransactionOperations.withoutTransaction()).read(REPLY))
-        .isEqualTo(new ReplyReading(VENDOR, Intent.CONFIRMS_PRICE_AGREED, null, false));
+        .isEqualTo(
+            new ReplyReading(VENDOR, Intent.CONFIRMS_PRICE_AGREED, List.of(), null, null, false));
+  }
+
+  @Test
+  void a_reading_carries_what_the_reply_offers_and_the_price_it_states() {
+    FakeReader fake =
+        new FakeReader(
+            r ->
+                new Outcome.Answered<>(
+                    new ModelReading(
+                        Intent.JUSTIFIES_CHARGE, List.of(Offer.CREDIT_MEMO), "11.60", null, false),
+                    stats()));
+
+    assertThat(new ModelReplyReader(fake, TransactionOperations.withoutTransaction()).read(REPLY))
+        .isEqualTo(
+            new ReplyReading(
+                VENDOR,
+                Intent.JUSTIFIES_CHARGE,
+                List.of(Offer.CREDIT_MEMO),
+                new BigDecimal("11.60"),
+                null,
+                false));
+  }
+
+  @Test
+  void a_stated_price_that_is_not_a_plain_amount_is_dropped() {
+    FakeReader fake =
+        new FakeReader(
+            r ->
+                new Outcome.Answered<>(
+                    new ModelReading(Intent.OTHER, null, "about ten dollars", null, false),
+                    stats()));
+
+    ReplyReading reading =
+        new ModelReplyReader(fake, TransactionOperations.withoutTransaction()).read(REPLY);
+
+    assertThat(reading.statedUnitPrice()).isNull();
+    assertThat(reading.offers()).isEmpty();
   }
 
   @Test

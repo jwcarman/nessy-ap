@@ -19,10 +19,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessy.api.block.Block;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.Offer;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReasonCode;
 import org.jwcarman.nessyap.contracts.ReceiptPosted;
@@ -112,7 +114,13 @@ class CaseInputRendererTest {
     String shown =
         render(
             new CaseInput.CounterpartyReply(
-                "the buyer the desk wrote to", Intent.CONFIRMS_PRICE_AGREED, null, null, false));
+                "the buyer the desk wrote to",
+                Intent.CONFIRMS_PRICE_AGREED,
+                List.of(),
+                null,
+                null,
+                null,
+                false));
 
     assertThat(shown)
         .contains("the buyer the desk wrote to")
@@ -126,11 +134,11 @@ class CaseInputRendererTest {
     String claimed =
         render(
             new CaseInput.CounterpartyReply(
-                "the vendor", Intent.GIVES_PO_NUMBER, "PO-7", null, false));
+                "the vendor", Intent.GIVES_PO_NUMBER, List.of(), null, "PO-7", null, false));
     String confirmed =
         render(
             new CaseInput.CounterpartyReply(
-                "the vendor", Intent.GIVES_PO_NUMBER, "PO-7", "PO-7", false));
+                "the vendor", Intent.GIVES_PO_NUMBER, List.of(), null, "PO-7", "PO-7", false));
 
     assertThat(claimed).contains("PO-7").contains("not confirmed");
     assertThat(confirmed).contains("The ERP confirms").contains("PO-7");
@@ -143,12 +151,34 @@ class CaseInputRendererTest {
                 new CaseInput.CounterpartyReply(
                     "someone the desk never wrote to on this case",
                     Intent.OTHER,
+                    List.of(),
+                    null,
                     null,
                     null,
                     true)))
         .contains("never wrote to")
         .contains("tried to give instructions")
         .contains("hold");
+  }
+
+  @Test
+  void a_reply_that_defends_its_price_and_offers_a_credit_memo_says_both_as_claims() {
+    String shown =
+        render(
+            new CaseInput.CounterpartyReply(
+                "the vendor the desk wrote to",
+                Intent.JUSTIFIES_CHARGE,
+                List.of(Offer.CREDIT_MEMO),
+                new BigDecimal("11.60"),
+                null,
+                null,
+                false));
+
+    assertThat(shown)
+        .contains("defends the amount")
+        .contains("offers a credit memo")
+        .contains("states a unit price of 11.60")
+        .contains("claims");
   }
 
   @Test

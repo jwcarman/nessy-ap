@@ -15,6 +15,7 @@
  */
 package org.jwcarman.nessyap.agent.quarantine;
 
+import java.util.List;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
@@ -32,6 +33,6 @@ public interface ReplyReader {
    * read it.
    */
   static ReplyReading unread(Reply reply) {
-    return new ReplyReading(reply.vendorId(), Intent.OTHER, null, true);
+    return new ReplyReading(reply.vendorId(), Intent.OTHER, List.of(), null, null, true);
   }
 }

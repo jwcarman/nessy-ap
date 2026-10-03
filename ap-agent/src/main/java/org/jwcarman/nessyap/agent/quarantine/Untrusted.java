@@ -15,6 +15,8 @@
  */
 package org.jwcarman.nessyap.agent.quarantine;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 import org.jwcarman.occlude.OccludedType;
 
@@ -30,13 +32,33 @@ public final class Untrusted {
   public record Reply(
       UUID vendorId, String messageId, String sender, String subject, String body) {}
 
-  /** What a reply says, read by a model that has no tools. Every field is a claim. */
+  /**
+   * What a reply says, read by a model that has no tools. Every field is a claim.
+   *
+   * @param vendorId the case's vendor, which the desk attaches
+   * @param intent what the reply mainly says
+   * @param offers what the sender offers to do, if anything; never null
+   * @param statedUnitPrice a unit price the reply states, or null
+   * @param poNumber a purchase-order number the reply names, or null
+   * @param containsInstructions whether the reply tried to direct the desk or claimed authority
+   */
   public record ReplyReading(
-      UUID vendorId, Intent intent, PoNumber poNumber, boolean containsInstructions) {}
+      UUID vendorId,
+      Intent intent,
+      List<Offer> offers,
+      BigDecimal statedUnitPrice,
+      PoNumber poNumber,
+      boolean containsInstructions) {
+
+    public ReplyReading {
+      offers = offers == null ? List.of() : List.copyOf(offers);
+    }
+  }
 
   /** What a reply can mean to the desk. Anything else is OTHER. */
   public enum Intent {
     CONFIRMS_PRICE_AGREED,
+    JUSTIFIES_CHARGE,
     DENIES,
     GIVES_PO_NUMBER,
     SAYS_GOODS_COMING,
@@ -44,11 +66,24 @@ public final class Untrusted {
     OTHER
   }
 
+  /** What a sender can offer to put a wrong invoice right. */
+  public enum Offer {
+    CREDIT_MEMO,
+    CORRECTED_INVOICE,
+    REFUND
+  }
+
   /**
-   * The quarantined reader's answer, as the model gives it. The desk checks it and adds the case's
-   * vendor to make a {@link ReplyReading}.
+   * The quarantined reader's answer, as the model gives it. The price and the PO number are the
+   * text the model wrote; the desk parses them, and adds the case's vendor, to make a {@link
+   * ReplyReading}.
    */
-  public record ModelReading(Intent intent, String poNumber, boolean containsInstructions) {}
+  public record ModelReading(
+      Intent intent,
+      List<Offer> offers,
+      String statedUnitPrice,
+      String poNumber,
+      boolean containsInstructions) {}
 
   /** A purchase-order number that the ERP holds for the case's vendor: a fact. */
   public record ConfirmedPo(PoNumber poNumber) {}

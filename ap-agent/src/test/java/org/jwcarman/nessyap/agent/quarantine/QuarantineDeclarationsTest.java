@@ -18,6 +18,7 @@ package org.jwcarman.nessyap.agent.quarantine;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -62,6 +63,8 @@ class QuarantineDeclarationsTest {
               new ReplyReading(
                   reply.vendorId(),
                   Intent.OTHER,
+                  List.of(),
+                  null,
                   new PoNumber("PO-7"),
                   reply.body().contains("Ignore")));
   private final Derivation<ReplyReading, ConfirmedPo> confirmPo =
@@ -115,7 +118,9 @@ class QuarantineDeclarationsTest {
             Revealed.Allowed.class,
             a ->
                 assertThat(a.plaintext())
-                    .isEqualTo(new ReplyReading(VENDOR, Intent.OTHER, new PoNumber("PO-7"), true)));
+                    .isEqualTo(
+                        new ReplyReading(
+                            VENDOR, Intent.OTHER, List.of(), null, new PoNumber("PO-7"), true)));
   }
 
   @Test

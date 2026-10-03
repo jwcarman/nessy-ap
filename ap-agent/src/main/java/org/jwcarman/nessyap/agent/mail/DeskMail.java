@@ -135,6 +135,8 @@ public class DeskMail {
         new CaseInput.CounterpartyReply(
             from,
             claim.intent(),
+            claim.offers(),
+            claim.statedUnitPrice(),
             claim.poNumber() == null ? null : claim.poNumber().value(),
             reading.confirmedPo().orElse(null),
             claim.containsInstructions()));
@@ -160,6 +162,10 @@ public class DeskMail {
     ReplyReading claim = reading.claim();
     return "reads as "
         + claim.intent()
+        + (claim.offers().isEmpty() ? "" : "; offers " + claim.offers())
+        + (claim.statedUnitPrice() == null
+            ? ""
+            : "; states unit price " + claim.statedUnitPrice().toPlainString())
         + (claim.poNumber() == null
             ? ""
             : "; names "

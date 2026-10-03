@@ -18,6 +18,7 @@ package org.jwcarman.nessyap.agent.quarantine;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessy.engine.schema.VictoolsJsonSchemaGenerator;
@@ -54,7 +55,8 @@ class PoNumberTest {
   @Test
   void it_travels_as_a_bare_string() {
     ReplyReading reading =
-        new ReplyReading(VENDOR, Intent.GIVES_PO_NUMBER, new PoNumber("PO-7"), false);
+        new ReplyReading(
+            VENDOR, Intent.GIVES_PO_NUMBER, List.of(), null, new PoNumber("PO-7"), false);
 
     String wire = json.writeValueAsString(reading);
 
