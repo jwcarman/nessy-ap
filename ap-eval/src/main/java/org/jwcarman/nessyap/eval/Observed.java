@@ -26,7 +26,7 @@ import java.util.List;
  * @param routedTo the role each proposal was routed to, in order
  * @param mailed who the desk actually wrote to ({@code buyer} or {@code vendor}), once per message
  *     delivered, in order; refused or failed attempts are not here
- * @param tokens the agent's total tokens for the case, from the audit trail; -1 when unknown
+ * @param usage what the case used, per model, as a whole
  */
 public record Observed(
     String caseStatus,
@@ -34,7 +34,7 @@ public record Observed(
     List<String> toolsUsed,
     List<String> routedTo,
     List<String> mailed,
-    int tokens,
+    Usage usage,
     Duration wall) {
 
   public Observed {

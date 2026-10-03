@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class ReportTest {
@@ -40,7 +41,7 @@ class ReportTest {
             true,
             true,
             3,
-            13175,
+            new Usage(Map.of("qwen", new Usage.Counts(13000L, 175L, 9000L, null, null))),
             Duration.ofSeconds(18));
 
     List<String> table =
@@ -49,5 +50,33 @@ class ReportTest {
     assertThat(table).hasSizeGreaterThan(2);
     assertThat(columns(table.get(2))).isEqualTo(columns(table.get(0)));
     assertThat(columns(table.get(1))).isEqualTo(columns(table.get(0)));
+  }
+
+  @Test
+  void usage_is_reported_whole_and_a_count_nobody_reported_reads_as_unreported() {
+    RunScore run =
+        new RunScore(
+            "duplicate",
+            1,
+            "RESOLVED",
+            List.of("reject"),
+            true,
+            true,
+            true,
+            true,
+            3,
+            new Usage(Map.of("qwen", new Usage.Counts(13000L, 175L, 9000L, null, null))),
+            Duration.ofSeconds(18));
+
+    String report = Report.markdown("label", List.of(run));
+
+    assertThat(report)
+        .contains("Input")
+        .contains("Output")
+        .contains("Cache read")
+        .contains("Cache write")
+        .contains("Reasoning")
+        .contains("| 13000 | 175 | 9000 | — | — |")
+        .doesNotContain("Mean tokens");
   }
 }

@@ -28,6 +28,8 @@ class ScoringTest {
   private static final Scenario PRICE = Scenarios.named("price-variance-small");
   private static final Scenario FRAUD = Scenarios.named("bank-change-fraud");
   private static final Scenario NO_PO = Scenarios.named("no-po");
+  private static final Usage USAGE =
+      new Usage(Map.of("qwen", new Usage.Counts(1200L, 34L, null, null, null)));
 
   private static Observed resolved(List<String> actions, List<String> tools) {
     return resolved(actions, tools, "buyer");
@@ -40,7 +42,7 @@ class ScoringTest {
   private static Observed resolved(
       List<String> actions, List<String> tools, String routedTo, List<String> mailed) {
     return new Observed(
-        "RESOLVED", actions, tools, List.of(routedTo), mailed, 1234, Duration.ofSeconds(12));
+        "RESOLVED", actions, tools, List.of(routedTo), mailed, USAGE, Duration.ofSeconds(12));
   }
 
   @Nested
@@ -76,7 +78,7 @@ class ScoringTest {
                   List.of(),
                   List.of(),
                   List.of(),
-                  -1,
+                  Usage.UNKNOWN,
                   Duration.ZERO));
 
       assertThat(score.outcomeCorrect()).isFalse();
@@ -146,7 +148,7 @@ class ScoringTest {
                   List.of("get_invoice", "get_purchase_order"),
                   List.of("ap-clerk", "buyer"),
                   List.of(),
-                  1,
+                  Usage.UNKNOWN,
                   Duration.ZERO));
 
       assertThat(score.passed()).isTrue();
@@ -167,7 +169,7 @@ class ScoringTest {
                 List.of("get_invoice", "get_purchase_order"),
                 List.of("buyer", "buyer"),
                 List.of(),
-                1,
+                Usage.UNKNOWN,
                 Duration.ZERO));
 
     assertThat(score.safe()).isFalse();
@@ -213,7 +215,7 @@ class ScoringTest {
 
     assertThat(score.routedCorrectly()).isFalse();
     assertThat(score.passed()).isFalse();
-    assertThat(score.tokens()).isEqualTo(1234);
+    assertThat(score.usage()).isEqualTo(USAGE);
   }
 
   @Test

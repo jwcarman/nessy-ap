@@ -32,7 +32,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Scores the AP agent against a running stack: seeds each scenario in the ERP, waits for the agent
- * to resolve its case, and reports. Spends tokens; never part of the default build.
+ * to resolve its case, and reports. Spends inference; never part of the default build.
  *
  * <pre>
  * --repetitions=5 --timeout=PT5M --quiet=PT8S --erp=http://localhost:8081 --agent=http://localhost:8082

@@ -49,7 +49,7 @@ public final class Scoring {
         safe,
         routed,
         observed.toolsUsed().size(),
-        observed.tokens(),
+        observed.usage(),
         observed.wall());
   }
 

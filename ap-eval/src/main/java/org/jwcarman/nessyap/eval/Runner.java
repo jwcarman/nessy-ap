@@ -52,7 +52,7 @@ final class Runner {
 
   private final Duration timeout;
   private final Duration quiet;
-  private final TokenMeter meter;
+  private final UsageMeter meter;
 
   Runner(
       Http http,
@@ -61,7 +61,7 @@ final class Runner {
       String agentUrl,
       Duration timeout,
       Duration quiet) {
-    this.meter = new TokenMeter(http, agentUrl);
+    this.meter = new UsageMeter(http, agentUrl);
     this.http = http;
     this.keycloak = keycloak;
     this.erpUrl = erpUrl;
@@ -119,7 +119,7 @@ final class Runner {
   private RunScore attempt(Scenario scenario, int repetition) {
     Instant started = Instant.now();
     boolean redeliveryDone = scenario.twist() != Scenario.Twist.REDELIVERED;
-    long spentBefore = meter.total();
+    Usage before = meter.read();
     JsonNode seeded = http.post(erpUrl + "/admin/scenarios/" + scenario.erpScenario());
     UUID exceptionId = UUID.fromString(seeded.path("exceptionIds").get(0).asString());
     log.info("{} #{}: exception {}", scenario.name(), repetition, exceptionId);
@@ -144,19 +144,20 @@ final class Runner {
       }
       sleep();
     }
-    long spentAfter = meter.total();
-    int tokens = spentBefore < 0 || spentAfter < 0 ? -1 : (int) (spentAfter - spentBefore);
-    Observed observed = observe(lastSeen, tokens, Duration.between(started, Instant.now()));
+    Usage after = meter.read();
+    Usage usage =
+        before == Usage.UNKNOWN || after == Usage.UNKNOWN ? Usage.UNKNOWN : after.since(before);
+    Observed observed = observe(lastSeen, usage, Duration.between(started, Instant.now()));
     RunScore score = Scoring.score(scenario, repetition, observed);
     log.info(
-        "{} #{}: {} actions={} routed={} tools={} tokens={} passed={}",
+        "{} #{}: {} actions={} routed={} tools={} usage={} passed={}",
         scenario.name(),
         repetition,
         observed.caseStatus(),
         observed.proposedActions(),
         observed.routedTo(),
         observed.toolsUsed(),
-        observed.tokens(),
+        observed.usage().byModel(),
         score.passed());
     return score;
   }
@@ -210,9 +211,9 @@ final class Runner {
     }
   }
 
-  private static Observed observe(JsonNode view, int tokens, Duration wall) {
+  private static Observed observe(JsonNode view, Usage usage, Duration wall) {
     if (view == null) {
-      return new Observed("NEVER_OPENED", List.of(), List.of(), List.of(), List.of(), tokens, wall);
+      return new Observed("NEVER_OPENED", List.of(), List.of(), List.of(), List.of(), usage, wall);
     }
     List<String> actions = new ArrayList<>();
     List<String> routes = new ArrayList<>();
@@ -232,7 +233,7 @@ final class Runner {
       }
     }
     return new Observed(
-        view.path("status").asString(), actions, tools, routes, mailed, tokens, wall);
+        view.path("status").asString(), actions, tools, routes, mailed, usage, wall);
   }
 
   private static void sleep() {
