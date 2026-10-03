@@ -81,6 +81,12 @@ resolution := {"effect": "deny", "reason": sprintf("%v is not a resolution", [ac
 	not action in actions
 }
 
+# Nobody is asked to approve a decision that changes nothing: a person's time is the scarce thing.
+else := {"effect": "deny", "reason": "the invoice is already on hold: there is nothing to decide"} if {
+	action == "hold"
+	input.facts.invoiceStatus == "ON_HOLD"
+}
+
 else := {"effect": "deny", "reason": "a short-pay needs a positive amount"} if {
 	action == "short-pay"
 	not short_pay_amount > 0

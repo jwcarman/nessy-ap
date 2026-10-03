@@ -219,3 +219,10 @@ test_a_reply_without_instructions_does_not_block_payment if {
 test_email_buyer_is_no_longer_a_tool_and_is_denied if {
 	ap.decision.effect == "deny" with input as {"toolName": "email_buyer", "arguments": {}, "facts": {}}
 }
+
+# A person's time is not spent on a decision that changes nothing.
+test_a_hold_on_an_invoice_already_on_hold_asks_nobody if {
+	held := object.union(price_variance, {"invoiceStatus": "ON_HOLD"})
+	ap.decision.effect == "deny" with input as proposal("hold", held)
+	ap.decision.to == "buyer" with input as proposal("approve-variance", held)
+}

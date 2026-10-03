@@ -60,6 +60,8 @@ public class CaseFactsEnricher implements ApprovalEnricher {
     // The ERP measures authority against the invoice total, so routing must see it too.
     // The ERP's invoice view is {"invoice": {...}, "exceptions": [...]}.
     if (erp.invoice(c.invoiceId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode view)) {
+      // A proposal that would change nothing (a hold on a held invoice) goes to nobody.
+      request.fact("invoiceStatus", view.path("invoice").path("status").asString());
       if (view.path("invoice").path("total").isNumber()) {
         request.fact("invoiceTotal", view.path("invoice").get("total"));
       }

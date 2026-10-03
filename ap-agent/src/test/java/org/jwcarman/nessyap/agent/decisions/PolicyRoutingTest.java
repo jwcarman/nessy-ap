@@ -57,6 +57,15 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
 
   private void propose(
       ReasonCode code, String amountAtIssue, String invoiceTotal, String proposal) {
+    propose(code, amountAtIssue, invoiceTotal, "EXCEPTION", proposal);
+  }
+
+  private void propose(
+      ReasonCode code,
+      String amountAtIssue,
+      String invoiceTotal,
+      String invoiceStatus,
+      String proposal) {
     UUID vendor = UUID.randomUUID();
     UUID invoice = UUID.randomUUID();
     erp.on("GET", "/api/purchase-orders/PO-1", 200, "{\"poNumber\":\"PO-1\",\"buyer\":\"bob\"}");
@@ -64,7 +73,11 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
         "GET",
         "/api/invoices/" + invoice,
         200,
-        "{\"invoice\":{\"total\":" + invoiceTotal + "},\"exceptions\":[]}");
+        "{\"invoice\":{\"total\":"
+            + invoiceTotal
+            + ",\"status\":\""
+            + invoiceStatus
+            + "\"},\"exceptions\":[]}");
     model.script(steps(call("c1", "propose_resolution", proposal)));
     exceptionId = UUID.randomUUID();
     MatchExceptionRaised raised =
@@ -82,6 +95,23 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
     cases.open(raised);
     agentId = cases.agentFor(exceptionId);
     agent.tell(agentId, new CaseInput.ExceptionRaised(raised));
+  }
+
+  @Test
+  void a_hold_on_an_invoice_already_on_hold_is_refused_before_anyone_is_asked() {
+    propose(
+        ReasonCode.QTY_OVER_RECEIPT,
+        "400.00",
+        "1000.00",
+        "ON_HOLD",
+        "{\"action\":\"hold\",\"rationale\":\"r\",\"evidence\":[]}");
+
+    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+    assertThat(model.outcomesSeen())
+        .filteredOn(ToolOutcome.Denied.class::isInstance)
+        .singleElement()
+        .satisfies(o -> assertThat(((ToolOutcome.Denied) o).reason()).contains("already on hold"));
+    assertThat(decisions.forCase(exceptionId)).isEmpty();
   }
 
   static Stream<Arguments> routes() {
