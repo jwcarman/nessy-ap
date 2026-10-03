@@ -86,11 +86,23 @@ public class AuthorityMatrix {
     }
   }
 
+  /** For actions on no invoice, such as verifying a vendor's bank change: the grant alone. */
+  public void require(Actor actor, String action) {
+    if (actor.user() == null || grantOf(actor.user(), action).isEmpty()) {
+      throw new NotAuthorisedException(
+          (actor.user() == null ? actor.client() : actor.user()) + " may not " + action);
+    }
+  }
+
   private Optional<Grant> grantOf(String username, ResolutionAction action) {
+    return grantOf(username, action.slug());
+  }
+
+  private Optional<Grant> grantOf(String username, String action) {
     return jdbc.sql(
             "select max_amount, own_po_only from authority_grant where username = :u and action = :a")
         .param("u", username)
-        .param("a", action.slug())
+        .param("a", action)
         .query((rs, row) -> new Grant(rs.getBigDecimal("max_amount"), rs.getBoolean("own_po_only")))
         .optional();
   }

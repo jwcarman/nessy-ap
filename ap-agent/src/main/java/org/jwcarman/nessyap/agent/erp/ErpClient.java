@@ -138,6 +138,34 @@ public class ErpClient {
     return send(request);
   }
 
+  /** Records a call to the vendor's contact of record, as the person who made it. */
+  public ErpOutcome<JsonNode> recordCallBack(
+      UUID vendorId, UUID accountId, String phone, boolean vendorConfirmed, String bearerToken) {
+    return postAs(
+        "/api/vendors/" + vendorId + "/bank-changes/" + accountId + "/call-back",
+        Map.of("phone", phone, "vendorConfirmed", vendorConfirmed),
+        bearerToken);
+  }
+
+  /** Confirms a called-back change, as a second person. */
+  public ErpOutcome<JsonNode> confirmBankChange(UUID vendorId, UUID accountId, String bearerToken) {
+    return postAs(
+        "/api/vendors/" + vendorId + "/bank-changes/" + accountId + "/confirm",
+        Map.of(),
+        bearerToken);
+  }
+
+  private ErpOutcome<JsonNode> postAs(String path, Object body, String bearerToken) {
+    HttpRequest.Builder request =
+        HttpRequest.newBuilder(uri(path))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
+    if (bearerToken != null) {
+      request.header("Authorization", "Bearer " + bearerToken);
+    }
+    return send(request);
+  }
+
   private ErpOutcome<JsonNode> get(String path) {
     HttpRequest.Builder request = HttpRequest.newBuilder(uri(path)).GET();
     if (serviceToken != null) {

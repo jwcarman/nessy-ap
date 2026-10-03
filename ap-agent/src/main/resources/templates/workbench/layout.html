@@ -10,7 +10,8 @@
 </head>
 <body>
 <header th:fragment="header" class="bar">
-  <a class="brand" href="/workbench">AP exception desk</a>
+  <span><a class="brand" href="/workbench">AP exception desk</a>
+    · <a href="/workbench/vendors">Vendor changes</a></span>
   <span class="who">
     <span th:text="${me}">connie</span>
     <span class="role" th:each="role : ${roles}" th:if="${role != 'offline_access' and role != 'uma_authorization' and !#strings.startsWith(role, 'default-roles')}" th:text="${role}">controller</span>

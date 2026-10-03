@@ -60,6 +60,30 @@ public class VendorController {
     return vendors.proposeBankChange(Callers.of(caller), id, proposal);
   }
 
+  public record CallBack(String phone, Boolean vendorConfirmed) {}
+
+  @PostMapping("/{id}/bank-changes/{accountId}/call-back")
+  public Vendor callBack(
+      @PathVariable UUID id,
+      @PathVariable UUID accountId,
+      @RequestBody CallBack callBack,
+      Authentication caller) {
+    vendors.recordCallBack(
+        Callers.of(caller),
+        id,
+        accountId,
+        callBack.phone(),
+        Boolean.TRUE.equals(callBack.vendorConfirmed()));
+    return vendors.get(id);
+  }
+
+  @PostMapping("/{id}/bank-changes/{accountId}/confirm")
+  public Vendor confirm(
+      @PathVariable UUID id, @PathVariable UUID accountId, Authentication caller) {
+    vendors.confirmBankChange(Callers.of(caller), id, accountId);
+    return vendors.get(id);
+  }
+
   @GetMapping("/{id}/invoices")
   public List<Invoice> invoices(@PathVariable UUID id) {
     return invoices.byVendor(id);

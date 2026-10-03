@@ -1,0 +1,34 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{workbench/layout :: head('Vendor changes')}"></head>
+<body>
+<header th:replace="~{workbench/layout :: header}"></header>
+<main>
+  <p class="flash" th:if="${message}" th:text="${message}">Recorded.</p>
+  <h1>Vendor bank changes</h1>
+  <p class="muted">A change to where a vendor is paid is the classic payment-fraud pattern. Verify it by
+    calling the contact of record on file, never a number that came with the change; then a second
+    person confirms. Until then, nothing is paid to the vendor.</p>
+  <p class="muted" th:if="${pending.isEmpty()}">No changes are waiting.</p>
+  <section th:each="p : ${pending}">
+    <h2 th:text="${p.vendor.path('name').asString()}">Acme</h2>
+    <p>New account <code th:text="${p.account.path('accountNumber').asString()}">123</code>
+      requested by <strong th:text="${p.account.path('proposedByEmail').asString()}">x@y</strong></p>
+    <p>Contact of record: <span th:text="${p.vendor.path('contact').path('name').asString()}">Ada</span>,
+      <strong th:text="${p.vendor.path('contact').path('phone').asString()}">+1-555-0100</strong></p>
+    <p class="muted" th:if="${p.account.hasNonNull('callBackBy')}">Called back by
+      <span th:text="${p.account.path('callBackBy').asString()}">mark</span></p>
+    <div th:if="${mayVerify}" class="verdict">
+      <form th:action="@{/workbench/vendors/{v}/bank-changes/{a}/call-back(v=${p.vendor.path('id').asString()},a=${p.account.path('id').asString()})}" method="post" class="verdict">
+        <input type="hidden" name="phone" th:value="${p.vendor.path('contact').path('phone').asString()}">
+        <button name="vendorConfirmed" value="true" class="approve">They confirmed it</button>
+        <button name="vendorConfirmed" value="false" class="deny">They did not ask for this</button>
+      </form>
+      <form th:action="@{/workbench/vendors/{v}/bank-changes/{a}/confirm(v=${p.vendor.path('id').asString()},a=${p.account.path('id').asString()})}" method="post" class="verdict">
+        <button>Confirm (second person)</button>
+      </form>
+    </div>
+  </section>
+</main>
+</body>
+</html>
