@@ -565,8 +565,9 @@ Each slice gets its own implementation plan.
 
 ## 13. Slice 9: people answer on the workbench
 
-James's rulings (2026-10-03): build it as for a client, to spend the client's money well and to
-respect the time of the people in the loop; follow sound information-flow-control principles.
+James's rulings (2026-10-03): build it as a production system. Mind the tokenomics: know what
+each case costs in model use, and spend the owner's money well. Respect the time of the people
+in the loop. Follow sound information-flow-control principles.
 
 - **Inside the company, the workbench; outside, mail.** The agent asks the buyer a question on
   the workbench. The buyer signs in (Keycloak) and answers there. A signed-in answer carries the
