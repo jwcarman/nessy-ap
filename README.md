@@ -34,3 +34,7 @@ ERP. `/admin/**` is never faulted.
 
 Events go to the `erp.events` topic exchange; the RabbitMQ management UI is at
 http://localhost:55673 (nessyap / nessyap).
+
+## License
+
+Apache License, Version 2.0. See [LICENSE](LICENSE).
