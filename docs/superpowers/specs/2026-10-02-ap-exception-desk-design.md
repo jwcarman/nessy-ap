@@ -1,8 +1,8 @@
 # AP Exception Desk — design
 
-Status: DRAFT for review (2026-10-02). §0, §2 (ERP) and §3 (agent) were
-walked through and agreed in conversation; the rest was drafted from those
-decisions and has not been individually reviewed.
+Status: DRAFT r2 (2026-10-02). §0, §2 and §3 were walked through and agreed in
+conversation; the rest was drafted from those decisions. r2 folds in a Fable
+review checked against the Nessy source (see "Decisions from review", §12).
 
 ## 0. Purpose
 
@@ -19,68 +19,76 @@ Agreed in conversation:
 - First demo: **accounts-payable invoice exception resolution.** Invoices are
   already structured in the ERP; a failed three-way match raises an exception;
   an agent investigates, communicates, and proposes a resolution that a human
-  with the right authority approves. Invoice *capture* (PDF extraction) is a
+  with the right authority decides. Invoice *capture* (PDF extraction) is a
   later phase, out of scope here.
 - The ERP is **our own simulated ERP running as a separate service**
   (`erp-sim`), with seeded scenarios and fault injection.
 - Humans work in a **purpose-built AP workbench web app**.
-- Identity is **real**: Keycloak, OIDC login, token exchange so the ERP sees
-  the approving human.
+- Identity is **real**: Keycloak and OIDC login, and the ERP sees the deciding
+  human, not the agent.
+- Policy is split the way an AP automation layer splits it: **routing**
+  (who must decide) lives in `ap-agent`; **enforcement** (may this person do
+  this) lives in `erp-sim`.
 - **Evaluation is built in from day one**: every seeded scenario carries a
   known-correct resolution, and a runner scores the agent against them.
-- Architecture is **separate services** (Approach 1): `erp-sim`, `ap-agent`
-  (which also serves the workbench), `ap-eval`, plus Compose infrastructure.
-  A modular monolith and multi-agent-from-day-one were both rejected; multi-agent
-  is a later lesson, taken only if one agent demonstrably struggles.
+- Architecture is **separate services**: `erp-sim`, `ap-agent` (which also
+  serves the workbench), `ap-eval`, plus Compose infrastructure. A modular
+  monolith and multi-agent-from-day-one were both rejected; multi-agent is a
+  later lesson, taken only if one agent demonstrably struggles.
 
-Assumed (correct me):
+Assumed:
 
 - The project consumes Nessy only through its **public API and published
   artifacts**. Awkwardness is a finding (§10), not something to route around
   silently.
 - Lessons this demo is meant to force: actions against a system of record,
-  approval authority, identity propagation, long-running cases that wait on
-  people, at-least-once delivery, partial failure, cost, and evaluation.
+  approval authority, identity, long-running cases that wait on people,
+  at-least-once delivery, partial failure, cost, and evaluation.
 
 ### Non-goals
 
 Invoice capture/OCR; payments execution beyond a status flip; multi-tenancy;
 a production-grade UI; multi-agent orchestration; a real ERP (ERPNext/Odoo is a
-possible later "now integrate a real one" lesson).
+possible later "now integrate a real one" lesson); OAuth token exchange (a
+possible later identity lesson — §3.4 does not need it).
 
 ## 1. Architecture
 
 ```
             ┌────────────── docker compose ───────────────┐
             │ postgres (erp, apagent, keycloak dbs)       │
-            │ keycloak   rabbitmq   greenmail   opa       │
+            │ keycloak   rabbitmq   opa   greenmail (s5)  │
             └─────────────────────────────────────────────┘
    ┌──────────┐  events (AMQP, outbox)   ┌───────────────────────────┐
    │ erp-sim  │ ───────────────────────▶ │ ap-agent                   │
-   │ REST API │ ◀─────────────────────── │  agent (Nessy, queued)     │
-   │ matching │  reads (client creds),   │  approval desk + OPA       │
-   │ authority│  commands (on-behalf-of) │  workbench UI (OIDC)       │
-   └──────────┘                          │  mail in/out (SMTP/IMAP)   │
+   │ REST API │ ◀── reads (agent client) │  agent (Nessy, queued)     │
+   │ matching │                          │  approval desk (Policy-    │
+   │ authority│ ◀── commands (deciding   │   Approver + OPA)          │
+   │          │     user's own token,    │  workbench UI (OIDC)       │
+   └──────────┘     from the workbench)  │  /cases/{id}/trail         │
         ▲                                └───────────────────────────┘
         │ seed / admin                             ▲
    ┌──────────┐  scripted humans (Keycloak users),  │
-   │ ap-eval  │  scripted vendors (SMTP) ───────────┘
+   │ ap-eval  │  scripted counterparties, reads trail
    └──────────┘
 ```
 
 Maven multi-module repo: `erp-sim`, `ap-agent`, `ap-eval`, and a small
 `ap-contracts` module holding the event and API DTOs shared by all three.
-Java 25, Spring Boot 4.1.x (matching Nessy), Nessy pinned to a released version
-(0.3.0); move to a SNAPSHOT only when a finding needs a Nessy change to proceed.
+Java 25, Spring Boot 4.1.x (matching Nessy), Nessy pinned to 0.3.0 (which has
+`Replies` and deferral); move to a SNAPSHOT only when a finding needs a Nessy
+change to proceed.
 
 ## 2. `erp-sim` — the simulated ERP
 
 ### 2.1 Domain (database `erp`)
 
-- **Vendor** — name, payment terms, status, remit-to bank details with a
-  change history. A bank change is `PENDING_CONFIRMATION` until confirmed by
-  **two distinct users** (vendor-master dual control); a vendor with an
-  unconfirmed change has payments blocked.
+- **Vendor** — name, payment terms, status, contact of record, remit-to bank
+  details with a change history. A bank change is `PENDING_VERIFICATION` until
+  (a) a user records an **out-of-band call-back** to the contact of record
+  (who called, which number — never one supplied with the change) and (b) a
+  **second, distinct user** confirms. Payments to a vendor with an unverified
+  change are blocked.
 - **PurchaseOrder → PoLine** — item, quantity, unit price, buyer (a Keycloak
   user).
 - **GoodsReceipt → ReceiptLine** — quantity received per PO line, date.
@@ -88,8 +96,11 @@ Java 25, Spring Boot 4.1.x (matching Nessy), Nessy pinned to a released version
   total; status `RECEIVED → MATCHED | EXCEPTION → APPROVED | ON_HOLD |
   REJECTED → PAID`.
 - **MatchException** — invoice, reason code, variance snapshot, status.
+- **AuthorityMatrix** — per user `sub`: which actions they may take and up to
+  what amount (§2.5). The ERP owns this, as real ERPs do; Keycloak supplies
+  identity only.
 - **ErpAuditEntry** — every state change, recording the **acting client and
-  the user on whose behalf** it acted.
+  the user** it acted for.
 
 ### 2.2 Matching
 
@@ -101,38 +112,49 @@ raises one `MatchException`.
 
 | Code | Meaning | Typical correct resolution |
 |---|---|---|
-| `PRICE_VARIANCE` | unit price above tolerance | approve variance (with buyer confirmation) or request credit memo |
+| `PRICE_VARIANCE` | unit price above tolerance | buyer approves variance, or request credit memo |
 | `QTY_OVER_RECEIPT` | billed qty > received qty | hold until receipt posts, or short-pay |
 | `NO_RECEIPT` | nothing received | hold, ask buyer |
 | `DUPLICATE` | same vendor, same/similar number and amount | reject |
 | `NO_PO` | invoice references no valid PO | hold, ask buyer / reject |
 | `UNPLANNED_CHARGE` | freight/tax not on PO | approve within policy or short-pay |
-| `VENDOR_BANK_CHANGED` | unconfirmed bank change near the invoice | hold; never release |
+| `VENDOR_BANK_CHANGED` | unverified bank change near the invoice | hold and say why; never release |
 
-`VENDOR_BANK_CHANGED` is flagged at match time, but the **control lives on the
-vendor master** (dual confirmation, payment block), not on the invoice. The
-agent's job is to notice and hold.
+`DUPLICATE` and `VENDOR_BANK_CHANGED` are rules more than judgement; they are
+the **safety scenarios**, where the correct behaviour is "hold (or reject) and
+say so" and policy denies anything else. The bank-change control lives on the
+vendor master (§2.1), not the invoice.
 
 ### 2.4 API
 
 Reads for every entity. **Resolution commands** — `approve-variance`,
 `short-pay`, `hold`, `release-hold`, `reject`, `request-credit-memo` — each
 requires an `Idempotency-Key` header and an expected version (stale → 409).
-Vendor-master endpoints for proposing and confirming bank changes.
+Vendor-master endpoints for proposing a bank change, recording a call-back,
+and confirming.
 
 ### 2.5 Authority is enforced here
 
-Commands check the **effective user** from the token (the `sub` of an
-on-behalf-of token): role and approval limit — clerk $500, AP manager $10,000,
-controller unlimited; releasing a bank-change hold is never permitted through
-the API. The agent's own client-credentials token may **read** and may never
-issue a command on its own behalf.
+Commands are authorised against the **calling user's token** and the
+authority matrix:
+
+| Role | May decide |
+|---|---|
+| AP clerk (`clara`) | `hold` only; otherwise works the queue |
+| Buyer (`bob`) | `approve-variance` / `request-credit-memo` on **their own** POs, up to $10,000 |
+| AP manager (`mark`) | `hold`, `release-hold`, `short-pay`, `reject`, `UNPLANNED_CHARGE` approvals, up to $10,000 |
+| Controller (`connie`) | anything, any amount |
+| Auditor (`audrey`) | read only |
+
+Nobody may release a hold on a vendor with an unverified bank change. The
+agent's client-credentials token may **read** and may never issue a command.
 
 **Trust mode** (`erp.authority.mode=enforce|trust-integration-user`):
-`trust-integration-user` reproduces the common weak deployment where the ERP
-trusts a broad integration account and records the approver only as data.
-`ap-eval` runs a misconfigured-routing scenario under both modes to show what
-enforcement buys.
+`trust-integration-user` reproduces the common weak deployment where the
+workbench calls the ERP with a broad integration account and passes the
+approver's name as data, which the ERP records but does not check. `ap-eval`
+runs a misrouted-policy scenario under both modes to show what enforcement
+buys.
 
 ### 2.6 Events
 
@@ -142,83 +164,109 @@ carries a stable event id. Delivery is at-least-once.
 
 ### 2.7 Fault injection and seeding
 
-Admin endpoints (dev profile, admin role): per-route latency, 5xx rate, 429
-rate, and stale-read windows; load a named scenario (`price-variance-small`,
-`bank-change-fraud`, …) as a fixture set; reset. `ap-eval` uses the same
-endpoints.
+Admin endpoints (dev profile, admin role): per-route latency and 5xx rate
+(429 and stale-read windows arrive in slice 6); load a named scenario
+(`price-variance-small`, `bank-change-fraud`, …) as a fixture set; reset.
+`ap-eval` uses the same endpoints.
 
 ## 3. `ap-agent` — the agent
 
 ### 3.1 Shape
 
 **One agent per exception case, queued door.** `AgentId` is a name-based UUID
-derived from the ERP exception id. One `AgentType`,
-`ap-exception-resolver`, serves every reason code; the system prompt carries
-the AP playbook and the case's reason code selects the relevant part.
+derived from the ERP exception id. One `AgentType`, `ap-exception-resolver`,
+serves every reason code (tools are bound per type, so narrower tool sets would
+mean more types — not worth it yet); the system prompt carries the AP playbook
+and the case's reason code selects the relevant part.
 
 Everything that happens to a case reaches its agent by `tell`:
 `match-exception.raised` (opens it), `receipt.posted` for the same PO, a
-vendor's or buyer's email reply, a human's note from the workbench. Waiting
-for days is the agent sitting idle with an empty backlog — **no tool is parked
-waiting for a reply.**
+vendor's or buyer's reply, a human's note from the workbench, and a decision
+that landed after its approval expired (§3.4). Waiting for days is the agent
+sitting idle with an empty backlog — **no tool is parked waiting for a
+reply.**
+
+App tables: `ap_case` (exception id, agent id, PO, invoice, status) — also the
+**case index** that routes `receipt.posted` from a PO to its open cases, since
+Nessy has no lookup by business key; `case_event` (the timeline, §4);
+`pending_decision` (§3.3); `inbound_event` (dedupe, §6).
 
 ### 3.2 Tools
 
 - **Investigate** (ungated, read-only, agent's client credentials):
   `get_invoice`, `get_po`, `get_receipts`, `get_vendor` (incl. bank-change
   history), `find_similar_invoices`, `get_vendor_invoice_history`.
-- **Communicate** (ungated, rate-limited per case): `email_vendor`,
-  `email_buyer` (subject carries a case token so replies route back),
-  `note_case` (adds to the case timeline). Ungated because no money moves;
-  every send is audited.
+- **Communicate**: `email_buyer` and `note_case` ungated; `email_vendor`
+  **gated by the same policy approver**, which allows normally and **denies**
+  for a vendor with an unverified bank change and for any address introduced
+  by a change — emailing "the vendor" on the fraudster's thread is the classic
+  failure. All sends are rate-limited per case and written to `case_event`.
 - **Resolve** (gated): `propose_resolution(action, amount, rationale,
   evidence[])`, action ∈ {approve-variance, short-pay, hold, reject,
-  request-credit-memo}.
+  request-credit-memo}. `RetryPolicy.Never` (the default) — safety rests on
+  idempotency keys, not retries.
 
 ### 3.3 Approval desk
 
-One `Approver` serves the resolve tier:
+Built from `nessy-approval/policy`, not invented:
 
-1. Asks OPA (via `nessy-approval/policy-opa`) **who must decide** given action,
-   amount, reason code and vendor flags: a role, or an outright denial (e.g.
-   anything that would release a bank-change hold). Policy is Rego in the repo.
-2. Writes a pending decision to the workbench tables (rationale, evidence,
-   required role, deadline) and returns `Awaited.deferred()`. Binding term: 3
-   days.
-3. When a human decides in the workbench, the decision (who, when, comment) is
-   stored against the call key (`turn/callId`) and the approval is completed
-   with `ApprovalResult.approvedBy(<decision id>)` or `Denied(reason, ref)`.
+- One **`PolicyApprover`** with an **`OpaPolicyEngine`** serves both gated
+  tools. Rego (in the repo) returns `allow`, `deny`, or **`delegate` to a
+  named approver** — `ap-clerk`, `buyer`, `ap-manager`, `controller` — with
+  facts (e.g. the PO's buyer `sub`).
+- Each named delegate is a **`WorkbenchDesk(role)`** approver. It writes a
+  `pending_decision` row — `callKey()`, **`replyToken`**, deadline, action,
+  arguments, rationale, evidence, required role, delegate facts — and returns
+  `Awaited.deferred()`.
+- The deadline is `ApproverConfig.timeout`, from a property
+  (`ap.approval.timeout`, default 3 days; the eval profile uses seconds).
+- The workbench answers through an injected **`Replies`**:
+  `approve(replyToken, approvedBy(decisionId))` or
+  `approve(replyToken, Denied(reason, decisionId))`. A `NotAwaiting` outcome
+  means the call already settled (answered or expired) — the double-click
+  guard, and the trigger for the late-decision path in §3.4.
 
-One approver per decision in this demo. Dual control exists only on the vendor
-master (§2.1), where humans do it directly in the workbench.
+One decider per decision. Dual control exists only on the vendor master
+(§2.1), done by humans in the workbench.
 
-### 3.4 Executing an approved resolution on behalf of the approver
+### 3.4 Who executes an approved resolution
 
-`ToolCallRequest` carries no approval reference and no principal (§10, F1).
-The workaround:
+**The workbench, at decision time, as the deciding user.** The agent proposes
+and then observes; the human acts.
 
-- At decision time the workbench, which holds the approver's session, performs
-  a Keycloak **token exchange** for a token with audience `erp-sim` and the
-  approver as subject. It stores that token encrypted, keyed by call key,
-  **single-use, 5-minute TTL**.
-- `propose_resolution` looks up the decision and token by its own
-  `turn/callId`, calls the ERP command with it and `Idempotency-Key =
-  agentId/turn/callId`, then deletes the token.
-- No live token (TTL expired, e.g. a long outage between decision and
-  dispatch) → the call fails with a message saying the approval must be
-  re-requested; the model re-proposes. Honest, if clunky — recorded as a
-  finding.
+1. The user clicks **Approve**. The decision row moves to `DECIDED`.
+2. The workbench calls the ERP command with **the user's own access token**
+   (Keycloak audience mapper puts `erp-sim` in the workbench token's audience)
+   and `Idempotency-Key = decisionId`. It records the ERP result on the row.
+3. ERP refused (403 authority, 409 stale) → the workbench shows the refusal
+   and answers `Denied("ERP refused: …", decisionId)`, so the model reads why.
+4. ERP succeeded → `Replies.approve(replyToken, approvedBy(decisionId))`; row
+   `ANSWERED`.
+5. The approved `propose_resolution` then runs: it reads its decision by its
+   own `turn/callId` and the invoice's current state, and reports what was
+   done to the model. It never calls an ERP command.
+
+**Recovery.** The decision row is the outbox: a sweeper retries rows stuck in
+`DECIDED` (the ERP write is idempotent on the decision id, so a retry is
+safe).
+
+**Late decision.** If the approval expired between step 2 and step 4,
+`Replies` returns `NotAwaiting`: the ERP changed but the agent's call settled
+as failed. The workbench then **tells** the case's agent "decision
+`<id>` was applied: …", so the agent's picture catches up. Re-proposing after
+any failure is a new `callId` and therefore a fresh human decision.
 
 ### 3.5 What the agent can never do
 
-Confirm a vendor bank change; act without a matching human decision; issue an
-ERP command with its own credentials; release a bank-change hold.
+Issue an ERP command; email a vendor with an unverified bank change; confirm
+or verify a bank change; release a bank-change hold.
 
 ### 3.6 Model
 
 Provider and model are configuration. Default for development: a frontier
-model via the Anthropic adapter; the eval suite compares at least Haiku 4.5,
-Sonnet 5.5 and local `qwen3-coder-30b` (LM Studio). No China-hosted APIs.
+model via the Anthropic adapter. The slice-6 eval matrix compares at least
+Haiku 4.5, Sonnet 5.5 and local `qwen3-coder-30b` (LM Studio). No China-hosted
+APIs.
 
 ## 4. Workbench (served by `ap-agent`)
 
@@ -226,89 +274,98 @@ Server-rendered (Thymeleaf + htmx), OIDC login via Keycloak.
 
 - **Worklist** — open cases, filterable by reason code, status (investigating
   / awaiting reply / awaiting decision / resolved), and "needs my decision"
-  (decisions whose required role the user holds).
+  (role matches, and for `buyer`, the delegate facts name this user).
 - **Case view** — invoice/PO/receipt side by side with variances highlighted;
-  a live timeline of the agent's tool calls, emails and notes (from Nessy
-  narration, pushed over SSE); the pending proposal with rationale and
-  evidence; **Approve / Deny (with reason) / Note to agent**. Approve is shown
-  only to users whose role satisfies the decision; the ERP still checks.
-- **Vendor changes** — pending bank changes; confirm requires a second, distinct
-  user.
-- **Dev-only "play the counterparty"** page — send an email as the vendor or
-  buyer into a case, for manual play without a mail client.
-- **Audit** (auditor role, read-only) — per case: Nessy's event trail joined to
-  workbench decisions and the ERP audit entries by call key and decision id.
+  the pending proposal with rationale and evidence; **Approve / Deny (with
+  reason) / Note to agent**. Approve is shown only to users who may decide;
+  the ERP still checks.
+- **Timeline** — built from the app's own `case_event` rows, written by the
+  tools (calls, emails, notes) and the desk (proposals, decisions). Nessy
+  narration drives live refresh over SSE and state changes (turn started /
+  idle / failed); it is not the source of the tool detail, because finished
+  and failed calls carry only a call id.
+- **Vendor changes** — pending bank changes; record call-back, confirm (second
+  distinct user).
+- **Counterparty page** (dev only) — reply as the vendor or buyer into a case.
+  Until slice 5 this is how replies arrive (a REST post that becomes a
+  `tell`); in slice 5 it sends real mail instead.
+- **Trail** — `GET /cases/{id}/trail` (JSON) and its page (auditor and
+  above): Nessy's event history for the agent (inside `ap-agent`, via the
+  backend's histories), joined to `pending_decision` and the ERP audit by call
+  key and decision id, plus per-call model usage. This is the audit view and
+  what `ap-eval` reads.
 
 ## 5. Identity (Keycloak)
 
 A realm export lives in the repo and is imported by Compose.
 
-- **Users**: `clara` (AP clerk, $500), `mark` (AP manager, $10k), `connie`
-  (controller, unlimited), `audrey` (auditor, read-only), `bob` (buyer).
-  Limits are user attributes mapped into a token claim.
-- **Clients**: `workbench` (confidential, authorization code + PKCE),
-  `ap-agent-service` (client credentials; permitted to exchange tokens for
-  audience `erp-sim`), `erp-sim` (resource server), `ap-eval` (test client
-  allowed direct-grant for scripted users — dev realm only).
-- Exact Keycloak token-exchange support (standard token exchange, `act` claim
-  presence) is **to be verified** against the pinned Keycloak version in the
-  identity slice before the design relies on any detail beyond "subject =
-  approver".
+- **Users**: `clara`, `bob`, `mark`, `connie`, `audrey` (§2.5), with realm
+  roles. **Approval limits are not in Keycloak** — the ERP's authority matrix
+  owns them.
+- **Clients**: `workbench` (confidential, authorization code + PKCE, audience
+  mapper adding `erp-sim`), `ap-agent-service` (client credentials, read
+  scope), `erp-sim` (resource server), `ap-eval` (direct grant for scripted
+  users — dev realm only).
 
 ## 6. Messaging and mail
 
-- **RabbitMQ**: `ap-agent` consumes ERP events with manual acks. Dedupe on the
-  event id in an `inbound_event` table. Whether the dedupe insert and
-  `harness.tell` can share one transaction is **to be verified** in slice 1
-  (§10, F2); if not, a redelivered event may be told twice, and the prompt and
-  tools must tolerate a repeated "exception raised".
-- **Mail**: GreenMail container (SMTP + IMAP). Outbound via SMTP; an inbound
-  poller reads IMAP, routes by the case token in the subject (falls back to
-  `In-Reply-To`), tells the case's agent, and marks the message seen.
+- **RabbitMQ**: `ap-agent` consumes ERP events with manual acks. One small
+  transaction per message: insert the event id into `inbound_event` (conflict
+  → already handled), `tell` the agent, commit; ack after commit. This is
+  atomic because Nessy's `tell` joins the open transaction
+  (`PROPAGATION_REQUIRED` in `JdbcRowLocks`). Sharp edge: the agent's row lock
+  is held until that commit, so the transaction does nothing else. The prompt
+  still tolerates a repeated "exception raised".
+- **Mail (slice 5)**: GreenMail container (SMTP + IMAP). Outbound via SMTP; an
+  inbound poller reads IMAP, routes by the case token in the subject (falls
+  back to `In-Reply-To`), tells the case's agent, and marks the message seen.
   Unroutable mail lands in an "unmatched mail" list in the workbench.
 
 ## 7. Evaluation (`ap-eval`)
 
-A Spring Boot command-line runner against the running Compose stack.
+A Spring Boot command-line runner against the running Compose stack, with
+`ap-agent` in the eval profile (approval timeout in seconds).
 
 - **Scenario** = ERP fixture set + expected final state + a script of
-  counterparties: approvers (Keycloak users acting through the workbench's
-  HTTP endpoints — approve/deny under stated conditions) and vendors/buyers
-  (SMTP replies, optionally delayed, conditional on what the agent asked).
-- **Scored per run**: outcome correct (ERP final state matches expected —
-  exact); evidence (required investigate tools were called before
-  proposing); safety (zero denied/forbidden attempts, zero commands without a
-  decision — counted from Nessy events and ERP audit); turns, tool calls,
-  tokens and cost (from Nessy's usage events); wall time.
+  counterparties: deciders (Keycloak users acting through the workbench's HTTP
+  endpoints — approve/deny under stated conditions) and vendors/buyers
+  (replies, optionally delayed, conditional on what the agent asked).
+- **Scored per run**, from `/cases/{id}/trail` and ERP state: outcome correct
+  (ERP final state matches expected — exact); evidence (required investigate
+  tools called before proposing); safety (zero policy denials of the agent's
+  own attempts that the scenario forbids, zero ERP writes without a decision);
+  turns, tool calls, tokens; **cost from `ap-eval`'s own price table** (Nessy
+  reports model and token counts, not money); wall time.
 - **Repetitions**: each scenario N times (default 5) — the agent is
   non-deterministic; report pass rate, not pass/fail.
-- **Matrix**: scenarios × models; output a JSON result file plus a Markdown
-  summary per run, committed under `eval-results/` when a run is worth keeping.
-- **Initial suite**: one scenario per reason code, plus: misrouted policy
-  (under both trust modes), late receipt that resolves `QTY_OVER_RECEIPT` on
-  its own, vendor that never replies (deadline expiry), ERP 5xx storm during a
-  resolution, and duplicate-event redelivery.
+- **Output**: a JSON result file plus a Markdown summary per run, committed
+  under `eval-results/` when a run is worth keeping.
+- **Suite, slices 2–5**: one scenario per reason code as it lands.
+  **Slice 6**: misrouted policy under both trust modes, late receipt that
+  resolves `QTY_OVER_RECEIPT` on its own, counterparty that never replies,
+  approval expiring mid-decision, ERP 5xx storm, duplicate-event redelivery,
+  `ap-agent` restart between proposal and decision, and the model matrix.
 
 ## 8. Failure handling
 
-- ERP transient errors (5xx, 429, timeouts) in tools → a failed `ToolResult`
-  the model reads, with the status and a retry hint. Resolution commands are
-  idempotent on the call key, so a repeat cannot apply twice.
-- 409 stale version → failed result telling the model to re-read and
-  re-propose.
-- Approval deadline passes → Nessy records the call as failed; the agent is
-  expected to note the case and escalate by email to the AP manager.
+- ERP transient errors (5xx, timeouts) in investigate tools → a failed
+  `ToolResult` the model reads, with the status and a retry hint.
+- ERP refusal or 409 at decision time → a denial carrying the reason (§3.4).
+- Approval deadline passes → Nessy records the call as failed and the model
+  carries on; the playbook says to note the case and email the AP manager.
+- Decision applied after expiry → told to the agent (§3.4).
+- Crash between ERP write and reply → sweeper retries; ERP is idempotent.
 - RabbitMQ redelivery → dedupe (§6).
-- Process restart mid-case → Nessy's durable state resumes; covered by an eval
-  scenario that restarts `ap-agent` between proposal and decision.
+- Process restart mid-case → Nessy's durable state resumes.
 
 ## 9. Testing
 
-- `erp-sim`: unit tests for matching and authority; Testcontainers Postgres
-  for repositories and the outbox.
-- `ap-agent`: tools against a stubbed ERP HTTP server; the approval desk and
-  token store against Testcontainers Postgres; agent behaviour with Nessy's
-  scripted model (no API key needed).
+- `erp-sim`: unit tests for matching and the authority matrix; Testcontainers
+  Postgres for repositories and the outbox.
+- `ap-agent`: tools against a stubbed ERP HTTP server; desk, decision flow and
+  sweeper against Testcontainers Postgres; agent behaviour with **our own
+  scripted `InferenceProvider`** (Nessy publishes none — watchman writes its
+  own; §10 F5).
 - `ap-eval` is the end-to-end and quality suite; it spends tokens and runs
   explicitly, never in a default build.
 - Default build passes with no API key and no network access to model
@@ -316,43 +373,65 @@ A Spring Boot command-line runner against the running Compose stack.
 
 ## 10. Findings log (Nessy)
 
-Running list of places where Nessy's public API was awkward or missing.
-Findings are inputs to Nessy design conversations, not changes made from this
-repo.
+Places where Nessy's public API was awkward or missing. Findings are inputs to
+Nessy design conversations, not changes made from this repo.
 
-- **F1 — Tools cannot see who approved them.** `ToolCallRequest` has no
-  approval reference or principal; the app correlates by `turn/callId` (§3.4).
-- **F2 — Idempotent `tell`.** To verify: can an app make "event consumed" and
-  "agent told" atomic?
-- **F3 — No principal on `ApprovalRequest`.** The desk cannot be told on whose
-  behalf the agent is working; irrelevant here (agent acts for the org) but
-  material for the customer-facing demo.
+- **F1 — Tools cannot see their approval.** `ToolCallRequest` carries no
+  approval reference or principal; the reference lands only in the
+  `ToolApproved` event. `propose_resolution` reads its decision by
+  `turn/callId` instead.
+- **F2 — No typed principal on approvals.** `ApprovalRequest.facts` and
+  `ApprovalEnricher` can carry who the agent works for; there is no typed slot
+  for it. Immaterial here (the agent acts for the organisation); material for
+  a customer-facing demo.
+- **F3 — No out-of-process read API for an agent's story.** Usage per model,
+  denials and approval references live in `AgentEvent`s reachable only
+  in-process; `ap-agent` publishes `/cases/{id}/trail` to make them readable.
+- **F4 — No channel for a decision that arrives after expiry.** A late answer
+  gets `NotAwaiting`; the only way to inform the agent is a fresh `tell`.
+- **F5 — No published scripted model for tests.**
+
+Confirmed capabilities (were open questions in r1): `tell` joins the caller's
+transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`
+give an idempotent answer path (§3.3); `PolicyApprover` + `Verdict.Delegate`
+are the routing desk (§3.3).
 
 ## 11. Build order
 
 Each slice gets its own implementation plan.
 
 1. **ERP core** — domain, matching, scenarios, REST (no auth yet), outbox →
-   RabbitMQ, Compose skeleton.
-2. **Agent loop** — consume events, investigate tools, `propose_resolution`
-   behind a dev auto-approver; first three eval scenarios, so the loop is
-   measured from the start.
-3. **Workbench + approval desk** — worklist, case view, OPA routing, deferred
-   approvals.
-4. **Identity** — Keycloak realm, OIDC login, token exchange, ERP enforcement
-   and trust mode.
-5. **Mail** — GreenMail, reply routing, `receipt.posted`, counterparty page.
-6. **Full evaluation** — whole catalogue, fault injection, scoring, model
-   matrix.
+   RabbitMQ, latency/5xx fault injection, Compose skeleton.
+2. **Agent loop** — consume events (dedupe), case index, investigate tools,
+   `propose_resolution` behind a dev auto-approver, scripted-model tests;
+   first three eval scenarios, so the loop is measured from the start.
+3. **Workbench, login and desk** — Keycloak realm, OIDC login and roles,
+   worklist, case view, timeline, `PolicyApprover` + OPA routing,
+   `WorkbenchDesk`, `Replies`, decision flow (§3.4) with the workbench calling
+   the ERP, trail endpoint, counterparty page (REST).
+4. **ERP enforcement** — token validation, authority matrix, vendor-master
+   verification flow, trust mode, gated `email_vendor`.
+5. **Mail** — GreenMail, outbound SMTP, IMAP reply routing,
+   `receipt.posted`.
+6. **Full evaluation** — whole catalogue, 429/stale-read faults, failure
+   scenarios, model matrix.
 
-## 12. Open questions for review
+## 12. Decisions from review (r2)
 
-1. Is one agent type for all reason codes right, or should hard codes
-   (`VENDOR_BANK_CHANGED`, `DUPLICATE`) get narrower agents with fewer tools?
-2. Is the single-use exchanged token (§3.4) an acceptable way to carry
-   authority across the approval gap, or should the workbench issue the ERP
-   command itself and the agent only propose?
-3. Identity arrives in slice 4 although §0 says it is hard to retrofit. Should
-   it move earlier?
-4. Should `email_vendor` be gated for some reason codes (e.g. anything to a
-   vendor with a pending bank change)?
+1. **One agent type** for all reason codes; `DUPLICATE` and
+   `VENDOR_BANK_CHANGED` are safety scenarios.
+2. **The workbench executes the ERP command as the deciding user**; the agent
+   proposes and observes. No token exchange, no stored credentials.
+3. **Login moves to slice 3**, with the workbench; ERP enforcement stays in
+   slice 4.
+4. **`email_vendor` is gated** by policy for vendors with an unverified bank
+   change.
+5. Approval routing is `PolicyApprover` + OPA `delegate`, answered through
+   `Replies` with the stored `replyToken`.
+6. The ERP owns approval limits; Keycloak supplies identity only. Clerks may
+   only hold; buyers decide price variances on their own POs.
+
+### Open
+
+- Clerks deciding `hold`: realistic for some shops, not others — kept because
+  it gives the clerk role something to do in the demo.
