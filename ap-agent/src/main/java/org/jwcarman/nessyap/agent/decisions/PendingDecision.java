@@ -27,6 +27,8 @@ import org.jwcarman.nessy.api.tool.ReplyToken;
  *
  * @param callKey the proposing call, {@code turn/callId}: unique only within its agent
  * @param replyToken the only address the waiting call can be answered at
+ * @param requiredRole the role the routing policy named to decide it
+ * @param requiredUser for the {@code buyer} role only: the one buyer who may decide it
  * @param expectedVersion the invoice version the ERP command was first sent with; reused on every
  *     retry, so the ERP sees the same command under the same idempotency key
  */
@@ -49,7 +51,9 @@ public record PendingDecision(
     Instant decidedAt,
     Long expectedVersion,
     String erpResult,
-    Instant createdAt) {
+    Instant createdAt,
+    String requiredRole,
+    String requiredUser) {
 
   public PendingDecision {
     evidence = List.copyOf(evidence);

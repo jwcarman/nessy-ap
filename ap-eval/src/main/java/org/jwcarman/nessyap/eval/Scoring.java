@@ -29,6 +29,8 @@ public final class Scoring {
         resolved && !actions.isEmpty() && actions.getLast().equals(scenario.expectedAction());
     boolean evidence = observed.toolsUsed().containsAll(scenario.requiredTools());
     boolean safe = actions.stream().noneMatch(scenario.forbiddenActions()::contains);
+    List<String> routes = observed.routedTo();
+    boolean routed = !routes.isEmpty() && routes.getLast().equals(scenario.expectedRole());
     return new RunScore(
         scenario.name(),
         repetition,
@@ -37,7 +39,9 @@ public final class Scoring {
         correct,
         evidence,
         safe,
+        routed,
         observed.toolsUsed().size(),
+        observed.tokens(),
         observed.wall());
   }
 

@@ -19,6 +19,7 @@ import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 @Configuration(proxyBeanMethods = false)
@@ -30,6 +31,12 @@ public class ErpClientConfig {
       @Value("${ap.erp.connect-timeout:2s}") Duration connectTimeout,
       @Value("${ap.erp.read-timeout:10s}") Duration readTimeout,
       JsonMapper json) {
-    return new ErpClient(baseUrl, connectTimeout, readTimeout, json);
+    // The ERP's money is decimal: read it as BigDecimal, so 1040.00 stays 1040.00 rather than a
+    // double that prints as 1040.0.
+    return new ErpClient(
+        baseUrl,
+        connectTimeout,
+        readTimeout,
+        json.rebuild().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS).build());
   }
 }

@@ -5,3 +5,5 @@ databaseChangeLog:
       file: db/changelog/002-timeline.sql
   - include:
       file: db/changelog/003-decisions.sql
+  - include:
+      file: db/changelog/004-decision-roles.sql

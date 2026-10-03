@@ -90,6 +90,21 @@ public class ErpClient {
       long expectedVersion,
       BigDecimal amount,
       String comment) {
+    return resolve(invoiceId, action, idempotencyKey, expectedVersion, amount, comment, null);
+  }
+
+  /**
+   * As {@link #resolve(UUID, String, String, long, BigDecimal, String)}, as the person whose token
+   * this is.
+   */
+  public ErpOutcome<JsonNode> resolve(
+      UUID invoiceId,
+      String action,
+      String idempotencyKey,
+      long expectedVersion,
+      BigDecimal amount,
+      String comment,
+      String bearerToken) {
     Map<String, Object> body = new LinkedHashMap<>();
     body.put("expectedVersion", expectedVersion);
     if (amount != null) {
@@ -98,11 +113,15 @@ public class ErpClient {
     if (comment != null) {
       body.put("comment", comment);
     }
-    return send(
+    HttpRequest.Builder request =
         HttpRequest.newBuilder(uri("/api/invoices/" + invoiceId + "/" + segment(action)))
             .header("Idempotency-Key", idempotencyKey)
             .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))));
+            .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
+    if (bearerToken != null) {
+      request.header("Authorization", "Bearer " + bearerToken);
+    }
+    return send(request);
   }
 
   private ErpOutcome<JsonNode> get(String path) {

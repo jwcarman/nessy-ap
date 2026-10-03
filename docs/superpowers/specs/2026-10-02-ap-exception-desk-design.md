@@ -394,7 +394,11 @@ Nessy design conversations, not changes made from this repo.
   a customer-facing demo.
 - **F3 — No out-of-process read API for an agent's story.** Usage per model,
   denials and approval references live in `AgentEvent`s reachable only
-  in-process; `ap-agent` publishes `/cases/{id}/trail` to make them readable.
+  in-process. Measured in slice 3: the one door the starter does hand an app,
+  the `TurnHistories` bean, lives in `org.jwcarman.nessy.engine.store` (not the
+  api package) and gives a turn's total tokens only; input, output, cached and
+  reasoning counts and the model are not reachable (and the total is always 0,
+  F10). `ap-agent`'s `/api/cases/{id}/trail` therefore reports no token spend.
 - **F4 — No channel for a decision that arrives after expiry.** A late answer
   gets `NotAwaiting`; the only way to inform the agent is a fresh `tell`.
 - **F5 — No published scripted model for tests.**
@@ -421,6 +425,21 @@ Nessy design conversations, not changes made from this repo.
   `fix-effect-claim-overshoot`: the dispatcher never releases a negative count,
   and the JDBC claim locks its rows in a CTE. Why the claim overshot was not
   reproduced in a test.
+
+- **F9 — A person cannot reach an agent whose proposal is waiting on a
+  decision.** On the queued door a deferred approval keeps the proposing turn
+  open, so a note from the workbench waits in the backlog until the decision
+  is made. For AP that inverts the useful order: "the rest arrives Friday"
+  should shape the decision, not follow it. Nessy has no way to hand an agent
+  input mid-turn, nor to end a turn while one of its calls waits on a person.
+
+- **F10 — `Turn.tokens` is always 0.** `Transcript` builds every `Turn` with
+  `tokens = 0`, and the field is undocumented. Usage is stored (each inference
+  event carries model, input and output counts) and published to Micrometer as
+  `gen_ai.client.token.usage` per agent type, but nothing hands an app the
+  usage of one agent or one turn. `ap-eval` measures a case by the metric's
+  difference before and after it, which works only because cases run one at a
+  time.
 
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`

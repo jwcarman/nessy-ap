@@ -23,9 +23,10 @@ import org.jwcarman.nessy.api.AgentType;
 import org.jwcarman.nessy.api.BacklogPolicy;
 import org.jwcarman.nessy.api.QueuedHarness;
 import org.jwcarman.nessy.api.QueuedHarnessFactory;
+import org.jwcarman.nessy.approval.policy.PolicyApprover;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseInputRenderer;
-import org.jwcarman.nessyap.agent.decisions.DecisionDesk;
+import org.jwcarman.nessyap.agent.decisions.CaseFactsEnricher;
 import org.jwcarman.nessyap.agent.decisions.ProposeResolution;
 import org.jwcarman.nessyap.agent.tools.ErpTools;
 import org.jwcarman.nessyap.agent.tools.ProposeResolutionTool;
@@ -51,7 +52,8 @@ public class AgentConfiguration {
       QueuedHarnessFactory factory,
       ErpTools erpTools,
       ProposeResolutionTool propose,
-      DecisionDesk desk,
+      PolicyApprover routing,
+      CaseFactsEnricher caseFacts,
       @Value("${ap.approval.timeout}") Duration approvalTimeout,
       @Value("classpath:prompts/ap-playbook.md") Resource playbook)
       throws IOException {
@@ -69,7 +71,8 @@ public class AgentConfiguration {
               propose,
               binding ->
                   binding
-                      .approver(desk, approval -> approval.timeout(approvalTimeout))
+                      .enrich(caseFacts)
+                      .approver(routing, approval -> approval.timeout(approvalTimeout))
                       .action(AgentConfiguration::describe));
         });
   }

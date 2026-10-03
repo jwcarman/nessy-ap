@@ -26,25 +26,32 @@ import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.support.Ids;
-import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Where proposals wait for a decider. It never answers on the spot: it writes the proposal down,
- * with the only address it can be answered at, and frees the agent.
+ * Where proposals wait for a person in one role. It never answers on the spot: it writes the
+ * proposal down, with the only address it can be answered at and who may decide it, and frees the
+ * agent. The routing policy names the desk; there is one per role.
  */
-@Component
-public class DecisionDesk implements Approver {
+public class WorkbenchDesk implements Approver {
 
   private final Decisions decisions;
   private final Cases cases;
   private final CaseTimeline timeline;
   private final JsonMapper json;
   private final Clock clock;
+  private final String role;
 
-  public DecisionDesk(
-      Decisions decisions, Cases cases, CaseTimeline timeline, JsonMapper json, Clock clock) {
+  public WorkbenchDesk(
+      String role,
+      Decisions decisions,
+      Cases cases,
+      CaseTimeline timeline,
+      JsonMapper json,
+      Clock clock) {
+    this.role = role;
     this.decisions = decisions;
     this.cases = cases;
     this.timeline = timeline;
@@ -64,6 +71,15 @@ public class DecisionDesk implements Approver {
     } catch (JacksonException e) {
       return Awaited.ready(
           ApprovalResult.denied("The proposal could not be read: " + e.getOriginalMessage()));
+    }
+    String requiredUser =
+        "buyer".equals(role)
+            ? request.fact("policy.buyer").map(JsonNode::asString).orElse(null)
+            : null;
+    if ("buyer".equals(role) && requiredUser == null) {
+      // A buyer's decision belongs to one buyer. With none named, any buyer could take it.
+      return Awaited.ready(
+          ApprovalResult.denied("The policy sent this to a buyer but named none; it cannot wait."));
     }
     CaseRecord c = found.get();
     decisions.insert(
@@ -86,9 +102,11 @@ public class DecisionDesk implements Approver {
             null,
             null,
             null,
-            clock.instant()));
+            clock.instant(),
+            role,
+            requiredUser));
     cases.setStatus(c.exceptionId(), CaseStatus.AWAITING_DECISION);
-    timeline.record(c.exceptionId(), "proposal", request.action());
+    timeline.record(c.exceptionId(), "proposal", request.action() + " (for " + role + ")");
     return Awaited.deferred();
   }
 }

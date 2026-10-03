@@ -22,6 +22,7 @@ import java.sql.Types;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.tool.ReplyToken;
@@ -53,9 +54,10 @@ public class Decisions {
             """
             insert into pending_decision
                 (id, agent_id, call_key, reply_token, exception_id, invoice_id, action, amount,
-                 rationale, evidence, deadline, status, created_at)
+                 rationale, evidence, deadline, status, created_at, required_role, required_user)
             values (:id, :agentId, :callKey, :replyToken, :exceptionId, :invoiceId, :action,
-                    :amount, :rationale, :evidence, :deadline, :status, :createdAt)
+                    :amount, :rationale, :evidence, :deadline, :status, :createdAt, :requiredRole,
+                    :requiredUser)
             on conflict (agent_id, call_key) do update
                 set reply_token = excluded.reply_token, deadline = excluded.deadline
             """)
@@ -72,6 +74,8 @@ public class Decisions {
         .param("deadline", Timestamp.from(d.deadline()))
         .param("status", d.status().name())
         .param("createdAt", Timestamp.from(d.createdAt()))
+        .param("requiredRole", d.requiredRole())
+        .param("requiredUser", d.requiredUser(), Types.VARCHAR)
         .update();
   }
 
@@ -103,6 +107,35 @@ public class Decisions {
     return jdbc.sql(
             "select * from pending_decision where exception_id = :id order by created_at, id")
         .param("id", exceptionId)
+        .query(this::decision)
+        .list();
+  }
+
+  /**
+   * The pending decisions this person may make: their role is the one required, and a buyer's
+   * decision is theirs only on their own purchase order.
+   */
+  public List<PendingDecision> pendingFor(Set<String> roles, String username) {
+    if (roles.isEmpty()) {
+      return List.of();
+    }
+    return jdbc.sql(
+            """
+            select * from pending_decision
+            where status = 'PENDING' and required_role in (:roles)
+              and (required_user is null or required_user = :username)
+            order by created_at, id
+            """)
+        .param("roles", roles)
+        .param("username", username)
+        .query(this::decision)
+        .list();
+  }
+
+  /** Every pending decision, for a controller, who may decide any of them. */
+  public List<PendingDecision> allPending() {
+    return jdbc.sql(
+            "select * from pending_decision where status = 'PENDING' order by created_at, id")
         .query(this::decision)
         .list();
   }
@@ -185,6 +218,8 @@ public class Decisions {
         decidedAt == null ? null : decidedAt.toInstant(),
         rs.getObject("expected_version", Long.class),
         rs.getString("erp_result"),
-        rs.getTimestamp("created_at").toInstant());
+        rs.getTimestamp("created_at").toInstant(),
+        rs.getString("required_role"),
+        rs.getString("required_user"));
   }
 }

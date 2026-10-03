@@ -15,11 +15,16 @@
  */
 package org.jwcarman.nessyap.agent;
 
+import java.nio.file.Path;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
+import org.springframework.test.context.DynamicPropertyRegistrar;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.rabbitmq.RabbitMQContainer;
+import org.testcontainers.utility.MountableFile;
 
 /** The real Postgres and RabbitMQ every ap-agent integration test runs against. */
 @TestConfiguration(proxyBeanMethods = false)
@@ -35,5 +40,22 @@ public class ApAgentContainers {
   @ServiceConnection
   RabbitMQContainer rabbit() {
     return new RabbitMQContainer("rabbitmq:4-management-alpine");
+  }
+
+  /** The real routing policy, from the repo, in a real OPA. */
+  @Bean
+  GenericContainer<?> opa() {
+    return new GenericContainer<>("openpolicyagent/opa:0.68.0")
+        .withCopyFileToContainer(
+            MountableFile.forHostPath(Path.of("../compose/opa/policy").toAbsolutePath()), "/policy")
+        .withCommand("run", "--server", "--addr", "0.0.0.0:8181", "/policy")
+        .withExposedPorts(8181)
+        .waitingFor(Wait.forHttp("/health").forPort(8181));
+  }
+
+  @Bean
+  DynamicPropertyRegistrar opaUrl(GenericContainer<?> opa) {
+    return registry ->
+        registry.add("ap.opa.url", () -> "http://" + opa.getHost() + ":" + opa.getMappedPort(8181));
   }
 }
