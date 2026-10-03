@@ -136,7 +136,9 @@ public class VendorMaster {
       throw new BankChangeVerificationException(
           "A second person must confirm: " + actor.user() + " made the call");
     }
-    vendors.confirm(vendorId, accountId, actor.user(), clock.instant());
+    if (!vendors.confirm(vendorId, accountId, actor.user(), clock.instant())) {
+      throw new BankChangeVerificationException("This change is not waiting to be verified");
+    }
     audit.record(actor, "vendor", vendorId, "bank-change-confirmed", "Account " + accountId);
   }
 

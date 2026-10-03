@@ -18,6 +18,7 @@ package org.jwcarman.nessyap.erp.vendor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,7 @@ class BankChangeVerificationTest extends ErpIntegrationTest {
 
   @Autowired VendorMaster vendors;
   @Autowired Resolutions resolutions;
+  @Autowired VendorRepository repository;
 
   private Vendor acme;
   private UUID proposed;
@@ -90,6 +92,19 @@ class BankChangeVerificationTest extends ErpIntegrationTest {
     assertThat(after.bankAccounts())
         .extracting(BankAccount::status)
         .containsExactly(BankAccountStatus.SUPERSEDED, BankAccountStatus.ACTIVE);
+  }
+
+  @Test
+  void a_confirm_that_read_the_change_before_the_vendor_denied_it_cannot_undo_the_rejection() {
+    vendors.recordCallBack(MARK, acme.id(), proposed, contactPhone(), false);
+
+    // What a confirm that passed its checks a moment before the denial landed goes on to write.
+    boolean activated = repository.confirm(acme.id(), proposed, "connie", Instant.now());
+
+    assertThat(activated).isFalse();
+    assertThat(vendors.get(acme.id()).bankAccounts())
+        .extracting(BankAccount::status)
+        .containsExactly(BankAccountStatus.ACTIVE, BankAccountStatus.REJECTED);
   }
 
   @Test

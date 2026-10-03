@@ -110,24 +110,35 @@ public class VendorRepository {
   }
 
   /** The confirmed account becomes the one paid; the one it replaces is superseded. */
-  public void confirm(UUID vendorId, UUID accountId, String by, Instant at) {
+  public boolean confirm(UUID vendorId, UUID accountId, String by, Instant at) {
+    // Only a change still waiting, with a confirmed call-back, is activated: a confirm that read
+    // the
+    // change before a denial (or another confirm) landed must not undo it.
+    int activated =
+        jdbc.sql(
+                """
+                update vendor_bank_account
+                set status = 'ACTIVE', confirmed_by = :by, confirmed_at = :at
+                where id = :id and vendor_id = :vendorId
+                  and status = 'PENDING_VERIFICATION' and call_back_confirmed
+                """)
+            .param("by", by)
+            .param("at", Timestamp.from(at))
+            .param("id", accountId)
+            .param("vendorId", vendorId)
+            .update();
+    if (activated == 0) {
+      return false;
+    }
     jdbc.sql(
             """
             update vendor_bank_account set status = 'SUPERSEDED'
-            where vendor_id = :vendorId and status = 'ACTIVE'
+            where vendor_id = :vendorId and status = 'ACTIVE' and id <> :id
             """)
         .param("vendorId", vendorId)
-        .update();
-    jdbc.sql(
-            """
-            update vendor_bank_account
-            set status = 'ACTIVE', confirmed_by = :by, confirmed_at = :at
-            where id = :id
-            """)
-        .param("by", by)
-        .param("at", Timestamp.from(at))
         .param("id", accountId)
         .update();
+    return true;
   }
 
   public Optional<Vendor> find(UUID id) {
