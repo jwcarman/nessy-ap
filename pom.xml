@@ -151,6 +151,7 @@ limitations under the License.]]></inlineHeader>
                 <exclude>src/main/resources/**</exclude>
                 <exclude>src/test/resources/**</exclude>
                 <exclude>docs/**</exclude>
+                <exclude>site/**</exclude>
                 <exclude>compose/**</exclude>
                 <exclude>.mvn/**</exclude>
                 <exclude>mvnw</exclude>
