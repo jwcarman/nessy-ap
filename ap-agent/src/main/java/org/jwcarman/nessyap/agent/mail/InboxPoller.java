@@ -55,6 +55,9 @@ public class InboxPoller {
 
   private static final Logger log = LoggerFactory.getLogger(InboxPoller.class);
 
+  /** Longer Message-IDs are stored by their hash: an index entry has a size limit. */
+  private static final int MAX_ID = 500;
+
   /** One message as the desk reads it. */
   private record Incoming(String messageId, String sender, String subject, String text) {}
 
@@ -102,11 +105,48 @@ public class InboxPoller {
       Folder inbox = store.getFolder("INBOX");
       inbox.open(Folder.READ_WRITE);
       for (Message message : inbox.search(new FlagTerm(new Flags(Flags.Flag.SEEN), false))) {
-        tx.executeWithoutResult(status -> handle(message));
+        handleOrSetAside(message);
         message.setFlag(Flags.Flag.SEEN, true);
       }
       inbox.close(false);
     }
+  }
+
+  /**
+   * One message's failure never holds up the rest: a message that cannot be handled is set aside as
+   * unreadable, and if even that fails it is only logged. Either way it is marked seen, so the
+   * inbox never stalls on it.
+   */
+  private void handleOrSetAside(Message message) {
+    try {
+      tx.executeWithoutResult(status -> handle(message));
+    } catch (RuntimeException e) {
+      log.warn("Could not handle a message to the desk; setting it aside", e);
+      try {
+        tx.executeWithoutResult(status -> setAsideUnreadable(message, e));
+      } catch (RuntimeException again) {
+        log.error("Could not even set the message aside; it is marked seen and dropped", again);
+      }
+    }
+  }
+
+  private void setAsideUnreadable(Message message, RuntimeException cause) {
+    Incoming read = read(message);
+    Incoming unreadable =
+        new Incoming(
+            read.messageId(),
+            read.sender(),
+            read.subject(),
+            "(the desk could not store this message: " + cause.getClass().getSimpleName() + ")");
+    jdbc.sql(
+            """
+            insert into inbound_mail (message_id, received_at) values (:id, :at)
+            on conflict (message_id) do nothing
+            """)
+        .param("id", unreadable.messageId())
+        .param("at", Timestamp.from(clock.instant()))
+        .update();
+    setAside(unreadable);
   }
 
   private void handle(Message message) {
@@ -192,8 +232,16 @@ public class InboxPoller {
           "<no-id-"
               + UUID.nameUUIDFromBytes((sender + subject + text).getBytes(StandardCharsets.UTF_8))
               + ">";
+    } else if (messageId.length() > MAX_ID) {
+      messageId =
+          "<long-id-" + UUID.nameUUIDFromBytes(messageId.getBytes(StandardCharsets.UTF_8)) + ">";
     }
-    return new Incoming(messageId, sender, subject, text);
+    return new Incoming(safe(messageId), safe(sender), safe(subject), safe(text));
+  }
+
+  /** Postgres text cannot hold a NUL; nothing else a sender writes is refused. */
+  private static String safe(String value) {
+    return value.replace("\0", "");
   }
 
   private static String header(Message message, String name) {

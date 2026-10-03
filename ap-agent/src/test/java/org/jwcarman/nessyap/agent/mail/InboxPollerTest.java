@@ -104,13 +104,26 @@ class InboxPollerTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void a_message_the_desk_cannot_store_does_not_hold_up_the_ones_behind_it() throws Exception {
+    reply("stranger@elsewhere.example", "Poison", null, "nul \u0000 byte", false);
+    reply("bob@nessy-ap.example", "Re: [AP " + exceptionId + "] Which PO?", null, "PO-7", false);
+    await().until(() -> mailbox.read(DESK).size() == 2);
+
+    poller.pollOnce();
+    poller.pollOnce();
+
+    assertThat(received(exceptionId)).hasSize(1);
+    assertThat(unmatched()).containsOnlyOnce("Poison");
+  }
+
+  @Test
   void mail_that_answers_nothing_we_sent_is_set_aside_and_never_read_again() throws Exception {
     reply("stranger@elsewhere.example", "Hello", "<nobody@nowhere>", "Who are you?", false);
 
     poller.pollOnce();
     poller.pollOnce();
 
-    assertThat(unmatched()).containsExactly("Hello");
+    assertThat(unmatched()).containsOnlyOnce("Hello");
   }
 
   @Test
