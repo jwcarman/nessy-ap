@@ -482,16 +482,17 @@ Nessy design conversations, not changes made from this repo.
   transcripts, which hold untrusted text, grow without limit, and that copy sits
   outside the application's own controls (here, Occlude's labels and record).
 
-- **F14 — The direct door's "no caller transaction" precondition is unstated and unchecked.**
-  Nessy joins a caller's transaction on purpose: the agent lock must be the same transaction
-  as the work it guards, and for the queued door that is what makes `tell` atomic with the
-  caller's work. The direct door runs a turn as short steps with the model call between them,
+- **F14 — The direct door fails inside a caller's transaction, and nothing anticipated it.**
+  `JdbcRowLocks` uses `PROPAGATION_REQUIRED` on purpose, so the agent lock and the work it
+  guards commit as one transaction. A side effect is that it joins a transaction the caller
+  already has open. Its javadoc names one cost of that (a slow caller holds the lock too long),
+  and no design record considers the direct door under a caller's transaction. The direct door runs a turn as short steps with the model call between them,
   on an effect thread with its own connection. Inside a caller's transaction that thread cannot
   see the step it follows and fails with "no event at 1 for agent ...". The mail route read
   replies inside its transaction, so every live read failed and fell back to "a person must
   read this". Holding a transaction open across a model call was our mistake; the desk now
-  suspends it. Nessy's part is narrower: it should state the precondition and fail fast with a
-  clear message when `ask` finds a transaction open.
+  suspends it. For Nessy: decide whether the direct door suspends a caller's transaction or
+  refuses one, then document it and fail fast with a clear message instead of an internal error.
 
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`

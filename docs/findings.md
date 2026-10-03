@@ -19,4 +19,4 @@ Each finding was checked against Nessy's source on 2026-10-03.
 | **F11.** Inputs carry no provenance. | Open. Nessy AP's quarantine slice explores it with Occlude. |
 | **F12.** Nothing checks that the policy knows a gated tool. | Open. Nessy AP's policy denies any tool it does not name. |
 | **F13.** Stored agent history has no retention or cleanup. | Open. The quarantined reader stores every read, untrusted text included, with no way to expire it. |
-| **F14.** The direct door cannot run inside a caller's transaction, and nothing says so. | Open. The fail-fast check and the documented precondition are missing. The desk now suspends its transaction for the read. |
+| **F14.** The direct door fails inside a caller's transaction, and nothing anticipated it. | Open. Nessy must decide: suspend the caller's transaction, or refuse it with a clear error. The desk now suspends its transaction for the read. |
