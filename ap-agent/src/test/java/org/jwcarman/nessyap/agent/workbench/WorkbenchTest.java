@@ -18,6 +18,7 @@ package org.jwcarman.nessyap.agent.workbench;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.jwcarman.nessyap.agent.ScriptedProvider.call;
 import static org.jwcarman.nessyap.agent.ScriptedProvider.steps;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -125,6 +126,22 @@ class WorkbenchTest extends ApAgentIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("INV-7777")))
         .andExpect(content().string(containsString("Needs your decision")));
+  }
+
+  @Test
+  void mail_no_case_claimed_is_shown_to_a_manager_but_not_to_a_clerk() throws Exception {
+    jdbc.sql(
+            """
+            insert into unmatched_mail (id, message_id, sender, subject, body, received_at)
+            values (gen_random_uuid(), '<x@y>', 'stranger@elsewhere.example', 'Who pays this?',
+                    'b', now())
+            """)
+        .update();
+
+    mvc.perform(get("/workbench").with(as("mark", "ap-manager")))
+        .andExpect(content().string(containsString("Who pays this?")));
+    mvc.perform(get("/workbench").with(as("clara", "ap-clerk")))
+        .andExpect(content().string(not(containsString("Who pays this?"))));
   }
 
   @Test

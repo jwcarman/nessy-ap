@@ -33,6 +33,7 @@ import org.jwcarman.nessyap.agent.decisions.PendingDecision;
 import org.jwcarman.nessyap.agent.decisions.PolicyConfig;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
 import org.jwcarman.nessyap.agent.erp.ErpOutcome;
+import org.jwcarman.nessyap.agent.mail.UnmatchedMail;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -64,6 +65,7 @@ public class WorkbenchController {
   private final DecisionExecutor executor;
   private final ErpClient erp;
   private final QueuedHarness<CaseInput> agent;
+  private final UnmatchedMail unmatched;
 
   public WorkbenchController(
       Cases cases,
@@ -71,13 +73,15 @@ public class WorkbenchController {
       Decisions decisions,
       DecisionExecutor executor,
       ErpClient erp,
-      QueuedHarness<CaseInput> agent) {
+      QueuedHarness<CaseInput> agent,
+      UnmatchedMail unmatched) {
     this.cases = cases;
     this.timeline = timeline;
     this.decisions = decisions;
     this.executor = executor;
     this.erp = erp;
     this.agent = agent;
+    this.unmatched = unmatched;
   }
 
   /** A pending decision as the worklist shows it: the decision and the case it belongs to. */
@@ -99,6 +103,12 @@ public class WorkbenchController {
             .flatMap(Optional::stream)
             .toList());
     model.addAttribute("cases", cases.recent(50));
+    // Sorting out mail no case claimed is a manager's job: it may be a new dispute or a fraud.
+    model.addAttribute(
+        "unmatched",
+        roles.contains(Deciders.AP_MANAGER) || roles.contains(Deciders.CONTROLLER)
+            ? unmatched.recent(20)
+            : List.of());
     return "workbench/worklist";
   }
 

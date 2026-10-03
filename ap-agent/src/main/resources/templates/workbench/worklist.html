@@ -21,6 +21,20 @@
       </tbody>
     </table>
   </section>
+  <section th:if="${!unmatched.isEmpty()}">
+    <h2>Unmatched mail</h2>
+    <p class="muted">Mail to the desk that answers no case. Read it before anyone acts on it.</p>
+    <table>
+      <thead><tr><th>From</th><th>Subject</th><th>Received</th></tr></thead>
+      <tbody>
+      <tr th:each="m : ${unmatched}" th:title="${m.body}">
+        <td th:text="${m.sender}">someone@example.com</td>
+        <td th:text="${m.subject}">Hello</td>
+        <td th:text="${#temporals.format(m.receivedAt, 'MMM d HH:mm')}">2026-10-03 09:00</td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
   <section>
     <h2>Recent cases</h2>
     <table>
