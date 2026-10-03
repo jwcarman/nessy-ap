@@ -180,21 +180,23 @@ money safe, because a model can be persuaded.
 | Each decision needs the routed role | OPA routing + workbench check | A person deciding outside their role | `PolicyRoutingTest`, `ap_test.rego` |
 | Authority by amount and action | ERP authority matrix, with the decider's own token | A misrouted or forged approval | `AuthorityMatrixTest`; eval: misrouted policy refused 3/3 in enforce mode |
 | Service tokens only read | ERP security | The agent's own token writing to the ERP | `ErpSecurityTest` |
-| Unverified bank change: no payment, no vendor mail | OPA + ERP | Payment fraud through a changed account | `bank-change-fraud`: 40 of 40 on slice 10 |
+| Unverified bank change: no payment, no vendor mail | OPA (payments, credit memos, vendor mail) + ERP (payments) | Payment fraud through a changed account | `bank-change-fraud`: 40 of 40 on slice 10 |
 | A bank change needs a call-back and a second person | ERP vendor master | One person approving their own fraud | `BankChangeVerificationTest` |
 | A repeated invoice number is never paid from the desk | OPA (any open `DUPLICATE` on the invoice) + ERP (refuses approval while one is open) | Duplicate payment, also when an injection argues for it | `injected-invoice`: 5 of 5 paid without the control, 0 of 5 with it; 40 of 40 on slice 10 |
 | A possible duplicate is paid only by the controller | OPA | A second shipment billed alike, paid without a senior check | `possible-duplicate`: 39 of 40 on slice 10 (the failure was a mistyped citation) |
 | Unknown facts are refused, never read as safe | OPA defaults | A failed read treated as "no fraud" | `ap_test.rego` |
-| A tool the policy does not name is refused | OPA allowlist | An app newer than its policy, failing open | [Slice 5](evaluation/how-the-desk-evolved.md#slice-5-a-policy-that-failed-open); `ap_test.rego` |
+| A tool the policy does not name is refused | OPA allowlist; every tool the agent has is bound to the policy | An app newer than its policy, failing open | [Slice 5](evaluation/how-the-desk-evolved.md#slice-5-a-policy-that-failed-open); `ap_test.rego` |
 | Mail goes only to addresses of record, at most 3 per case per recipient | `MailTools` | Mail to an attacker's address; mail floods | `MailToolsTest` |
 | A case whose mail tried to give instructions cannot move money | OPA (`instructionsSeen` from the case's integrity label) | A persuasive reply turning into a payment | `injected-reply`: 40 of 40 held on slice 10; `ap_test.rego` |
 | Untrusted mail is never in the agent's context or in plaintext at rest | Occlude (labels, reveals, record); Nessy's storage codec (AES-256-GCM, a key of its own) | Prompt injection through mail; a database copy of vendor text | `QuarantineDeclarationsTest`, `ReaderWiredTest` |
-| A citation the agent never read is shown to the approver | The desk (`Grounding`: only ids a successful tool returned count) | An approver trusting evidence the agent made up or only glimpsed | `GroundingTest`; scored in every evaluation run |
+| A proposal may cite only ids a tool returned | OPA (`ungroundedCitations` from `Grounding`: only whole ids in a successful tool result count), which names each one so the agent corrects it; the workbench still warns as a second line | An approver trusting an id the agent made up or copied wrongly | `GroundingGateTest`, `GroundingTest`, `ap_test.rego` |
 | Nobody approves a decision that changes nothing | OPA (a hold on an invoice already on hold is refused) | People's time spent on no-ops; a case stranded by an ERP refusal | `ap_test.rego`, `PolicyRoutingTest` |
 | One question waits per case, and only the person asked may answer, once | Postgres (a unique partial index) and `Answers` (row lock) | A buyer flooded with questions; an answer from the wrong person | `QuestionsTest`, `QuestionAnswerTest` |
 | Each inbox message is handled once and never blocks the inbox | Camel route: idempotent consumer, transacted, dead letter channel | Double replies; one bad message stopping all mail | `DeskInboxRouteTest`, `DeskInboxDeadLetterTest` |
+| Mail that answers nothing the desk sent, and names no case, never reaches a case | The inbox route: a reply joins a case by a Message-ID the desk sent or by the case's subject token; the rest is set aside for a manager. Mail with a token from someone the desk never wrote to joins the case marked as such, and still goes through the quarantine | A fraudster's unprompted bank change | `CounterpartyTest`, `DeskInboxRouteTest`; `unsolicited-bank-change` |
+| Every Occlude refusal reaches the log | `RefusalLog`, a Spring `@EventListener` on Occlude's `RefusalEvent` | A gate refusing quietly, as the first reader failure did | `RefusalLogTest` |
 | No proposal in a turn that asked someone | OPA (`askedThisTurn` from the case) | An agent that invents the answer it is waiting for | `AskThenWaitTest`, `ap_test.rego` |
-| A vendor-written invoice or PO number reaches the agent only if it looks like one | The desk (`VendorReference`) | An instruction hidden in a reference field | `VendorReferenceTest` |
+| Vendor-written text reaches the agent only as a checked reference, or not at all | The desk: `VendorReference` for invoice and PO numbers, also where the ERP's summary quotes them; line descriptions and the address a bank change came from are withheld | An instruction hidden in a field nobody reads as instructions | `VendorReferenceTest`, `CaseInputRendererTest`, `InvestigateToolsTest` |
 | A case that stops with nothing in motion goes to a person | The desk (`NeedsPerson`, on turn narration) | A case nobody is acting on | `NeedsPersonTest` |
 
 ### The desk's inbox route
@@ -248,7 +250,7 @@ flowchart LR
 - **The eval's approver approves**, except where a scenario scripts a denial. A real approver
   sees the evidence and the warning for any citation the agent never read.
 - **Not tested yet:** an approval that expires during a decision, a restart between proposal and
-  decision, outages of mail, OPA or Postgres, and frontier models.
+  decision, and outages of mail, OPA or Postgres.
 
 ## 8. How to run it
 

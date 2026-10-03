@@ -36,7 +36,7 @@ import org.jwcarman.nessyap.contracts.ReasonCode;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * A proposal must cite only ids a tool returned to its agent. Measured: three times in about 1,600
+ * A proposal must cite only ids a tool returned to its agent. Measured: four times in about 1,650
  * runs a model copied an id wrongly and the proposal reached a person. The policy now refuses it,
  * naming the id, so the agent corrects it in the same turn.
  */

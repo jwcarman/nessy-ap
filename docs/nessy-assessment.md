@@ -135,10 +135,11 @@ Where Nessy made the evaluation harder:
 Two smaller points:
 - **The `Tool` interface is verbose for simple tools.** Each tool implements four methods.
   `ErpTools` hides this behind a helper, but a small builder in Nessy would remove it.
-- **The model's judgement is the weak link, and Nessy cannot fix that.** The cases that fail in the
-  evaluation fail on judgement (a missing PO, a persuasive reply), not on the framework. Nessy's
-  job is to make the deterministic controls easy to add around the model, and the policy approver
-  does that well.
+- **Judgment is the model's part, and Nessy cannot fix it.** On the small local model, failures
+  were judgment (a missing PO, a persuasive reply). On the larger hosted models, the failures were
+  the desk's own (a playbook rule, the scorer) and copied ids. Nessy's job is to make the
+  deterministic controls easy to add around the model, and the policy approver does that well:
+  the gate on ungrounded citations was one enricher fact and one policy rule.
 
 ## What would make Nessy a better fit
 

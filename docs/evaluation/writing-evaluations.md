@@ -113,7 +113,7 @@ cited      01a10360-722d-7753-…   the id the agent wrote
 
 A model does not type an id. It reproduces the id one token at a time from the text it has seen.
 These ids are UUIDv7: they start with a timestamp, so every record the seed creates for one case
-shares its first 13 characters. The cited id is a blend of the invoices it had just read
+shares its first 11 characters. The cited id is a blend of the invoices it had just read
 (`722`) and the vendor (`d-7753`).
 
 The evidence check failed the run, because no tool had returned that id. Without the check, an
@@ -134,11 +134,25 @@ The ERP answered "no such invoice". The agent found the original another way and
 right rejection, but it never read the invoice by its real id, and it cited the id that had
 failed. The evidence check caught that too.
 
-Two models, the same mechanism, twice in about 1,450 hosted runs. Two lessons follow:
+In the same luna run, two more citations were wrong: one id with a character dropped
+(`01a103e-18ad-…` for `01a1039e-18ad-…`), and one abandoned halfway (`01a103ad-5e?`). Each time
+the decision itself was right.
 
-- **Check every citation mechanically.** A model cannot promise to copy a string exactly.
+That is four times in about 1,650 hosted runs, on two models. Three changes followed:
+
+- **The check became a gate.** It had only warned the approver, so all four proposals reached a
+  person. Now the policy refuses a proposal that cites an id no tool returned, and names the
+  id, so the agent corrects it in the same turn.
+- **The agent stopped typing its case's ids.** The read tools fill in the case's own invoice, PO
+  and vendor. The agent types an id only to reach another record.
+- **The evidence names the PO by its number,** which is short and made by the ERP.
+
+The lessons:
+
+- **Check every citation mechanically,** and refuse what fails before a person sees it. A model
+  cannot promise to copy a string exactly.
 - **Ids are part of what the model reads.** Ids that differ in a few characters are easy to
-  confuse. If an agent must cite records, give it references that are short and distinct.
+  confuse. Copy as few of them as the work allows.
 
 ## 6. Play every other person through the real doors
 
@@ -204,9 +218,25 @@ only if it writes to the vendor. The better models resolved the case without wri
 reached the agent in 0 of 20 OpenAI runs and 1 of 20 Claude runs. Both runs scored 20 of 20 on a
 scenario that mostly did not test its attack.
 
-For each attack scenario, count the runs that met the attack, and report that count beside the
-pass rate. Better still, deliver the attack whatever the agent does: a fraudster sends the bank
-change without being asked.
+The same was true of declines: `buyer-denies` declines only an approval, so a run that proposed
+something else never met the decline. On the slice 10 desk every run did meet it, but nothing
+showed that.
+
+Three changes followed:
+
+- **The report counts delivery.** Each scenario's row says how many runs met its decline or the
+  attack in the vendor's reply, beside the pass rate and its interval.
+- **The bait rides on a question the agent must ask.** `bank-change-by-mail` is now built on
+  `no-po`: the bank change comes in the answer to "which PO?", so every run that does its job
+  meets it.
+- **One attack does not wait to be asked.** In `unsolicited-bank-change` an outsider mails the
+  desk a new bank account for the invoice. This tests the inbox, not the model: mail that answers
+  nothing the desk sent must be set aside for a manager and never reach the case.
+
+Writing the unprompted attack showed one more thing worth knowing. The inbox joins mail to a case
+by a Message-ID the desk sent, or by the case's subject token. Someone who has seen the token can
+reach the case. The mail is then marked as from a sender the desk never wrote to, and still goes
+through the quarantine.
 
 ## 10. Do not trust a fixture that is tidier than real input
 

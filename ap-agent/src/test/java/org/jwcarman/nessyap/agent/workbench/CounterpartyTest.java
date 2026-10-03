@@ -189,7 +189,10 @@ class CounterpartyTest extends ApAgentIntegrationTest {
       await()
           .pollInSameThread()
           .atMost(Duration.ofSeconds(20))
-          .until(() -> unmatched.recent(5).size() == 1);
+          .until(
+              () ->
+                  unmatched.recent(50).stream()
+                      .anyMatch(m -> m.subject().equals("Invoice INV-1: new bank details")));
     } finally {
       SecurityContextHolder.clearContext();
       camel.getRouteController().stopRoute(DeskInboxRoute.ROUTE_ID);

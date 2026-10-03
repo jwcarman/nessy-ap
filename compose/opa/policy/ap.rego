@@ -81,8 +81,8 @@ resolution := {"effect": "deny", "reason": sprintf("%v is not a resolution", [ac
 	not action in actions
 }
 
-# An approver relies on each citation meaning "the agent read this". Measured: three times in about
-# 1,600 runs a model copied an id wrongly (a digit changed, a character dropped, an id abandoned
+# An approver relies on each citation meaning "the agent read this". Measured: four times in about
+# 1,650 runs a model copied an id wrongly (a digit changed, a character dropped, an id abandoned
 # halfway) and the proposal reached a person. Refused here, the agent corrects it in the same turn.
 else := {
 	"effect": "deny",
