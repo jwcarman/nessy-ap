@@ -1,0 +1,20 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:fragment="head(title)">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="${title} + ' · AP desk'">AP desk</title>
+  <link rel="stylesheet" href="/workbench.css">
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+</head>
+<body>
+<header th:fragment="header" class="bar">
+  <a class="brand" href="/workbench">AP exception desk</a>
+  <span class="who">
+    <span th:text="${me}">connie</span>
+    <span class="role" th:each="role : ${roles}" th:if="${role != 'offline_access' and role != 'uma_authorization' and !#strings.startsWith(role, 'default-roles')}" th:text="${role}">controller</span>
+    <form th:action="@{/logout}" method="post" class="inline"><button class="link">Sign out</button></form>
+  </span>
+</header>
+</body>
+</html>

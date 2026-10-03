@@ -422,6 +422,13 @@ Nessy design conversations, not changes made from this repo.
   and the JDBC claim locks its rows in a CTE. Why the claim overshot was not
   reproduced in a test.
 
+- **F9 — A person cannot reach an agent whose proposal is waiting on a
+  decision.** On the queued door a deferred approval keeps the proposing turn
+  open, so a note from the workbench waits in the backlog until the decision
+  is made. For AP that inverts the useful order: "the rest arrives Friday"
+  should shape the decision, not follow it. Nessy has no way to hand an agent
+  input mid-turn, nor to end a turn while one of its calls waits on a person.
+
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`
 give an idempotent answer path (§3.3); `PolicyApprover` + `Verdict.Delegate`

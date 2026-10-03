@@ -132,6 +132,14 @@ public class Decisions {
         .list();
   }
 
+  /** Every pending decision, for a controller, who may decide any of them. */
+  public List<PendingDecision> allPending() {
+    return jdbc.sql(
+            "select * from pending_decision where status = 'PENDING' order by created_at, id")
+        .query(this::decision)
+        .list();
+  }
+
   public List<UUID> pending() {
     return jdbc.sql("select id from pending_decision where status = 'PENDING' order by created_at")
         .query(UUID.class)

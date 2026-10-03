@@ -1,0 +1,114 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{workbench/layout :: head(${kase.invoiceNumber})}"></head>
+<body>
+<header th:replace="~{workbench/layout :: header}"></header>
+<main>
+  <p class="flash" th:if="${message}" th:text="${message}">Approved.</p>
+  <h1>
+    <span th:text="${kase.invoiceNumber}">INV-1</span>
+    <span class="code" th:text="${kase.reasonCode}">PRICE_VARIANCE</span>
+    <span class="status" th:classappend="${#strings.toLowerCase(kase.status)}" th:text="${kase.status}">INVESTIGATING</span>
+  </h1>
+  <p class="muted">Amount in question <strong th:text="${kase.amount}">40.00</strong>
+    · purchase order <span th:text="${kase.poNumber != null ? kase.poNumber : 'none cited'}">PO-1</span></p>
+
+  <section class="decide" th:each="d : ${decidable}">
+    <h2>The agent proposes: <span th:text="${d.action}">approve-variance</span>
+      <span th:if="${d.amount != null}" th:text="${d.amount}">950.00</span></h2>
+    <p class="rationale" th:text="${d.rationale}">Why.</p>
+    <p class="muted" th:unless="${d.evidence.isEmpty()}">Evidence:
+      <code th:each="e : ${d.evidence}" th:text="${e}">id</code></p>
+    <form th:action="@{/workbench/decisions/{id}(id=${d.id})}" method="post" class="verdict">
+      <input type="text" name="comment" placeholder="Comment (required to deny)" aria-label="Comment">
+      <button name="verdict" value="approve" class="approve">Approve</button>
+      <button name="verdict" value="deny" class="deny">Deny</button>
+    </form>
+  </section>
+
+  <div class="docs">
+    <section th:if="${invoice != null}">
+      <h2>Invoice</h2>
+      <p><span th:text="${invoice.path('invoice').path('status').asString()}">EXCEPTION</span>
+        · total <strong th:text="${invoice.path('invoice').path('total').asString()}">1040.00</strong>
+        · v<span th:text="${invoice.path('invoice').path('version').asString()}">1</span></p>
+      <table>
+        <thead><tr><th>#</th><th>Description</th><th>PO line</th><th class="num">Qty</th><th class="num">Price</th></tr></thead>
+        <tbody><tr th:each="l : ${invoice.path('invoice').path('lines')}">
+          <td th:text="${l.path('lineNo').asString()}">1</td>
+          <td th:text="${l.path('description').asString()}">bolts</td>
+          <td th:text="${l.path('poLineNo').asString()}">1</td>
+          <td class="num" th:text="${l.path('quantity').asString()}">100</td>
+          <td class="num" th:text="${l.path('unitPrice').asString()}">10.40</td>
+        </tr></tbody>
+      </table>
+      <ul class="exceptions"><li th:each="e : ${invoice.path('exceptions')}">
+        <span class="code" th:text="${e.path('reasonCode').asString()}">PRICE_VARIANCE</span>
+        <span th:text="${e.path('summary').asString()}">summary</span></li></ul>
+    </section>
+    <section th:if="${purchaseOrder != null}">
+      <h2>Purchase order</h2>
+      <p>buyer <strong th:text="${purchaseOrder.path('buyer').asString()}">bob</strong></p>
+      <table>
+        <thead><tr><th>#</th><th>Item</th><th class="num">Qty</th><th class="num">Price</th></tr></thead>
+        <tbody><tr th:each="l : ${purchaseOrder.path('lines')}">
+          <td th:text="${l.path('lineNo').asString()}">1</td>
+          <td th:text="${l.path('item').asString()}">bolts</td>
+          <td class="num" th:text="${l.path('quantity').asString()}">100</td>
+          <td class="num" th:text="${l.path('unitPrice').asString()}">10.00</td>
+        </tr></tbody>
+      </table>
+    </section>
+    <section th:if="${receipts != null}">
+      <h2>Receipts</h2>
+      <p class="muted" th:if="${receipts.isEmpty()}">Nothing received.</p>
+      <table th:unless="${receipts.isEmpty()}">
+        <thead><tr><th>Received</th><th>PO line</th><th class="num">Qty</th></tr></thead>
+        <tbody>
+        <th:block th:each="r : ${receipts}"><tr th:each="l : ${r.path('lines')}">
+          <td th:text="${#strings.substring(r.path('receivedAt').asString(), 0, 10)}">2026-10-03</td>
+          <td th:text="${l.path('poLineNo').asString()}">1</td>
+          <td class="num" th:text="${l.path('quantity').asString()}">60</td>
+        </tr></th:block>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <section>
+    <h2>Timeline</h2>
+    <ol class="timeline" th:fragment="timeline"
+        th:attr="hx-get=@{/workbench/cases/{id}/timeline(id=${kase != null ? kase.exceptionId : ''})}"
+        hx-trigger="every 5s" hx-swap="outerHTML">
+      <li th:each="e : ${timeline}" th:classappend="${e.kind}">
+        <span class="when" th:text="${#temporals.format(e.at, 'HH:mm:ss')}">12:00:00</span>
+        <span class="kind" th:text="${e.kind}">tool</span>
+        <span th:text="${e.text}">get_invoice</span>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Note to the agent</h2>
+    <form th:action="@{/workbench/cases/{id}/notes(id=${kase.exceptionId})}" method="post" class="note">
+      <input type="text" name="text" placeholder="e.g. the rest arrives Friday" aria-label="Note">
+      <button>Send</button>
+    </form>
+  </section>
+
+  <section th:unless="${decisions.isEmpty()}">
+    <h2>Decisions</h2>
+    <table>
+      <thead><tr><th>Proposal</th><th>For</th><th>Status</th><th>Decided by</th><th>ERP</th></tr></thead>
+      <tbody><tr th:each="d : ${decisions}">
+        <td th:text="${d.action}">hold</td>
+        <td th:text="${d.requiredUser != null ? d.requiredUser : d.requiredRole}">ap-clerk</td>
+        <td th:text="${d.status}">ANSWERED</td>
+        <td th:text="${d.decidedBy != null ? d.decidedBy : '—'}">clara</td>
+        <td th:text="${d.erpResult != null ? d.erpResult : '—'}">applied</td>
+      </tr></tbody>
+    </table>
+  </section>
+</main>
+</body>
+</html>

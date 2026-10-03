@@ -67,30 +67,47 @@ public class DecisionExecutor {
    * The second carries it through: the ERP command, the answer to the waiting call, and the row
    * marked answered, committing together.
    */
-  public void decide(UUID decisionId, String decidedBy, boolean approve, String comment) {
-    tx.executeWithoutResult(status -> record(decisionId, decidedBy, approve, comment));
+  public DecisionResult decide(UUID decisionId, String decidedBy, boolean approve, String comment) {
+    return decide(decisionId, decidedBy, approve, comment, null);
+  }
+
+  /**
+   * Decides as a person, whose access token (never stored) goes to the ERP with the command, so the
+   * ERP sees who decided.
+   */
+  public DecisionResult decide(
+      UUID decisionId, String decidedBy, boolean approve, String comment, String accessToken) {
+    DecisionResult result = tx.execute(status -> record(decisionId, decidedBy, approve, comment));
+    if (result instanceof DecisionResult.NoSuchDecision) {
+      return result;
+    }
     tx.executeWithoutResult(
         status ->
             decisions
                 .lock(decisionId)
                 .filter(d -> d.status() == DecisionStatus.DECIDED)
-                .ifPresent(this::carryThrough));
+                .ifPresent(d -> carryThrough(d, accessToken)));
+    return result;
   }
 
-  private void record(UUID decisionId, String decidedBy, boolean approve, String comment) {
-    PendingDecision d =
-        decisions
-            .lock(decisionId)
-            .orElseThrow(() -> new IllegalArgumentException("no decision " + decisionId));
+  private DecisionResult record(
+      UUID decisionId, String decidedBy, boolean approve, String comment) {
+    var found = decisions.lock(decisionId);
+    if (found.isEmpty()) {
+      return new DecisionResult.NoSuchDecision();
+    }
+    PendingDecision d = found.get();
+    DecisionResult result = new DecisionResult.AlreadyDecided(d.decidedBy());
     if (d.status() == DecisionStatus.PENDING) {
       decisions.markDecided(decisionId, decidedBy, approve, comment, clock.instant());
       d = decisions.find(decisionId).orElseThrow();
+      result = new DecisionResult.Decided();
     }
     if (d.status() != DecisionStatus.DECIDED
         || !Boolean.TRUE.equals(d.approved())
         || d.expectedVersion() != null
         || d.erpResult() != null) {
-      return;
+      return result;
     }
     switch (targets.erp().invoice(d.invoiceId())) {
       case ErpOutcome.Ok<JsonNode>(JsonNode view) ->
@@ -100,9 +117,10 @@ public class DecisionExecutor {
       case ErpOutcome.Unavailable<JsonNode>(String reason) ->
           log.info("ERP unavailable reading invoice for decision {}: {}", d.id(), reason);
     }
+    return result;
   }
 
-  private void carryThrough(PendingDecision d) {
+  private void carryThrough(PendingDecision d, String accessToken) {
     if (!Boolean.TRUE.equals(d.approved())) {
       String reason =
           "Declined by "
@@ -127,7 +145,8 @@ public class DecisionExecutor {
                 d.id().toString(),
                 d.expectedVersion(),
                 d.amount(),
-                "Decided by " + d.decidedBy() + ": " + d.rationale());
+                "Decided by " + d.decidedBy() + ": " + d.rationale(),
+                accessToken);
     switch (outcome) {
       case ErpOutcome.Ok<JsonNode> ok ->
           answer(d, ApprovalResult.approvedBy(d.id().toString()), "applied", true);

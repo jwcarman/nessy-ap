@@ -102,6 +102,14 @@ public class Cases {
         .optional();
   }
 
+  /** The most recent cases, newest first. */
+  public List<CaseRecord> recent(int limit) {
+    return jdbc.sql("select * from ap_case order by opened_at desc limit :limit")
+        .param("limit", limit)
+        .query(Cases::record)
+        .list();
+  }
+
   public void setStatus(UUID exceptionId, CaseStatus status) {
     jdbc.sql("update ap_case set status = :status, updated_at = :now where exception_id = :id")
         .param("status", status.name())

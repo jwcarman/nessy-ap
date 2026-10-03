@@ -1,0 +1,41 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{workbench/layout :: head('Worklist')}"></head>
+<body>
+<header th:replace="~{workbench/layout :: header}"></header>
+<main>
+  <section>
+    <h1>Needs your decision</h1>
+    <p class="muted" th:if="${waiting.isEmpty()}">Nothing is waiting on you.</p>
+    <table th:unless="${waiting.isEmpty()}">
+      <thead><tr><th>Invoice</th><th>Reason</th><th>Proposal</th><th>For</th><th>Waiting since</th></tr></thead>
+      <tbody>
+      <tr th:each="w : ${waiting}">
+        <td><a th:href="@{/workbench/cases/{id}(id=${w.kase.exceptionId})}" th:text="${w.kase.invoiceNumber}">INV-1</a></td>
+        <td><span class="code" th:text="${w.kase.reasonCode}">PRICE_VARIANCE</span></td>
+        <td><strong th:text="${w.decision.action}">approve-variance</strong>
+          <span th:if="${w.decision.amount != null}" th:text="${w.decision.amount}">950.00</span></td>
+        <td th:text="${w.decision.requiredUser != null ? w.decision.requiredUser : w.decision.requiredRole}">buyer</td>
+        <td class="muted" th:text="${#temporals.format(w.decision.createdAt, 'MMM d HH:mm')}">Oct 3</td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+  <section>
+    <h2>Recent cases</h2>
+    <table>
+      <thead><tr><th>Invoice</th><th>Reason</th><th>Amount in question</th><th>PO</th><th>Status</th></tr></thead>
+      <tbody>
+      <tr th:each="c : ${cases}">
+        <td><a th:href="@{/workbench/cases/{id}(id=${c.exceptionId})}" th:text="${c.invoiceNumber}">INV-1</a></td>
+        <td><span class="code" th:text="${c.reasonCode}">PRICE_VARIANCE</span></td>
+        <td class="num" th:text="${c.amount}">40.00</td>
+        <td th:text="${c.poNumber != null ? c.poNumber : '—'}">PO-1</td>
+        <td><span class="status" th:classappend="${#strings.toLowerCase(c.status)}" th:text="${c.status}">INVESTIGATING</span></td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+</body>
+</html>
