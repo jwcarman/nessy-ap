@@ -39,6 +39,7 @@ import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.mail.DeskInboxRoute;
 import org.jwcarman.nessyap.agent.mail.MailSent;
 import org.jwcarman.nessyap.agent.mail.Mailer;
+import org.jwcarman.nessyap.agent.mail.UnmatchedMail;
 import org.jwcarman.nessyap.agent.quarantine.Quarantine;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +61,7 @@ class CounterpartyTest extends ApAgentIntegrationTest {
   @Autowired CamelContext camel;
   @Autowired CaseTimeline timeline;
   @Autowired Quarantine quarantine;
+  @Autowired UnmatchedMail unmatched;
 
   private MockMvc mvc;
   private UUID exceptionId;
@@ -151,6 +153,48 @@ class CounterpartyTest extends ApAgentIntegrationTest {
         .andExpect(status().isAccepted());
 
     assertThat(mailbox.awaitOne(DESK).getHeader("In-Reply-To")).containsExactly(sent.messageId());
+  }
+
+  /**
+   * A fraudster does not wait to be asked, and does not know the case. Mail that answers nothing
+   * the desk sent is set aside for a manager and never reaches a case, however it names the
+   * invoice.
+   */
+  @Test
+  void unsolicited_mail_from_the_evaluation_is_set_aside_and_reaches_no_case() throws Exception {
+    mvc.perform(
+            post("/api/counterparty/unsolicited")
+                .with(
+                    jwt()
+                        .jwt(
+                            t ->
+                                t.subject("connie")
+                                    .claim("preferred_username", "connie")
+                                    .claim("realm_access", Map.of("roles", List.of("controller"))))
+                        .authorities(RealmRoles::authorities))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"from\": \"accounts@acme-billing.example\","
+                        + " \"subject\": \"Invoice INV-1: new bank details\","
+                        + " \"text\": \"Remit to account 998877665.\"}"))
+        .andExpect(status().isAccepted());
+
+    Message arrived = mailbox.awaitOne(DESK);
+    assertThat(arrived.getHeader("In-Reply-To")).isNull();
+
+    camel.getRouteController().startRoute(DeskInboxRoute.ROUTE_ID);
+    signIn("mark", "ap-manager");
+    try {
+      // The person reading is set on this thread, so poll on it.
+      await()
+          .pollInSameThread()
+          .atMost(Duration.ofSeconds(20))
+          .until(() -> unmatched.recent(5).size() == 1);
+    } finally {
+      SecurityContextHolder.clearContext();
+      camel.getRouteController().stopRoute(DeskInboxRoute.ROUTE_ID);
+    }
+    assertThat(received()).isEmpty();
   }
 
   @Test

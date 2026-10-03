@@ -105,6 +105,24 @@ public class Counterparty {
     smtp.send(message);
   }
 
+  /**
+   * Writes to the desk out of the blue, as someone it never wrote to: it answers no message, so it
+   * carries no In-Reply-To.
+   */
+  public void writeUnprompted(String from, String subject, String text) {
+    MimeMessage message = smtp.createMimeMessage();
+    try {
+      MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+      helper.setFrom(from);
+      helper.setTo(deskAddress);
+      helper.setSubject(subject);
+      helper.setText(text);
+    } catch (MessagingException e) {
+      throw new MailPreparationException("Could not build the message", e);
+    }
+    smtp.send(message);
+  }
+
   private static Sent sent(ResultSet rs, int row) throws SQLException {
     return new Sent(
         rs.getObject("id", UUID.class),

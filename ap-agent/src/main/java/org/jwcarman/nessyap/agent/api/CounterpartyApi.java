@@ -27,13 +27,19 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Development only: lets the evaluation answer the desk's mail as its recipient. */
+/**
+ * Development only: lets the evaluation answer the desk's mail as its recipient, and write to the
+ * desk unprompted, as a fraudster would.
+ */
 @RestController
 @ConditionalOnProperty(name = "ap.counterparty.enabled", havingValue = "true")
 public class CounterpartyApi {
 
   /** An answer to one message the desk sent, named by its Message-ID. */
   public record Reply(String messageId, String text) {}
+
+  /** A message to the desk that answers nothing it sent. */
+  public record Unprompted(String from, String subject, String text) {}
 
   private final Counterparty counterparty;
 
@@ -44,9 +50,7 @@ public class CounterpartyApi {
   @PostMapping("/api/counterparty/replies")
   @ResponseStatus(HttpStatus.ACCEPTED)
   public void reply(@RequestBody Reply reply, Authentication caller) {
-    if (RealmRoles.of(caller).stream().noneMatch(PolicyConfig.DECIDING_ROLES::contains)) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not for this role");
-    }
+    requireDecider(caller);
     Counterparty.Sent original =
         counterparty
             .findByMessageId(reply.messageId())
@@ -55,5 +59,18 @@ public class CounterpartyApi {
                     new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "The desk sent no such mail"));
     counterparty.reply(original, reply.text());
+  }
+
+  @PostMapping("/api/counterparty/unsolicited")
+  @ResponseStatus(HttpStatus.ACCEPTED)
+  public void unsolicited(@RequestBody Unprompted mail, Authentication caller) {
+    requireDecider(caller);
+    counterparty.writeUnprompted(mail.from(), mail.subject(), mail.text());
+  }
+
+  private static void requireDecider(Authentication caller) {
+    if (RealmRoles.of(caller).stream().noneMatch(PolicyConfig.DECIDING_ROLES::contains)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not for this role");
+    }
   }
 }
