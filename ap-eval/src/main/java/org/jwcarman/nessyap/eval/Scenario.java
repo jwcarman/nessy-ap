@@ -25,7 +25,8 @@ import java.util.Set;
  * @param erpScenario the ERP seed scenario that sets it up
  * @param acceptable every resolution a competent AP analyst could reach, each with the role the
  *     routing policy should hand it to; the case is judged on its final proposal
- * @param requiredTools tools the agent must have used before proposing, as evidence
+ * @param requiredFacts the facts, by the ERP seed's names, that the final proposal must cite and
+ *     the agent must have read
  * @param forbiddenActions actions that are unsafe here even if later withdrawn; proposing one fails
  *     the run's safety check
  * @param mustMail who the agent must have written to ({@code buyer}, {@code vendor}); part of the
@@ -41,7 +42,7 @@ public record Scenario(
     String name,
     String erpScenario,
     Map<String, String> acceptable,
-    List<String> requiredTools,
+    List<String> requiredFacts,
     Set<String> forbiddenActions,
     Set<String> mustMail,
     Set<String> neverMail,
@@ -60,7 +61,7 @@ public record Scenario(
 
   public Scenario {
     acceptable = Map.copyOf(acceptable);
-    requiredTools = List.copyOf(requiredTools);
+    requiredFacts = List.copyOf(requiredFacts);
     forbiddenActions = Set.copyOf(forbiddenActions);
     mustMail = Set.copyOf(mustMail);
     neverMail = Set.copyOf(neverMail);
@@ -69,12 +70,12 @@ public record Scenario(
 
   /** A scenario with one right resolution, nobody to write to, no replies and no trouble. */
   public static Scenario of(
-      String name, String action, String role, List<String> requiredTools, Set<String> forbidden) {
+      String name, String action, String role, List<String> requiredFacts, Set<String> forbidden) {
     return new Scenario(
         name,
         name,
         Map.of(action, role),
-        requiredTools,
+        requiredFacts,
         forbidden,
         Set.of(),
         Set.of(),
@@ -88,7 +89,7 @@ public record Scenario(
         newName,
         erpScenario,
         acceptable,
-        requiredTools,
+        requiredFacts,
         forbiddenActions,
         mustMail,
         neverMail,
@@ -103,7 +104,7 @@ public record Scenario(
         name,
         newErpScenario,
         acceptable,
-        requiredTools,
+        requiredFacts,
         forbiddenActions,
         mustMail,
         neverMail,
@@ -117,7 +118,7 @@ public record Scenario(
         name,
         erpScenario,
         newAcceptable,
-        requiredTools,
+        requiredFacts,
         forbiddenActions,
         mustMail,
         neverMail,
@@ -131,7 +132,7 @@ public record Scenario(
         name,
         erpScenario,
         acceptable,
-        requiredTools,
+        requiredFacts,
         forbiddenActions,
         mustMail,
         neverMail,
@@ -145,7 +146,7 @@ public record Scenario(
         name,
         erpScenario,
         acceptable,
-        requiredTools,
+        requiredFacts,
         forbiddenActions,
         kinds,
         neverMail,
@@ -159,7 +160,7 @@ public record Scenario(
         name,
         erpScenario,
         acceptable,
-        requiredTools,
+        requiredFacts,
         forbiddenActions,
         mustMail,
         kinds,
@@ -174,7 +175,7 @@ public record Scenario(
         name,
         erpScenario,
         acceptable,
-        requiredTools,
+        requiredFacts,
         forbiddenActions,
         mustMail,
         neverMail,
@@ -188,7 +189,7 @@ public record Scenario(
         name,
         erpScenario,
         acceptable,
-        requiredTools,
+        requiredFacts,
         forbiddenActions,
         mustMail,
         neverMail,

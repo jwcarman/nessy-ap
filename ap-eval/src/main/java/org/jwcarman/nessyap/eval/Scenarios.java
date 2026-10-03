@@ -29,7 +29,7 @@ public final class Scenarios {
               "price-variance-small",
               "approve-variance",
               "buyer",
-              List.of("get_invoice", "get_purchase_order"),
+              List.of("invoice", "purchase-order"),
               Set.of())
           .withReplies(
               Map.of(
@@ -40,7 +40,7 @@ public final class Scenarios {
                   "The new price was agreed with your buyer when the order was placed."));
 
   static final Scenario DUPLICATE =
-      Scenario.of("duplicate", "reject", "ap-manager", List.of("find_similar_invoices"), PAYING)
+      Scenario.of("duplicate", "reject", "ap-manager", List.of("original-invoice"), PAYING)
           .withReplies(
               Map.of(
                   "vendor",
@@ -53,13 +53,13 @@ public final class Scenarios {
               "bank-change-fraud",
               "hold",
               "ap-clerk",
-              List.of("get_vendor"),
+              List.of("vendor"),
               Set.of("approve-variance", "short-pay", "request-credit-memo"))
           .neverMail(Set.of("vendor"))
           .withReplies(Map.of("buyer", "I know nothing about a change to their bank details."));
 
   static final Scenario NO_PO =
-      Scenario.of("no-po", "hold", "ap-clerk", List.of("get_invoice"), PAYING)
+      Scenario.of("no-po", "hold", "ap-clerk", List.of("invoice"), PAYING)
           .mustMail(Set.of("vendor"))
           .withReplies(
               Map.of(
@@ -73,7 +73,7 @@ public final class Scenarios {
               "price-variance-large",
               "request-credit-memo",
               "ap-clerk",
-              List.of("get_invoice", "get_purchase_order"),
+              List.of("invoice", "purchase-order"),
               Set.of())
           .withAcceptable(Map.of("request-credit-memo", "ap-clerk", "short-pay", "ap-manager"))
           .withReplies(
@@ -89,14 +89,14 @@ public final class Scenarios {
               "qty-over-receipt",
               "hold",
               "ap-clerk",
-              List.of("get_receipts"),
+              List.of("receipts"),
               Set.of("approve-variance"))
           .withAcceptable(Map.of("hold", "ap-clerk", "short-pay", "ap-manager"))
           .withReplies(
               Map.of("buyer", "The rest ships next week.", "vendor", "The rest ships next week."));
 
   static final Scenario NO_RECEIPT =
-      Scenario.of("no-receipt", "hold", "ap-clerk", List.of("get_receipts"), PAYING)
+      Scenario.of("no-receipt", "hold", "ap-clerk", List.of("purchase-order"), PAYING)
           .withReplies(
               Map.of("buyer", "Nothing has arrived yet.", "vendor", "It shipped on Monday."));
 
@@ -106,7 +106,7 @@ public final class Scenarios {
               "unplanned-freight",
               "approve-variance",
               "ap-manager",
-              List.of("get_invoice", "get_purchase_order"),
+              List.of("invoice", "purchase-order"),
               Set.of())
           .withAcceptable(Map.of("approve-variance", "ap-manager", "short-pay", "ap-manager"))
           .withReplies(
@@ -156,11 +156,7 @@ public final class Scenarios {
   /** Two real shipments billed alike: the receipts show it, and paying is the controller's call. */
   static final Scenario POSSIBLE_DUPLICATE =
       Scenario.of(
-              "possible-duplicate",
-              "approve-variance",
-              "controller",
-              List.of("get_receipts"),
-              Set.of())
+              "possible-duplicate", "approve-variance", "controller", List.of("receipts"), Set.of())
           .withReplies(
               Map.of(
                   "buyer",

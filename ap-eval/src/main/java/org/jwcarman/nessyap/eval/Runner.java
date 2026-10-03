@@ -18,6 +18,7 @@ package org.jwcarman.nessyap.eval;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -148,7 +149,8 @@ final class Runner {
     Usage after = meter.read();
     Usage usage =
         before == Usage.UNKNOWN || after == Usage.UNKNOWN ? Usage.UNKNOWN : after.since(before);
-    Observed observed = observe(lastSeen, usage, Duration.between(started, Instant.now()));
+    Observed observed =
+        observe(lastSeen, usage, Duration.between(started, Instant.now()), facts(seeded));
     RunScore score = Scoring.score(scenario, repetition, observed);
     log.info(
         "{} #{}: {} actions={} routed={} tools={} usage={} passed={}",
@@ -246,7 +248,23 @@ final class Runner {
     }
   }
 
-  private static Observed observe(JsonNode view, Usage usage, Duration wall) {
+  /** The facts the seed says a right decision rests on, by name. */
+  static Map<String, List<String>> facts(JsonNode seeded) {
+    Map<String, List<String>> facts = new HashMap<>();
+    seeded
+        .path("facts")
+        .properties()
+        .forEach(
+            fact -> {
+              List<String> ids = new ArrayList<>();
+              fact.getValue().forEach(id -> ids.add(id.asString()));
+              facts.put(fact.getKey(), ids);
+            });
+    return facts;
+  }
+
+  private static Observed observe(
+      JsonNode view, Usage usage, Duration wall, Map<String, List<String>> facts) {
     if (view == null) {
       return new Observed("NEVER_OPENED", List.of(), List.of(), List.of(), List.of(), usage, wall);
     }
@@ -267,6 +285,14 @@ final class Runner {
         (kind.equals("tool") ? tools : mailed).add(space < 0 ? text : text.substring(0, space));
       }
     }
+    List<String> cited = new ArrayList<>();
+    List<String> ungrounded = new ArrayList<>();
+    JsonNode decisions = view.path("decisions");
+    if (!decisions.isEmpty()) {
+      JsonNode last = decisions.get(decisions.size() - 1);
+      last.path("evidence").forEach(id -> cited.add(id.asString()));
+      last.path("ungrounded").forEach(id -> ungrounded.add(id.asString()));
+    }
     return new Observed(
         view.path("status").asString(),
         actions,
@@ -275,7 +301,10 @@ final class Runner {
         mailed,
         usage,
         wall,
-        waitingOn(view));
+        waitingOn(view),
+        facts,
+        cited,
+        ungrounded);
   }
 
   /** Whom a case waits on: the role of a person with an unanswered question, else the vendor. */

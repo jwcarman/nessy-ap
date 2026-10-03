@@ -42,6 +42,8 @@
     <p class="rationale" th:text="${d.rationale}">Why.</p>
     <p class="muted evidence" th:unless="${d.evidence.isEmpty()}">Evidence:
       <code th:each="e : ${d.evidence}" th:text="${e}">id</code></p>
+    <p class="flash warn" th:unless="${ungrounded.get(d.id).isEmpty()}">The agent cites, but never read:
+      <code th:each="e : ${ungrounded.get(d.id)}" th:text="${e}">id</code>. Check these before you decide.</p>
     <form th:action="@{/workbench/decisions/{id}(id=${d.id})}" method="post" class="verdict">
       <input type="text" name="comment" placeholder="Comment (required to deny)" aria-label="Comment">
       <button name="verdict" value="approve" class="approve">Approve</button>

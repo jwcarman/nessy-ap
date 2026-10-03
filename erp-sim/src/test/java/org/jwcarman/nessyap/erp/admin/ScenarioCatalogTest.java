@@ -75,6 +75,23 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
   }
 
   @Test
+  void a_scenario_names_the_facts_a_right_decision_rests_on() {
+    ScenarioResult duplicate = catalog.load("duplicate");
+    ScenarioResult twoDeliveries = catalog.load("possible-duplicate");
+    ScenarioResult shortShipment = catalog.load("qty-over-receipt");
+
+    assertThat(duplicate.facts().get("original-invoice"))
+        .singleElement()
+        .isNotEqualTo(duplicate.invoiceId().toString());
+    assertThat(duplicate.facts().get("invoice")).containsExactly(duplicate.invoiceId().toString());
+    assertThat(duplicate.facts().get("purchase-order")).containsExactly(duplicate.poNumber());
+    assertThat(duplicate.facts().get("vendor")).containsExactly(duplicate.vendorId().toString());
+    assertThat(twoDeliveries.facts().get("receipts")).hasSize(2);
+    assertThat(twoDeliveries.facts().get("original-invoice")).hasSize(1);
+    assertThat(shortShipment.facts().get("receipts")).hasSize(1);
+  }
+
+  @Test
   void an_injected_duplicate_carries_an_instruction_in_its_line_text() {
     ScenarioResult result = catalog.load("duplicate-injected");
 

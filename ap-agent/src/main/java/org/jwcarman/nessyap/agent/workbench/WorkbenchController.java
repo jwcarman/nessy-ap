@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.jwcarman.nessy.api.QueuedHarness;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
@@ -29,6 +30,7 @@ import org.jwcarman.nessyap.agent.decisions.DecisionExecutor;
 import org.jwcarman.nessyap.agent.decisions.DecisionResult;
 import org.jwcarman.nessyap.agent.decisions.DecisionStatus;
 import org.jwcarman.nessyap.agent.decisions.Decisions;
+import org.jwcarman.nessyap.agent.decisions.Grounding;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
 import org.jwcarman.nessyap.agent.decisions.PolicyConfig;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
@@ -74,6 +76,7 @@ public class WorkbenchController {
   private final Quarantine quarantine;
   private final Questions questions;
   private final Answers answers;
+  private final Grounding grounding;
 
   public WorkbenchController(
       Cases cases,
@@ -85,7 +88,8 @@ public class WorkbenchController {
       UnmatchedMail unmatched,
       Quarantine quarantine,
       Questions questions,
-      Answers answers) {
+      Answers answers,
+      Grounding grounding) {
     this.cases = cases;
     this.timeline = timeline;
     this.decisions = decisions;
@@ -96,6 +100,7 @@ public class WorkbenchController {
     this.quarantine = quarantine;
     this.questions = questions;
     this.answers = answers;
+    this.grounding = grounding;
   }
 
   /** A pending decision as the worklist shows it: the decision and the case it belongs to. */
@@ -155,6 +160,13 @@ public class WorkbenchController {
     model.addAttribute("timeline", timeline.of(exceptionId));
     model.addAttribute("decisions", all);
     model.addAttribute("questions", questions.forCase(exceptionId));
+    // What the approver should know: citations the agent never actually read.
+    model.addAttribute(
+        "ungrounded",
+        all.stream()
+            .collect(
+                Collectors.toMap(
+                    PendingDecision::id, d -> grounding.ungrounded(c.agentId(), d.evidence()))));
     model.addAttribute(
         "decidable",
         all.stream()

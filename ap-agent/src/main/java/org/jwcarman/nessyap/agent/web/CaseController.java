@@ -23,6 +23,7 @@ import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.Decisions;
+import org.jwcarman.nessyap.agent.decisions.Grounding;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
 import org.jwcarman.nessyap.agent.mail.Counterparty;
 import org.jwcarman.nessyap.agent.questions.Question;
@@ -51,9 +52,11 @@ public class CaseController {
       String requiredUser,
       String status,
       String decidedBy,
-      String erpResult) {
+      String erpResult,
+      List<String> evidence,
+      List<String> ungrounded) {
 
-    static CaseDecision of(PendingDecision d) {
+    static CaseDecision of(PendingDecision d, List<String> ungrounded) {
       return new CaseDecision(
           d.id(),
           d.action(),
@@ -62,7 +65,9 @@ public class CaseController {
           d.requiredUser(),
           d.status().name(),
           d.decidedBy(),
-          d.erpResult());
+          d.erpResult(),
+          d.evidence(),
+          ungrounded);
     }
   }
 
@@ -86,18 +91,21 @@ public class CaseController {
   private final Decisions decisions;
   private final Counterparty counterparty;
   private final Questions questions;
+  private final Grounding grounding;
 
   public CaseController(
       Cases cases,
       CaseTimeline timeline,
       Decisions decisions,
       Counterparty counterparty,
-      Questions questions) {
+      Questions questions,
+      Grounding grounding) {
     this.cases = cases;
     this.timeline = timeline;
     this.decisions = decisions;
     this.counterparty = counterparty;
     this.questions = questions;
+    this.grounding = grounding;
   }
 
   /** Who may read a case: anyone who works cases, and the auditor. */
@@ -121,7 +129,9 @@ public class CaseController {
         c.reasonCode().name(),
         c.status().name(),
         timeline.of(exceptionId),
-        decisions.forCase(exceptionId).stream().map(CaseDecision::of).toList(),
+        decisions.forCase(exceptionId).stream()
+            .map(d -> CaseDecision.of(d, grounding.ungrounded(c.agentId(), d.evidence())))
+            .toList(),
         counterparty.forCase(exceptionId).stream()
             .map(m -> new CaseMail(m.kind(), m.recipient(), m.subject(), m.messageId(), m.sentAt()))
             .toList(),
