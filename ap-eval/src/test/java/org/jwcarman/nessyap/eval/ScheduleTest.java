@@ -30,7 +30,8 @@ class ScheduleTest {
             List.of(
                 Scenarios.named("price-variance-small"),
                 Scenarios.named("flaky-erp"),
-                Scenarios.named("no-po")),
+                Scenarios.named("no-po"),
+                Scenarios.named("slow-erp")),
             2);
 
     assertThat(schedule.together())
@@ -38,6 +39,6 @@ class ScheduleTest {
         .containsExactly("price-variance-small#1", "price-variance-small#2", "no-po#1", "no-po#2");
     assertThat(schedule.alone())
         .extracting(r -> r.scenario().name() + "#" + r.repetition())
-        .containsExactly("flaky-erp#1", "flaky-erp#2");
+        .containsExactly("flaky-erp#1", "flaky-erp#2", "slow-erp#1", "slow-erp#2");
   }
 }

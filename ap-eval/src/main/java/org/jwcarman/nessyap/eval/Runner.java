@@ -74,6 +74,9 @@ final class Runner {
       if (scenario.twist() == Scenario.Twist.FLAKY_ERP) {
         breakTheErp();
       }
+      if (scenario.twist() == Scenario.Twist.SLOW_ERP) {
+        slowTheErp();
+      }
       return attempt(scenario, repetition);
     } finally {
       // A fault left in place would poison every later run, even one that failed to set up.
@@ -90,6 +93,13 @@ final class Runner {
     } catch (IllegalStateException e) {
       log.warn("Could not clear the ERP's injected faults: {}", e.getMessage());
     }
+  }
+
+  /** Every read the agent makes waits three seconds. */
+  private void slowTheErp() {
+    http.put(
+        erpUrl + "/admin/faults",
+        Map.of("pathPattern", "/api/**", "latencyMillis", 3000, "errorRate", 0));
   }
 
   /**
@@ -135,7 +145,7 @@ final class Runner {
           log.info("  the ERP published the exception's event again");
           redeliveryDone = true;
         }
-        decidePending(lastSeen);
+        decidePending(lastSeen, scenario);
         int before = answered.size();
         answerQuestions(lastSeen, scenario, answered);
         answerMail(lastSeen, scenario, answered);
@@ -168,8 +178,19 @@ final class Runner {
     return score;
   }
 
-  /** Each person approves what the policy sent them: the scenarios test the agent, not people. */
-  private void decidePending(JsonNode view) {
+  /**
+   * The reason the deciding person gives for denying an action, when the scenario scripts one;
+   * empty for an action they approve.
+   */
+  static Optional<String> verdictFor(Scenario scenario, String action) {
+    return Optional.ofNullable(scenario.denials().get(action));
+  }
+
+  /**
+   * Each person decides what the policy sent them: they approve it, unless the scenario has them
+   * deny that action.
+   */
+  private void decidePending(JsonNode view, Scenario scenario) {
     for (JsonNode decision : view.path("decisions")) {
       if (!"PENDING".equals(decision.path("status").asString())) {
         continue;
@@ -187,7 +208,11 @@ final class Runner {
           http.postJson(
               agentUrl + "/api/decisions/" + decision.path("id").asString(),
               keycloak.tokenFor(person),
-              Map.of("approve", true, "comment", "approved by the evaluation as " + person));
+              verdictFor(scenario, decision.path("action").asString())
+                  .<Map<String, Object>>map(reason -> Map.of("approve", false, "comment", reason))
+                  .orElse(
+                      Map.of(
+                          "approve", true, "comment", "approved by the evaluation as " + person)));
       log.info(
           "  {} ({}) decided {}: {}",
           person,
@@ -307,7 +332,18 @@ final class Runner {
         waitingOn(view),
         facts,
         cited,
-        ungrounded);
+        ungrounded,
+        answeredQuestions(view));
+  }
+
+  private static int answeredQuestions(JsonNode view) {
+    int answered = 0;
+    for (JsonNode question : view.path("questions")) {
+      if (question.hasNonNull("answeredAt")) {
+        answered++;
+      }
+    }
+    return answered;
   }
 
   /** Whom a case waits on: the role of a person with an unanswered question, else the vendor. */

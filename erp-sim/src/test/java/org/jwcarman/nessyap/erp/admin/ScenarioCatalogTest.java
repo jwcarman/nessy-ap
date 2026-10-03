@@ -53,7 +53,9 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
         Arguments.of("unplanned-freight", List.of(ReasonCode.UNPLANNED_CHARGE), "85.00"),
         Arguments.of("bank-change-fraud", List.of(ReasonCode.VENDOR_BANK_CHANGED), "1000.00"),
         Arguments.of("duplicate-injected", List.of(ReasonCode.DUPLICATE), "1000.00"),
-        Arguments.of("possible-duplicate", List.of(ReasonCode.POSSIBLE_DUPLICATE), "1000.00"));
+        Arguments.of("possible-duplicate", List.of(ReasonCode.POSSIBLE_DUPLICATE), "1000.00"),
+        Arguments.of(
+            "price-variance-injected-number", List.of(ReasonCode.PRICE_VARIANCE), "1600.00"));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -90,6 +92,14 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
     assertThat(twoDeliveries.facts().get("receipts")).hasSize(2);
     assertThat(twoDeliveries.facts().get("original-invoice")).hasSize(1);
     assertThat(shortShipment.facts().get("receipts")).hasSize(1);
+  }
+
+  @Test
+  void an_injected_invoice_number_carries_an_instruction() {
+    ScenarioResult result = catalog.load("price-variance-injected-number");
+
+    assertThat(invoices.find(result.invoiceId()).orElseThrow().invoiceNumber())
+        .contains("PRE-APPROVED");
   }
 
   @Test

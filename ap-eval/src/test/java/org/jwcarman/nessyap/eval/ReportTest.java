@@ -41,6 +41,7 @@ class ReportTest {
             true,
             true,
             3,
+            2,
             new Usage(Map.of("qwen", new Usage.Counts(13000L, 175L, 9000L, null, null))),
             Duration.ofSeconds(18));
 
@@ -65,6 +66,7 @@ class ReportTest {
             true,
             true,
             3,
+            2,
             new Usage(Map.of("qwen", new Usage.Counts(13000L, 175L, 9000L, null, null))),
             Duration.ofSeconds(18));
 
@@ -75,6 +77,7 @@ class ReportTest {
             "| Scenario | Model | Cases | Input | Output | Cache read | Cache write | Reasoning |")
         .contains("| duplicate | qwen | 1 | 13000 | 175 | 9000 | — | — |")
         .doesNotContain("Mean tokens");
+    assertThat(report).contains("Mean touches");
   }
 
   @Test
@@ -90,6 +93,7 @@ class ReportTest {
             true,
             true,
             3,
+            2,
             new Usage(
                 Map.of(
                     "qwen", new Usage.Counts(13000L, 175L, null, null, 0L),

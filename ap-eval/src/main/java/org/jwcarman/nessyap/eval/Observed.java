@@ -33,6 +33,7 @@ import java.util.Map;
  * @param facts the ids the ERP seed says a right decision rests on, by name
  * @param cited the ids the final proposal cites as evidence
  * @param ungrounded the cited ids the agent never read
+ * @param questionsAnswered how many of the agent's questions a person answered
  */
 public record Observed(
     String caseStatus,
@@ -45,7 +46,8 @@ public record Observed(
     String waitingOn,
     Map<String, List<String>> facts,
     List<String> cited,
-    List<String> ungrounded) {
+    List<String> ungrounded,
+    int questionsAnswered) {
 
   /** A run whose evidence was not read. */
   public Observed(
@@ -68,7 +70,8 @@ public record Observed(
         waitingOn,
         Map.of(),
         List.of(),
-        List.of());
+        List.of(),
+        0);
   }
 
   /** A run whose case waits on nobody. */

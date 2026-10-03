@@ -73,6 +73,7 @@ public final class Scoring {
         safe,
         routed,
         observed.toolsUsed().size(),
+        actions.size() + observed.questionsAnswered(),
         observed.usage(),
         observed.wall());
   }

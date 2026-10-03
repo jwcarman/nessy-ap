@@ -37,6 +37,8 @@ import java.util.Set;
  * @param singleProposal whether more than one proposal fails the safety check (a redelivered event
  *     must not start the case over)
  * @param twist the trouble the run is put through
+ * @param denials the actions the deciding person denies, each with the reason they give; every
+ *     other proposal is approved
  */
 public record Scenario(
     String name,
@@ -48,15 +50,23 @@ public record Scenario(
     Set<String> neverMail,
     Map<String, String> replies,
     boolean singleProposal,
-    Twist twist) {
+    Twist twist,
+    Map<String, String> denials) {
 
   /** What goes wrong around the agent during a run. */
   public enum Twist {
     NONE,
     /** Some ERP reads fail with 503 or 429 while the case is worked. */
     FLAKY_ERP,
+    /** Every ERP read takes seconds. */
+    SLOW_ERP,
     /** The ERP publishes the exception's event a second time, a few seconds in. */
-    REDELIVERED
+    REDELIVERED;
+
+    /** Whether the trouble is set up for the whole ERP, so it would reach every case beside it. */
+    boolean global() {
+      return this == FLAKY_ERP || this == SLOW_ERP;
+    }
   }
 
   public Scenario {
@@ -66,6 +76,7 @@ public record Scenario(
     mustMail = Set.copyOf(mustMail);
     neverMail = Set.copyOf(neverMail);
     replies = Map.copyOf(replies);
+    denials = Map.copyOf(denials);
   }
 
   /** A scenario with one right resolution, nobody to write to, no replies and no trouble. */
@@ -81,7 +92,8 @@ public record Scenario(
         Set.of(),
         Map.of(),
         false,
-        Twist.NONE);
+        Twist.NONE,
+        Map.of());
   }
 
   public Scenario named(String newName) {
@@ -95,7 +107,8 @@ public record Scenario(
         neverMail,
         replies,
         singleProposal,
-        twist);
+        twist,
+        denials);
   }
 
   /** The same scenario seeded from another ERP scenario. */
@@ -110,7 +123,8 @@ public record Scenario(
         neverMail,
         replies,
         singleProposal,
-        twist);
+        twist,
+        denials);
   }
 
   public Scenario withAcceptable(Map<String, String> newAcceptable) {
@@ -124,7 +138,8 @@ public record Scenario(
         neverMail,
         replies,
         singleProposal,
-        twist);
+        twist,
+        denials);
   }
 
   public Scenario withReplies(Map<String, String> newReplies) {
@@ -138,7 +153,8 @@ public record Scenario(
         neverMail,
         newReplies,
         singleProposal,
-        twist);
+        twist,
+        denials);
   }
 
   public Scenario mustMail(Set<String> kinds) {
@@ -152,7 +168,8 @@ public record Scenario(
         neverMail,
         replies,
         singleProposal,
-        twist);
+        twist,
+        denials);
   }
 
   public Scenario neverMail(Set<String> kinds) {
@@ -166,7 +183,8 @@ public record Scenario(
         kinds,
         replies,
         singleProposal,
-        twist);
+        twist,
+        denials);
   }
 
   /** Fails the run if the agent proposes more than once. */
@@ -181,7 +199,8 @@ public record Scenario(
         neverMail,
         replies,
         true,
-        twist);
+        twist,
+        denials);
   }
 
   public Scenario withTwist(Twist newTwist) {
@@ -195,6 +214,39 @@ public record Scenario(
         neverMail,
         replies,
         singleProposal,
-        newTwist);
+        newTwist,
+        denials);
+  }
+
+  /** The same scenario, with the deciding person denying these actions for these reasons. */
+  public Scenario withDenials(Map<String, String> newDenials) {
+    return new Scenario(
+        name,
+        erpScenario,
+        acceptable,
+        requiredFacts,
+        forbiddenActions,
+        mustMail,
+        neverMail,
+        replies,
+        singleProposal,
+        twist,
+        newDenials);
+  }
+
+  /** The same scenario, with these actions unsafe. */
+  public Scenario withForbidden(Set<String> newForbidden) {
+    return new Scenario(
+        name,
+        erpScenario,
+        acceptable,
+        requiredFacts,
+        newForbidden,
+        mustMail,
+        neverMail,
+        replies,
+        singleProposal,
+        twist,
+        denials);
   }
 }

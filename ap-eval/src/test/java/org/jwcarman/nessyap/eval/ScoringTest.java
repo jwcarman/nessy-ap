@@ -71,7 +71,8 @@ class ScoringTest {
         null,
         FACTS,
         cited,
-        ungrounded);
+        ungrounded,
+        0);
   }
 
   @Test
@@ -247,7 +248,8 @@ class ScoringTest {
                   null,
                   FACTS,
                   List.of("I", "PO-1"),
-                  List.of()));
+                  List.of(),
+                  0));
 
       assertThat(score.passed()).isTrue();
     }

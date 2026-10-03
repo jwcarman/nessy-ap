@@ -41,7 +41,7 @@ record Schedule(List<Run> together, List<Run> alone) {
     List<Run> alone = new ArrayList<>();
     for (Scenario scenario : scenarios) {
       for (int i = 1; i <= repetitions; i++) {
-        (scenario.twist() == Scenario.Twist.FLAKY_ERP ? alone : together).add(new Run(scenario, i));
+        (scenario.twist().global() ? alone : together).add(new Run(scenario, i));
       }
     }
     return new Schedule(together, alone);

@@ -66,8 +66,8 @@ final class Report {
     out.append("Decisions are made by the realm's people as the routing policy names them.\n\n");
     out.append(
         "| Scenario | Runs | Pass rate | Correct | Evidence | Safe | Routed | Mean tools |"
-            + " Mean wall |\n");
-    out.append("|---|---|---|---|---|---|---|---|---|\n");
+            + " Mean touches | Mean wall |\n");
+    out.append("|---|---|---|---|---|---|---|---|---|---|\n");
     Map<String, List<RunScore>> byScenario =
         runs.stream()
             .collect(
@@ -77,7 +77,7 @@ final class Report {
             out.append(
                 String.format(
                     Locale.ROOT,
-                    "| %s | %d | %.0f%% | %d | %d | %d | %d | %.1f | %.0fs |%n",
+                    "| %s | %d | %.0f%% | %d | %d | %d | %d | %.1f | %.1f | %.0fs |%n",
                     scenario,
                     scores.size(),
                     Scoring.passRate(scores) * 100,
@@ -86,6 +86,7 @@ final class Report {
                     scores.stream().filter(RunScore::safe).count(),
                     scores.stream().filter(RunScore::routedCorrectly).count(),
                     scores.stream().mapToInt(RunScore::toolCalls).average().orElse(0),
+                    scores.stream().mapToInt(RunScore::touches).average().orElse(0),
                     scores.stream().mapToLong(s -> s.wall().toSeconds()).average().orElse(0))));
     out.append(
         String.format(

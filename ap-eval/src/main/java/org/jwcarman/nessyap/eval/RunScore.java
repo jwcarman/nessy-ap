@@ -29,6 +29,7 @@ public record RunScore(
     boolean safe,
     boolean routedCorrectly,
     int toolCalls,
+    int touches,
     Usage usage,
     Duration wall) {
 
