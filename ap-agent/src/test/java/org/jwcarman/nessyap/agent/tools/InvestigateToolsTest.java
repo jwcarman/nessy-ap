@@ -153,6 +153,30 @@ class InvestigateToolsTest extends ApAgentIntegrationTest {
     }
 
     @Test
+    void a_case_with_no_po_says_so_when_asked_for_its_po() {
+      UUID noPo = UUID.randomUUID();
+      cases.open(
+          new MatchExceptionRaised(
+              UUID.randomUUID(),
+              Instant.now(),
+              noPo,
+              UUID.randomUUID(),
+              "INV-2002",
+              VENDOR,
+              null,
+              ReasonCode.NO_PO,
+              "s",
+              new BigDecimal("1000.00")));
+      AgentId noPoAgent = cases.agentFor(noPo);
+
+      assertThat(
+              failure(tools.getPurchaseOrder().call(Calls.by(noPoAgent, new ErpTools.PoRef(null)))))
+          .contains("no purchase order");
+      assertThat(failure(tools.getReceipts().call(Calls.by(noPoAgent, new ErpTools.PoRef(null)))))
+          .contains("no purchase order");
+    }
+
+    @Test
     void an_agent_with_no_case_reads_nothing() {
       AgentId stranger = new AgentId(UUID.randomUUID());
 

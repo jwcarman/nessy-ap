@@ -117,7 +117,7 @@ public class ErpTools {
         "Read this case's purchase order, or another by number: the vendor, the buyer who"
             + " placed it, and each line's ordered quantity and agreed unit price.",
         PoRef.class,
-        (c, in) -> erp.purchaseOrder(poNumber(c, in)),
+        (c, in) -> withPo(c, in, erp::purchaseOrder),
         Function.identity());
   }
 
@@ -127,7 +127,7 @@ public class ErpTools {
         "Read every goods receipt posted against this case's purchase order, or another by"
             + " number: what arrived, per PO line, and when.",
         PoRef.class,
-        (c, in) -> erp.receipts(poNumber(c, in)),
+        (c, in) -> withPo(c, in, erp::receipts),
         Function.identity());
   }
 
@@ -218,8 +218,14 @@ public class ErpTools {
     return node;
   }
 
-  private static String poNumber(CaseRecord c, PoRef in) {
-    return in.poNumber() == null || in.poNumber().isBlank() ? c.poNumber() : in.poNumber();
+  /** Reads a PO by the number given, else by the case's own; a case may cite no PO at all. */
+  private static ErpOutcome<JsonNode> withPo(
+      CaseRecord c, PoRef in, Function<String, ErpOutcome<JsonNode>> read) {
+    String number = in.poNumber() == null || in.poNumber().isBlank() ? c.poNumber() : in.poNumber();
+    return number == null
+        ? new ErpOutcome.Refused<>(
+            404, "NO_PO", "this case's invoice cites no purchase order; give a number to read one")
+        : read.apply(number);
   }
 
   private static JsonNode maskAccounts(JsonNode vendor) {
