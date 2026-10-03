@@ -44,11 +44,11 @@ Claude is Sonnet 5.5 with Haiku 4.5. The slice is the desk version the run used.
 
 - **The local run** was made in two parts on one Mac. The evaluation process stopped during
   the run, so `price-variance-small` has 18 runs, `flaky-erp` has 4, and `slow-erp` has none.
-- **The Claude run** used the slice 10 desk, which fixed what the first two runs found. So it is
-  not a clean comparison of the models: see the [client evaluation](client-evaluation.md).
-- **The OpenAI run** used the slice 9 desk. Its 24 failures all came from the evaluation or the
-  desk, not from the model: see `bank-change-fraud`, `bank-change-by-mail` and `buyer-denies`
-  below. Slice 10 fixed all three.
+- **The slice 9 OpenAI run** had 24 failures, and all came from the evaluation or the desk, not
+  from the model: see `bank-change-fraud`, `bank-change-by-mail` and `buyer-denies` below.
+  Slice 10 fixed all three.
+- **The slice 10 runs** compare the models on the same desk: see the
+  [client evaluation](client-evaluation.md).
 - **The three "paid" runs** on the local models are the only unsafe outcomes in either run.
   Slice 10 added a control in code for each of them.
 
