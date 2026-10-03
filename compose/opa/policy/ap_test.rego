@@ -183,3 +183,13 @@ test_a_possible_duplicate_is_held_by_a_clerk_and_rejected_by_a_manager if {
 	ap.decision.to == "ap-clerk" with input as proposal("hold", dup("POSSIBLE_DUPLICATE", 1000))
 	ap.decision.to == "ap-manager" with input as proposal("reject", dup("POSSIBLE_DUPLICATE", 1000))
 }
+
+test_an_invoice_that_repeats_a_number_is_not_paid_through_its_other_exception if {
+	facts := {
+		"reasonCode": "PRICE_VARIANCE", "amountAtIssue": 40, "invoiceTotal": 1040,
+		"buyer": "bob", "bankChangeUnverified": false,
+		"openReasonCodes": ["DUPLICATE", "PRICE_VARIANCE"],
+	}
+	ap.decision.effect == "deny" with input as proposal("approve-variance", facts)
+	ap.decision.to == "ap-clerk" with input as proposal("hold", facts)
+}

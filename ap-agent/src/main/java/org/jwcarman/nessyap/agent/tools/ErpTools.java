@@ -132,7 +132,8 @@ public class ErpTools {
             + " written, or (when a total is given) the same total.",
         SimilarQuery.class,
         in -> erp.similarInvoices(in.vendorId(), in.invoiceNumber(), in.total()),
-        Function.identity());
+        Function.identity(),
+        VENDOR_TEXT);
   }
 
   public Tool<VendorRef> vendorInvoiceHistory() {
@@ -141,7 +142,8 @@ public class ErpTools {
         "List a vendor's invoices, newest first, with their statuses.",
         VendorRef.class,
         in -> erp.vendorInvoices(in.vendorId()),
-        Function.identity());
+        Function.identity(),
+        VENDOR_TEXT);
   }
 
   public Tool<Note> noteCase() {
