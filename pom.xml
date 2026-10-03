@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright © ${year} James Carman
+    Copyright © 2026 James Carman
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -142,6 +142,7 @@
         <configuration>
           <properties>
             <owner>${license.owner}</owner>
+            <year>2026</year>
           </properties>
           <licenseSets>
             <licenseSet>
