@@ -22,6 +22,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 /**
  * Base for every test that needs the running ERP. Each test starts from empty tables; the Spring
@@ -34,6 +37,7 @@ public abstract class ErpIntegrationTest {
   @Autowired protected JdbcClient jdbc;
   @Autowired private ErpReset erpReset;
   @Autowired private ApplicationContext context;
+  @Autowired private WebApplicationContext webContext;
 
   @BeforeEach
   void startFromEmptyTables() {
@@ -46,5 +50,9 @@ public abstract class ErpIntegrationTest {
 
   protected TestData data() {
     return new TestData(context);
+  }
+
+  protected MockMvc mvc() {
+    return MockMvcBuilders.webAppContextSetup(webContext).build();
   }
 }
