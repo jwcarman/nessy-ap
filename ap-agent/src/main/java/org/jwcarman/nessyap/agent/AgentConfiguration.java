@@ -70,8 +70,10 @@ public class AgentConfiguration {
               .systemPrompt(systemPrompt)
               .inputRenderer(new CaseInputRenderer())
               .backlogPolicy(BacklogPolicy.keepAll());
-          erpTools.all().forEach(config::tool);
-          config.tool(questions.askBuyer());
+          // Every tool goes through the policy, so a tool the policy does not name is refused
+          // there: an app newer than its policy fails closed. The reads need no case facts.
+          erpTools.all().forEach(tool -> config.tool(tool, binding -> binding.approver(routing)));
+          config.tool(questions.askBuyer(), binding -> binding.approver(routing));
           config.tool(mail.emailVendor(), binding -> binding.enrich(caseFacts).approver(routing));
           config.tool(
               propose,
