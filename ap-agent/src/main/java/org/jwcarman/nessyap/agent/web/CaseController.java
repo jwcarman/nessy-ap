@@ -15,6 +15,7 @@
  */
 package org.jwcarman.nessyap.agent.web;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -23,6 +24,7 @@ import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.Decisions;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
+import org.jwcarman.nessyap.agent.mail.Counterparty;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -69,16 +71,24 @@ public class CaseController {
       String reasonCode,
       String status,
       List<CaseTimeline.CaseEvent> timeline,
-      List<CaseDecision> decisions) {}
+      List<CaseDecision> decisions,
+      List<CaseMail> mail) {}
+
+  /** A message the desk sent about the case, and the Message-ID a reply would answer. */
+  public record CaseMail(
+      String kind, String recipient, String subject, String messageId, Instant sentAt) {}
 
   private final Cases cases;
   private final CaseTimeline timeline;
   private final Decisions decisions;
+  private final Counterparty counterparty;
 
-  public CaseController(Cases cases, CaseTimeline timeline, Decisions decisions) {
+  public CaseController(
+      Cases cases, CaseTimeline timeline, Decisions decisions, Counterparty counterparty) {
     this.cases = cases;
     this.timeline = timeline;
     this.decisions = decisions;
+    this.counterparty = counterparty;
   }
 
   /** Who may read a case: anyone who works cases, and the auditor. */
@@ -102,6 +112,9 @@ public class CaseController {
         c.reasonCode().name(),
         c.status().name(),
         timeline.of(exceptionId),
-        decisions.forCase(exceptionId).stream().map(CaseDecision::of).toList());
+        decisions.forCase(exceptionId).stream().map(CaseDecision::of).toList(),
+        counterparty.forCase(exceptionId).stream()
+            .map(m -> new CaseMail(m.kind(), m.recipient(), m.subject(), m.messageId(), m.sentAt()))
+            .toList());
   }
 }

@@ -60,7 +60,11 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
     UUID vendor = UUID.randomUUID();
     UUID invoice = UUID.randomUUID();
     erp.on("GET", "/api/purchase-orders/PO-1", 200, "{\"poNumber\":\"PO-1\",\"buyer\":\"bob\"}");
-    erp.on("GET", "/api/invoices/" + invoice, 200, "{\"total\":" + invoiceTotal + "}");
+    erp.on(
+        "GET",
+        "/api/invoices/" + invoice,
+        200,
+        "{\"invoice\":{\"total\":" + invoiceTotal + "},\"exceptions\":[]}");
     model.script(steps(call("c1", "propose_resolution", proposal)));
     exceptionId = UUID.randomUUID();
     MatchExceptionRaised raised =

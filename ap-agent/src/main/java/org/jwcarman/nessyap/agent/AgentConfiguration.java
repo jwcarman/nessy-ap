@@ -29,6 +29,7 @@ import org.jwcarman.nessyap.agent.cases.CaseInputRenderer;
 import org.jwcarman.nessyap.agent.decisions.CaseFactsEnricher;
 import org.jwcarman.nessyap.agent.decisions.ProposeResolution;
 import org.jwcarman.nessyap.agent.tools.ErpTools;
+import org.jwcarman.nessyap.agent.tools.MailTools;
 import org.jwcarman.nessyap.agent.tools.ProposeResolutionTool;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -52,6 +53,7 @@ public class AgentConfiguration {
       QueuedHarnessFactory factory,
       ErpTools erpTools,
       ProposeResolutionTool propose,
+      MailTools mail,
       PolicyApprover routing,
       CaseFactsEnricher caseFacts,
       @Value("${ap.approval.timeout}") Duration approvalTimeout,
@@ -67,6 +69,8 @@ public class AgentConfiguration {
               .inputRenderer(new CaseInputRenderer())
               .backlogPolicy(BacklogPolicy.keepAll());
           erpTools.all().forEach(config::tool);
+          config.tool(mail.emailBuyer());
+          config.tool(mail.emailVendor(), binding -> binding.enrich(caseFacts).approver(routing));
           config.tool(
               propose,
               binding ->

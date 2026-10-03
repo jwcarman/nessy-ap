@@ -25,6 +25,7 @@ import java.util.Set;
 public final class Deciders {
 
   public static final String CONTROLLER = "controller";
+  public static final String AP_MANAGER = "ap-manager";
 
   private Deciders() {}
 

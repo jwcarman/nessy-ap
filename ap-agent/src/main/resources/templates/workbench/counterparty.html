@@ -1,0 +1,25 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{workbench/layout :: head('Counterparty')}"></head>
+<body>
+<header th:replace="~{workbench/layout :: header}"></header>
+<main>
+  <p class="flash" th:if="${message}" th:text="${message}">Replied.</p>
+  <h1>Counterparty (development only)</h1>
+  <p class="muted">Mail the desk sent, newest first. Answer as the vendor or buyer it went to; the
+    answer goes to the desk as real mail and reaches the case the way a real reply would.</p>
+  <p class="muted" th:if="${sent.isEmpty()}">The desk has sent nothing yet.</p>
+  <section th:each="m : ${sent}">
+    <h2 th:text="${m.subject}">[AP …] Which PO?</h2>
+    <p class="muted">To <strong th:text="${m.recipient}">bob@nessy-ap.example</strong>,
+      <span th:text="${#temporals.format(m.sentAt, 'MMM d HH:mm')}">Oct 3</span> ·
+      <a th:href="@{/workbench/cases/{id}(id=${m.exceptionId})}">case</a></p>
+    <pre th:text="${m.body}">Which order is this?</pre>
+    <form th:action="@{/workbench/counterparty/{id}/reply(id=${m.id})}" method="post" class="verdict">
+      <textarea name="text" rows="3" placeholder="Reply as the recipient"></textarea>
+      <button>Reply</button>
+    </form>
+  </section>
+</main>
+</body>
+</html>

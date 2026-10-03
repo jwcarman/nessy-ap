@@ -16,6 +16,7 @@
 package org.jwcarman.nessyap.agent;
 
 import java.nio.file.Path;
+import org.jwcarman.nessyap.agent.mail.Mailbox;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
@@ -51,6 +52,39 @@ public class ApAgentContainers {
         .withCommand("run", "--server", "--addr", "0.0.0.0:8181", "/policy")
         .withExposedPorts(8181)
         .waitingFor(Wait.forHttp("/health").forPort(8181));
+  }
+
+  /**
+   * The same GreenMail image as Compose. No users are declared: a mailbox appears on first delivery
+   * with its address as login and password, the desk's included.
+   */
+  @Bean
+  GenericContainer<?> greenMail() {
+    return new GenericContainer<>("greenmail/standalone:2.1.14")
+        .withEnv(
+            "GREENMAIL_OPTS",
+            "-Dgreenmail.setup.test.smtp -Dgreenmail.setup.test.imap -Dgreenmail.hostname=0.0.0.0"
+                + " -Dgreenmail.users.login=email -Dgreenmail.api.hostname=0.0.0.0"
+                + " -Dgreenmail.api.port=8080")
+        .withExposedPorts(3025, 3143, 8080)
+        .waitingFor(Wait.forHttp("/api/service/readiness").forPort(8080));
+  }
+
+  @Bean
+  Mailbox mailbox(GenericContainer<?> greenMail) {
+    return new Mailbox(greenMail);
+  }
+
+  @Bean
+  DynamicPropertyRegistrar mailServer(GenericContainer<?> greenMail) {
+    return registry -> {
+      registry.add("spring.mail.host", greenMail::getHost);
+      registry.add("spring.mail.port", () -> greenMail.getMappedPort(3025));
+      registry.add("ap.mail.imap.host", greenMail::getHost);
+      registry.add("ap.mail.imap.port", () -> greenMail.getMappedPort(3143));
+      registry.add("ap.mail.imap.password", () -> "ap-desk@nessy-ap.example");
+      registry.add("ap.mail.poll.enabled", () -> "false");
+    };
   }
 
   @Bean

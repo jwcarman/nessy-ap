@@ -18,9 +18,11 @@ package org.jwcarman.nessyap.eval;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,12 +67,14 @@ final class Runner {
     UUID exceptionId = UUID.fromString(seeded.path("exceptionIds").get(0).asString());
     log.info("{} #{}: exception {}", scenario.name(), repetition, exceptionId);
     JsonNode lastSeen = null;
+    Set<String> answered = new HashSet<>();
     while (Duration.between(started, Instant.now()).compareTo(timeout) < 0) {
       Optional<JsonNode> view =
           http.get(agentUrl + "/api/cases/" + exceptionId, keycloak.tokenFor(OBSERVER));
       if (view.isPresent()) {
         lastSeen = view.get();
         decidePending(lastSeen);
+        answerMail(lastSeen, scenario, answered);
         if ("RESOLVED".equals(lastSeen.path("status").asString()) && settled(lastSeen)) {
           break;
         }
@@ -123,6 +127,26 @@ final class Runner {
     }
   }
 
+  /** The vendor and buyer answer each message the desk sent them once, as the scenario scripts. */
+  private void answerMail(JsonNode view, Scenario scenario, Set<String> answered) {
+    for (JsonNode mail : view.path("mail")) {
+      String messageId = mail.path("messageId").asString();
+      String text = scenario.replies().get(mail.path("kind").asString());
+      if (text == null || !answered.add(messageId)) {
+        continue;
+      }
+      http.postJson(
+          agentUrl + "/api/counterparty/replies",
+          keycloak.tokenFor(OBSERVER),
+          Map.of("messageId", messageId, "text", text));
+      log.info(
+          "  {} ({}) replied: {}",
+          mail.path("recipient").asString(),
+          mail.path("kind").asString(),
+          text);
+    }
+  }
+
   private static boolean settled(JsonNode view) {
     for (JsonNode decision : view.path("decisions")) {
       if (!"ANSWERED".equals(decision.path("status").asString())) {
@@ -134,7 +158,7 @@ final class Runner {
 
   private static Observed observe(JsonNode view, int tokens, Duration wall) {
     if (view == null) {
-      return new Observed("NEVER_OPENED", List.of(), List.of(), List.of(), tokens, wall);
+      return new Observed("NEVER_OPENED", List.of(), List.of(), List.of(), List.of(), tokens, wall);
     }
     List<String> actions = new ArrayList<>();
     List<String> routes = new ArrayList<>();
@@ -143,14 +167,18 @@ final class Runner {
       routes.add(d.path("requiredRole").asString());
     }
     List<String> tools = new ArrayList<>();
+    List<String> mailed = new ArrayList<>();
     for (JsonNode event : view.path("timeline")) {
-      if ("tool".equals(event.path("kind").asString())) {
+      String kind = event.path("kind").asString();
+      if ("tool".equals(kind) || "mail-sent".equals(kind)) {
+        // Both lines start with one word: the tool's name, or who the mail went to.
         String text = event.path("text").asString();
         int space = text.indexOf(' ');
-        tools.add(space < 0 ? text : text.substring(0, space));
+        (kind.equals("tool") ? tools : mailed).add(space < 0 ? text : text.substring(0, space));
       }
     }
-    return new Observed(view.path("status").asString(), actions, tools, routes, tokens, wall);
+    return new Observed(
+        view.path("status").asString(), actions, tools, routes, mailed, tokens, wall);
   }
 
   private static void sleep() {

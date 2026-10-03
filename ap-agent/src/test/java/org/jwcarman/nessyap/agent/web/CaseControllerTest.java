@@ -29,6 +29,8 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
+import org.jwcarman.nessyap.agent.mail.MailSent;
+import org.jwcarman.nessyap.agent.mail.Mailer;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReasonCode;
@@ -52,6 +54,7 @@ class CaseControllerTest extends ApAgentIntegrationTest {
   @Autowired WebApplicationContext web;
   @Autowired Cases cases;
   @Autowired CaseTimeline timeline;
+  @Autowired Mailer mailer;
 
   @Test
   void a_case_reads_back_with_its_timeline() throws Exception {
@@ -79,6 +82,20 @@ class CaseControllerTest extends ApAgentIntegrationTest {
         .andExpect(jsonPath("$.reasonCode").value("DUPLICATE"))
         .andExpect(jsonPath("$.timeline[0].kind").value("tool"))
         .andExpect(jsonPath("$.decisions").isEmpty());
+  }
+
+  @Test
+  void a_case_lists_the_mail_the_desk_sent_with_its_message_id() throws Exception {
+    UUID exceptionId = openCase();
+    MailSent sent = mailer.send(exceptionId, "vendor", "ann@acme.example", "Which PO?", "?");
+
+    MockMvcBuilders.webAppContextSetup(web)
+        .apply(SecurityMockMvcConfigurers.springSecurity())
+        .build()
+        .perform(get("/api/cases/{id}", exceptionId).with(MANAGER))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mail[0].kind").value("vendor"))
+        .andExpect(jsonPath("$.mail[0].messageId").value(sent.messageId()));
   }
 
   @Test
