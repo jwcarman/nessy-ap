@@ -25,6 +25,8 @@ import org.jwcarman.occlude.Occlude;
 import org.jwcarman.occlude.Occluded;
 import org.jwcarman.occlude.Reveal;
 import org.jwcarman.occlude.Revealed;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The desk's quarantine for mail. It holds each reply where nothing but a person and the
@@ -32,6 +34,8 @@ import org.jwcarman.occlude.Revealed;
  * agrees, a confirmed PO number.
  */
 public class Quarantine {
+
+  private static final Logger log = LoggerFactory.getLogger(Quarantine.class);
 
   /** What the agent may know about one reply: a claim, and a fact if the ERP confirmed one. */
   public record Reading(Occluded<Reply> reply, ReplyReading claim, Optional<String> confirmedPo) {}
@@ -61,9 +65,15 @@ public class Quarantine {
   /** Holds a reply and reads it for the agent. A refusal anywhere reads as "a person must look". */
   public Reading receive(Reply reply) {
     Occluded<Reply> held = deskMail.occlude(reply);
-    if (!(readReply.derive(held)
-        instanceof Derived.Made<ReplyReading>(Occluded<ReplyReading> made))) {
-      return new Reading(held, ReplyReader.unread(reply), Optional.empty());
+    Occluded<ReplyReading> made;
+    switch (readReply.derive(held)) {
+      case Derived.Made<ReplyReading>(Occluded<ReplyReading> reading) -> made = reading;
+      case Derived.Refused<ReplyReading>(Derived.Reason reason, String detail) -> {
+        // Occlude's detail names the gate and the cause, never the value.
+        log.warn(
+            "Reply {} was not read ({}: {}); a person must read it", held.id(), reason, detail);
+        return new Reading(held, ReplyReader.unread(reply), Optional.empty());
+      }
     }
     ReplyReading claim =
         agentReadings.reveal(made) instanceof Revealed.Allowed<ReplyReading> allowed

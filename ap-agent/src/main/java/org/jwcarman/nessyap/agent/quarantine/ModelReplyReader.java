@@ -32,8 +32,8 @@ import org.springframework.transaction.support.TransactionOperations;
  * The quarantined reader: a Nessy direct harness with no tools and a typed answer. Each reply is
  * read by its own agent, named from the reply's Message-ID, so no reply can reach the reading of
  * another and an auditor can find the exact read of each reply in Nessy's stored history. The
- * answer is typed: a PO number of the wrong shape cannot be read, and any answer that does not read
- * reads as "a person must read this".
+ * model's answer is a claim: a PO number in it is kept only if it has the ERP's shape, and an
+ * answer that does not fit at all reads as "a person must read this".
  *
  * <p>The read runs outside the caller's transaction. Nessy's direct door cannot run inside one: it
  * writes the turn on the caller's connection and runs the model call on another, which cannot see
@@ -98,6 +98,9 @@ public class ModelReplyReader implements ReplyReader {
     }
     Intent intent = answer.intent() == null ? Intent.OTHER : answer.intent();
     return new ReplyReading(
-        reply.vendorId(), intent, answer.poNumber(), answer.containsInstructions());
+        reply.vendorId(),
+        intent,
+        PoNumber.parse(answer.poNumber()).orElse(null),
+        answer.containsInstructions());
   }
 }

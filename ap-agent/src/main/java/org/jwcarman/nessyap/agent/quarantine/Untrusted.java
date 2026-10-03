@@ -48,7 +48,7 @@ public final class Untrusted {
    * The quarantined reader's answer, as the model gives it. The desk checks it and adds the case's
    * vendor to make a {@link ReplyReading}.
    */
-  public record ModelReading(Intent intent, PoNumber poNumber, boolean containsInstructions) {}
+  public record ModelReading(Intent intent, String poNumber, boolean containsInstructions) {}
 
   /** A purchase-order number that the ERP holds for the case's vendor: a fact. */
   public record ConfirmedPo(PoNumber poNumber) {}

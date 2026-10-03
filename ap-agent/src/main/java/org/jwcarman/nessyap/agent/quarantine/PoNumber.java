@@ -17,12 +17,13 @@ package org.jwcarman.nessyap.agent.quarantine;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
- * A purchase-order number in the shape the ERP issues. A value that does not fit cannot be made, so
- * a model's answer with a bad number fails to read instead of carrying text through. On the wire it
- * is a bare string, and Nessy's schema generator describes it to the model as one.
+ * A purchase-order number in the shape the ERP issues. A value that does not fit cannot be made:
+ * text that only claims to be a PO number is parsed with {@link #parse}, and becomes a PO number or
+ * nothing. On the wire it is a bare string, and Nessy's schema generator describes it as one.
  *
  * @param value the number, for example {@code PO-9E7F1264}
  */
@@ -39,5 +40,12 @@ public record PoNumber(@JsonValue String value) {
   @JsonCreator
   public static PoNumber of(String value) {
     return new PoNumber(value);
+  }
+
+  /** A claimed PO number as a PO number, or empty when it is not one. */
+  public static Optional<PoNumber> parse(String claimed) {
+    return claimed != null && SHAPE.matcher(claimed).matches()
+        ? Optional.of(new PoNumber(claimed))
+        : Optional.empty();
   }
 }

@@ -75,8 +75,7 @@ class ModelReplyReaderTest {
         new FakeReader(
             r ->
                 new Outcome.Answered<>(
-                    new ModelReading(Intent.GIVES_PO_NUMBER, new PoNumber("PO-7"), false),
-                    stats()));
+                    new ModelReading(Intent.GIVES_PO_NUMBER, "PO-7", false), stats()));
 
     assertThat(new ModelReplyReader(fake, TransactionOperations.withoutTransaction()).read(REPLY))
         .isEqualTo(new ReplyReading(VENDOR, Intent.GIVES_PO_NUMBER, new PoNumber("PO-7"), false));
@@ -107,9 +106,20 @@ class ModelReplyReaderTest {
   }
 
   @Test
+  void a_po_number_that_is_not_one_is_dropped_and_the_rest_of_the_reading_stands() {
+    // Measured: Gemma 4 E4B wrote "***" for "no PO number" in a reply it otherwise read right.
+    FakeReader fake =
+        new FakeReader(
+            r ->
+                new Outcome.Answered<>(
+                    new ModelReading(Intent.CONFIRMS_PRICE_AGREED, "***", false), stats()));
+
+    assertThat(new ModelReplyReader(fake, TransactionOperations.withoutTransaction()).read(REPLY))
+        .isEqualTo(new ReplyReading(VENDOR, Intent.CONFIRMS_PRICE_AGREED, null, false));
+  }
+
+  @Test
   void anything_but_an_answer_reads_as_needing_a_person() {
-    // An answer whose PO number is not one arrives as this: Nessy fails a turn whose answer does
-    // not fit the shape, and PoNumber does not fit anything else.
     FakeReader fake =
         new FakeReader(r -> new Outcome.Failed<>("the answer did not fit: not a PO", stats()));
 
