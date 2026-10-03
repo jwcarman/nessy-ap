@@ -17,6 +17,8 @@ package org.jwcarman.nessyap.agent.cases;
 
 public enum CaseStatus {
   INVESTIGATING,
+  /** The agent asked someone and waits for the answer; the invoice stays stopped meanwhile. */
+  AWAITING_ANSWER,
   AWAITING_DECISION,
   RESOLVED
 }

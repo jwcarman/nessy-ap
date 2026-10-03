@@ -121,7 +121,14 @@ public final class Scenarios {
       PRICE_VARIANCE_SMALL
           .named("silent-buyer")
           .withReplies(Map.of())
-          .withAcceptable(Map.of("approve-variance", "buyer", "hold", "ap-clerk"));
+          .withAcceptable(
+              Map.of(
+                  "approve-variance",
+                  "buyer",
+                  "hold",
+                  "ap-clerk",
+                  Scoring.AWAITING_ANSWER,
+                  "buyer"));
 
   static final Scenario FLAKY_ERP =
       DUPLICATE.named("flaky-erp").withTwist(Scenario.Twist.FLAKY_ERP);

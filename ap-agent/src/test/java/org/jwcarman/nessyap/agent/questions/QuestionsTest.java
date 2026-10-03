@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
+import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -37,11 +38,14 @@ class QuestionsTest extends ApAgentIntegrationTest {
     UUID exceptionId = openCase();
     Question q =
         questions.ask(exceptionId, "bob", "Did you agree 11.60?", List.of("Agreed", "Not agreed"));
+    caseIndex.setStatus(exceptionId, CaseStatus.AWAITING_ANSWER);
 
     Answers.Answered first = answers.answer(q.id(), "bob", "Agreed", null);
     Answers.Answered second = answers.answer(q.id(), "bob", "Not agreed", null);
 
     assertThat(first).isInstanceOf(Answers.Answered.Told.class);
+    assertThat(caseIndex.find(exceptionId).orElseThrow().status())
+        .isEqualTo(CaseStatus.INVESTIGATING);
     assertThat(second).isInstanceOf(Answers.Answered.AlreadyAnswered.class);
     assertThat(questions.forCase(exceptionId))
         .singleElement()

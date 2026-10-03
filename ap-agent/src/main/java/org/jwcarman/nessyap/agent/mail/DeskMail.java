@@ -29,6 +29,7 @@ import org.apache.camel.component.mail.MailMessage;
 import org.jwcarman.nessy.api.QueuedHarness;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
+import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.quarantine.Quarantine;
@@ -128,6 +129,7 @@ public class DeskMail {
     ReplyReading claim = reading.claim();
     String from = from(exceptionId, mail.sender());
     cases.markReadUnendorsed(exceptionId, claim.containsInstructions());
+    cases.setStatus(exceptionId, CaseStatus.INVESTIGATING);
     timeline.record(
         exceptionId, "mail-received", from + ": " + summary(reading), reading.reply().id());
     agent.tell(

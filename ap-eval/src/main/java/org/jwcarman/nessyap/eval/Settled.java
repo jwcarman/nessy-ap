@@ -35,7 +35,8 @@ final class Settled {
   private Settled() {}
 
   static boolean of(JsonNode view, Instant now, Duration quiet) {
-    if (!"RESOLVED".equals(view.path("status").asString())) {
+    String status = view.path("status").asString();
+    if (!"RESOLVED".equals(status) && !"AWAITING_ANSWER".equals(status)) {
       return false;
     }
     for (JsonNode decision : view.path("decisions")) {

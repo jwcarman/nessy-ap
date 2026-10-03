@@ -61,6 +61,12 @@ class SettledTest {
   }
 
   @Test
+  void a_case_waiting_on_an_answer_that_has_been_quiet_long_enough_is_settled() {
+    assertThat(Settled.of(view("AWAITING_ANSWER", "ANSWERED", NOW.minusSeconds(9)), NOW, QUIET))
+        .isTrue();
+  }
+
+  @Test
   void a_case_still_investigating_is_not() {
     assertThat(Settled.of(view("INVESTIGATING", "ANSWERED", NOW.minusSeconds(60)), NOW, QUIET))
         .isFalse();

@@ -25,6 +25,7 @@ import org.jwcarman.nessy.api.tool.ToolCallRequest;
 import org.jwcarman.nessy.api.tool.ToolName;
 import org.jwcarman.nessy.api.tool.ToolResult;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
+import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
 import org.jwcarman.nessyap.agent.erp.ErpOutcome;
@@ -102,6 +103,7 @@ public class QuestionTools {
     } catch (IllegalArgumentException | IllegalStateException refused) {
       return new ToolResult.Failure(refused.getMessage());
     }
+    cases.setStatus(c.exceptionId(), CaseStatus.AWAITING_ANSWER);
     String told;
     try {
       notice.send(buyer.get(), c.invoiceNumber());
@@ -115,7 +117,8 @@ public class QuestionTools {
                 + buyer.get()
                 + " on the workbench. "
                 + told
-                + " The answer will come to this case; until then, hold."));
+                + " The answer will come to this case. Until then, end your turn: do not propose a"
+                + " hold just to wait."));
   }
 
   private Optional<String> buyerOf(CaseRecord c) {

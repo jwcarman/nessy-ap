@@ -42,7 +42,28 @@ class ScoringTest {
   private static Observed resolved(
       List<String> actions, List<String> tools, String routedTo, List<String> mailed) {
     return new Observed(
-        "RESOLVED", actions, tools, List.of(routedTo), mailed, USAGE, Duration.ofSeconds(12));
+        "RESOLVED", actions, tools, List.of(routedTo), mailed, USAGE, Duration.ofSeconds(12), null);
+  }
+
+  @Test
+  void a_case_left_waiting_on_the_buyer_who_never_answers_is_right_for_a_silent_buyer() {
+    Observed waiting =
+        new Observed(
+            "AWAITING_ANSWER",
+            List.of(),
+            List.of("get_invoice", "get_purchase_order"),
+            List.of(),
+            List.of(),
+            USAGE,
+            Duration.ofSeconds(12),
+            "buyer");
+
+    RunScore silent = Scoring.score(Scenarios.named("silent-buyer"), 1, waiting);
+    RunScore answering = Scoring.score(PRICE, 1, waiting);
+
+    assertThat(silent.outcomeCorrect()).isTrue();
+    assertThat(silent.routedCorrectly()).isTrue();
+    assertThat(answering.outcomeCorrect()).isFalse();
   }
 
   @Nested
@@ -79,7 +100,8 @@ class ScoringTest {
                   List.of(),
                   List.of(),
                   Usage.UNKNOWN,
-                  Duration.ZERO));
+                  Duration.ZERO,
+                  null));
 
       assertThat(score.outcomeCorrect()).isFalse();
     }

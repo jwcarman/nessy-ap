@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.Narration;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
+import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.quarantine.Quarantine;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
@@ -120,6 +121,7 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
 
   @Test
   void a_reply_carrying_the_case_token_reaches_the_case() throws Exception {
+    caseIndex.setStatus(exceptionId, CaseStatus.AWAITING_ANSWER);
     reply("bob@nessy-ap.example", "Re: [AP " + exceptionId + "] Which PO?", null, "PO-7", false);
 
     drain();
@@ -128,6 +130,8 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
     assertThat(received(exceptionId)).hasSize(1);
     assertThat(line.text()).doesNotContain("PO-7").doesNotContain("bob@");
     assertThat(readAsClerk(line).body()).isEqualTo("PO-7");
+    assertThat(caseIndex.find(exceptionId).orElseThrow().status())
+        .isEqualTo(CaseStatus.INVESTIGATING);
     await()
         .atMost(Duration.ofSeconds(20))
         .until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);

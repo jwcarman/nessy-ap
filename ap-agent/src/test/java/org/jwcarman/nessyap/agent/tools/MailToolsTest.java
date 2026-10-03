@@ -33,6 +33,7 @@ import org.jwcarman.nessy.api.turn.ToolOutcome;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
+import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -71,6 +72,8 @@ class MailToolsTest extends ApAgentIntegrationTest {
     ToolResult result = send(tools.emailVendor(), "Credit memo", "Please credit the difference.");
 
     assertThat(result).isInstanceOf(ToolResult.Success.class);
+    assertThat(caseIndex.find(exceptionId).orElseThrow().status())
+        .isEqualTo(CaseStatus.AWAITING_ANSWER);
     assertThat(mailbox.awaitOne("ann@acme.example")).isNotNull();
   }
 

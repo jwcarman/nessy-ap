@@ -27,6 +27,7 @@ import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.Awaited;
 import org.jwcarman.nessy.api.tool.ToolResult;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
+import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.tools.Calls;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReasonCode;
@@ -57,6 +58,8 @@ class QuestionToolsTest extends ApAgentIntegrationTest {
             List.of("Agreed", "Not agreed"));
 
     assertThat(result).isInstanceOf(ToolResult.Success.class);
+    assertThat(caseIndex.find(exceptionId).orElseThrow().status())
+        .isEqualTo(CaseStatus.AWAITING_ANSWER);
     assertThat(questions.forCase(exceptionId))
         .singleElement()
         .satisfies(q -> assertThat(q.askedOf()).isEqualTo("bob"));

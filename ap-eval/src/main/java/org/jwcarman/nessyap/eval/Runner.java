@@ -268,7 +268,32 @@ final class Runner {
       }
     }
     return new Observed(
-        view.path("status").asString(), actions, tools, routes, mailed, usage, wall);
+        view.path("status").asString(),
+        actions,
+        tools,
+        routes,
+        mailed,
+        usage,
+        wall,
+        waitingOn(view));
+  }
+
+  /** Whom a case waits on: the role of a person with an unanswered question, else the vendor. */
+  private static String waitingOn(JsonNode view) {
+    if (!"AWAITING_ANSWER".equals(view.path("status").asString())) {
+      return null;
+    }
+    for (JsonNode question : view.path("questions")) {
+      if (question.path("answeredAt").isNull() || question.path("answeredAt").isMissingNode()) {
+        String person = question.path("askedOf").asString();
+        return PEOPLE.entrySet().stream()
+            .filter(e -> e.getValue().equals(person))
+            .map(Map.Entry::getKey)
+            .findFirst()
+            .orElse(person);
+      }
+    }
+    return "vendor";
   }
 
   private static void sleep() {

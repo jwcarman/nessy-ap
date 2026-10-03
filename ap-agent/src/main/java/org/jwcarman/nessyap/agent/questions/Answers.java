@@ -23,6 +23,7 @@ import java.util.UUID;
 import org.jwcarman.nessy.api.QueuedHarness;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
+import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -115,6 +116,7 @@ public class Answers {
         person
             + " answered: "
             + (picked == null ? words : picked + (words == null ? "" : ". " + words)));
+    cases.setStatus(question.exceptionId(), CaseStatus.INVESTIGATING);
     cases
         .find(question.exceptionId())
         .map(CaseRecord::agentId)

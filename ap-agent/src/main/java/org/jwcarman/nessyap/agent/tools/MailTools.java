@@ -26,6 +26,7 @@ import org.jwcarman.nessy.api.tool.ToolCallRequest;
 import org.jwcarman.nessy.api.tool.ToolName;
 import org.jwcarman.nessy.api.tool.ToolResult;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
+import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
@@ -197,9 +198,15 @@ public class MailTools {
         MailSent sent =
             mailer.send(c.exceptionId(), kind, address, letter.subject(), letter.body());
         timeline.record(c.exceptionId(), "mail-sent", kind + " " + address + ": " + sent.subject());
+        cases.setStatus(c.exceptionId(), CaseStatus.AWAITING_ANSWER);
         return ToolResult.ok(
             new Block.Text(
-                "Sent to the " + kind + " (" + address + "). A reply will come to this case."));
+                "Sent to the "
+                    + kind
+                    + " ("
+                    + address
+                    + "). A reply will come to this case. Until then, end your turn: do not"
+                    + " propose a hold just to wait."));
       } catch (MailException e) {
         return new ToolResult.Failure(
             "The mail server did not take the message ("
