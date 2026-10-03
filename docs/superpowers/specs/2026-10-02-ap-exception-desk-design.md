@@ -542,6 +542,17 @@ Each slice gets its own implementation plan.
 
 - Clerks deciding `hold`: realistic for some shops, not others — kept because
   it gives the clerk role something to do in the demo.
+- **Delegated tokens instead of the workbench acting (candidate, for James).**
+  Decision 2 has the workbench call the ERP with the deciding person's own token.
+  Keycloak 26.8.0 (running here) makes token-exchange delegation a preview
+  feature: a person can delegate to a client through consent
+  (`delegation:client:<client-id>` scope), and tokens carry the RFC 8693 `act`
+  claim, so a resource server sees both the person and the client acting for
+  them. The desk could then carry out an approved decision itself, with a token
+  the approver delegated, and the ERP would record "the desk, acting for bob".
+  Open questions: consent per decision or per session, token lifetime against a
+  decision that runs days later, and whether a preview feature belongs in a
+  demo meant to teach.
 
 ## 13. Slice 9: people answer on the workbench
 
