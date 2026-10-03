@@ -49,6 +49,7 @@ public abstract class ApAgentIntegrationTest {
   void freshModel() {
     model.reset();
     erp.reset();
+    mailbox.purgeAll();
     // Every vendor reads as having only its verified account, unless a test says otherwise; the
     // policy treats a vendor it cannot read as having an unverified bank change.
     erp.on("POST", "/token", 200, "{\"access_token\":\"svc\",\"expires_in\":300}");

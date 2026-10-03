@@ -7,10 +7,26 @@ import rego.v1
 # Fail closed: a policy that matches nothing denies, it never approves.
 default decision := {"effect": "deny", "reason": "no policy rule matched"}
 
-# Only proposals are routed; every other tool the agent has is read-only.
-decision := {"effect": "allow"} if input.toolName != "propose_resolution"
+# Proposals are routed and vendor mail is checked; every other tool reads, or writes only to the
+# case and to the buyer.
+gated := {"propose_resolution", "email_vendor"}
+
+decision := {"effect": "allow"} if not input.toolName in gated
 
 decision := resolution if input.toolName == "propose_resolution"
+
+decision := vendor_mail if input.toolName == "email_vendor"
+
+# Never write to a vendor whose bank details changed unverified: whoever asked for the change may be
+# the one reading, and a reply on that thread can look like the vendor confirming it.
+vendor_mail := {
+	"effect": "deny",
+	"reason": "the vendor has an unverified bank-detail change: do not email them; hold the invoice and have the change verified by calling the contact of record",
+} if {
+	bank_unverified != false
+}
+
+else := {"effect": "allow"}
 
 actions := {"approve-variance", "short-pay", "hold", "reject", "request-credit-memo"}
 

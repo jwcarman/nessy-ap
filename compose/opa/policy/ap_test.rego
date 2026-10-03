@@ -122,3 +122,21 @@ test_a_short_pay_is_judged_by_what_it_pays_not_the_invoice_total if {
 		"facts": {"reasonCode": "QTY_OVER_RECEIPT", "amountAtIssue": 400, "invoiceTotal": 12000, "bankChangeUnverified": false},
 	}
 }
+
+vendor_mail(facts) := {
+	"toolName": "email_vendor",
+	"arguments": {"subject": "s", "body": "b"},
+	"facts": facts,
+}
+
+test_mailing_a_vendor_with_an_unverified_bank_change_is_denied if {
+	ap.decision.effect == "deny" with input as vendor_mail({"bankChangeUnverified": true})
+}
+
+test_mailing_a_vendor_with_verified_bank_details_is_allowed if {
+	ap.decision == {"effect": "allow"} with input as vendor_mail({"bankChangeUnverified": false})
+}
+
+test_mailing_a_vendor_with_no_word_on_the_bank_details_is_denied if {
+	ap.decision.effect == "deny" with input as vendor_mail({})
+}

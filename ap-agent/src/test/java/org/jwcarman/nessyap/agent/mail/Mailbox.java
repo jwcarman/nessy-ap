@@ -24,6 +24,12 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.Store;
 import jakarta.mail.internet.MimeMessage;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +46,27 @@ public final class Mailbox {
 
   public Mailbox(GenericContainer<?> greenMail) {
     this.greenMail = greenMail;
+  }
+
+  /** Empties every mailbox, so each test starts with nothing delivered. */
+  public void purgeAll() {
+    URI purge =
+        URI.create(
+            "http://"
+                + greenMail.getHost()
+                + ":"
+                + greenMail.getMappedPort(8080)
+                + "/api/mail/purge");
+    try (HttpClient http = HttpClient.newHttpClient()) {
+      http.send(
+          HttpRequest.newBuilder(purge).POST(HttpRequest.BodyPublishers.noBody()).build(),
+          HttpResponse.BodyHandlers.discarding());
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(e);
+    }
   }
 
   /** Waits for exactly one message in the address's inbox and returns a detached copy. */

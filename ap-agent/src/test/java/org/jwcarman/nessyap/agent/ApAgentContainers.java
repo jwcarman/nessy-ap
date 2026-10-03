@@ -64,9 +64,10 @@ public class ApAgentContainers {
         .withEnv(
             "GREENMAIL_OPTS",
             "-Dgreenmail.setup.test.smtp -Dgreenmail.setup.test.imap -Dgreenmail.hostname=0.0.0.0"
-                + " -Dgreenmail.users.login=email")
-        .withExposedPorts(3025, 3143)
-        .waitingFor(Wait.forListeningPorts(3025, 3143));
+                + " -Dgreenmail.users.login=email -Dgreenmail.api.hostname=0.0.0.0"
+                + " -Dgreenmail.api.port=8080")
+        .withExposedPorts(3025, 3143, 8080)
+        .waitingFor(Wait.forHttp("/api/service/readiness").forPort(8080));
   }
 
   @Bean
