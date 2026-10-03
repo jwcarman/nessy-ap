@@ -390,6 +390,14 @@ Nessy design conversations, not changes made from this repo.
 - **F4 — No channel for a decision that arrives after expiry.** A late answer
   gets `NotAwaiting`; the only way to inform the agent is a fresh `tell`.
 - **F5 — No published scripted model for tests.**
+- **F6 — Narration cannot be joined by call.** `Narration.ActionsRequested`
+  carries only `List<ToolName>`, so a later `CallApproved` / `CallFinished` /
+  `CallFailed(callId)` cannot be matched to its tool. The underlying
+  `AgentEvent.ActionsRequested` has `(callId, name, action)` per call; the
+  harnesses drop the id when narrating (`DefaultQueuedHarness`,
+  `DefaultDirectHarness`). The `CallApproved` javadoc's "the watcher heard the
+  name a moment ago" assumes a join that is impossible. Noted, not yet acted
+  on — collect more findings first.
 
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`
