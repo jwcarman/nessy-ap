@@ -122,6 +122,37 @@ public class Cases {
         .list();
   }
 
+  /**
+   * What the case's agent has read, as a label that only rises: once its agent has read a claim
+   * that nothing trusted endorsed, every proposal after it is influenced by that claim.
+   */
+  public record Integrity(boolean influencedByUnendorsed, boolean instructionsSeen) {}
+
+  /** The agent read an unendorsed claim; it tried to give instructions if {@code instructions}. */
+  public void markReadUnendorsed(UUID exceptionId, boolean instructions) {
+    jdbc.sql(
+            """
+            update ap_case set influenced_by_unendorsed = true,
+                               instructions_seen = instructions_seen or :instructions
+            where exception_id = :id
+            """)
+        .param("instructions", instructions)
+        .param("id", exceptionId)
+        .update();
+  }
+
+  public Integrity integrity(UUID exceptionId) {
+    return jdbc.sql(
+            "select influenced_by_unendorsed, instructions_seen from ap_case where exception_id = :id")
+        .param("id", exceptionId)
+        .query(
+            (rs, row) ->
+                new Integrity(
+                    rs.getBoolean("influenced_by_unendorsed"), rs.getBoolean("instructions_seen")))
+        .optional()
+        .orElse(new Integrity(false, false));
+  }
+
   public void setStatus(UUID exceptionId, CaseStatus status) {
     jdbc.sql("update ap_case set status = :status, updated_at = :now where exception_id = :id")
         .param("status", status.name())

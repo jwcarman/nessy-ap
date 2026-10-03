@@ -39,10 +39,13 @@ import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.mail.DeskInboxRoute;
 import org.jwcarman.nessyap.agent.mail.MailSent;
 import org.jwcarman.nessyap.agent.mail.Mailer;
+import org.jwcarman.nessyap.agent.quarantine.Quarantine;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -56,6 +59,7 @@ class CounterpartyTest extends ApAgentIntegrationTest {
   @Autowired Mailer mailer;
   @Autowired CamelContext camel;
   @Autowired CaseTimeline timeline;
+  @Autowired Quarantine quarantine;
 
   private MockMvc mvc;
   private UUID exceptionId;
@@ -113,7 +117,20 @@ class CounterpartyTest extends ApAgentIntegrationTest {
       camel.getRouteController().stopRoute(DeskInboxRoute.ROUTE_ID);
     }
 
-    assertThat(received()).singleElement().asString().contains("It is PO-7.");
+    // The reply's words are only in the quarantine; the clerk reads them there.
+    signIn("clara", "ap-clerk");
+    try {
+      String handle =
+          timeline.of(exceptionId).stream()
+              .filter(e -> e.kind().equals("mail-received"))
+              .findFirst()
+              .orElseThrow()
+              .mailHandle();
+      assertThat(quarantine.forPerson(handle))
+          .hasValueSatisfying(r -> assertThat(r.body()).contains("It is PO-7."));
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
   }
 
   @Test
@@ -151,5 +168,13 @@ class CounterpartyTest extends ApAgentIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"messageId\": \"<nope@nowhere>\", \"text\": \"Hi\"}"))
         .andExpect(status().isNotFound());
+  }
+
+  private static void signIn(String user, String role) {
+    TestingAuthenticationToken auth =
+        new TestingAuthenticationToken(
+            user, "n/a", List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+    auth.setAuthenticated(true);
+    SecurityContextHolder.getContext().setAuthentication(auth);
   }
 }

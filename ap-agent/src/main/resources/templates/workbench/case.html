@@ -84,6 +84,7 @@
         <span class="when" th:text="${#temporals.format(e.at, 'HH:mm:ss')}">12:00:00</span>
         <span class="kind" th:text="${e.kind}">tool</span>
         <span th:text="${e.text}">get_invoice</span>
+        <a th:if="${e.mailHandle != null}" th:href="@{/workbench/mail/{h}(h=${e.mailHandle})}">read the mail</a>
       </li>
     </ol>
   </section>

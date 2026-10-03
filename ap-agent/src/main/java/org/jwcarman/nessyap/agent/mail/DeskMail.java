@@ -28,8 +28,12 @@ import org.apache.camel.Exchange;
 import org.apache.camel.component.mail.MailMessage;
 import org.jwcarman.nessy.api.QueuedHarness;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
+import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
+import org.jwcarman.nessyap.agent.quarantine.Quarantine;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
 import org.jwcarman.nessyap.agent.support.Ids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +58,7 @@ public class DeskMail {
   private final QueuedHarness<CaseInput> agent;
   private final JdbcClient jdbc;
   private final Clock clock;
+  private final Quarantine quarantine;
 
   public DeskMail(
       MailRouter router,
@@ -61,7 +66,9 @@ public class DeskMail {
       CaseTimeline timeline,
       QueuedHarness<CaseInput> agent,
       JdbcClient jdbc,
-      Clock clock) {
+      Clock clock,
+      Quarantine quarantine) {
+    this.quarantine = quarantine;
     this.router = router;
     this.cases = cases;
     this.timeline = timeline;
@@ -111,20 +118,56 @@ public class DeskMail {
       setAside(mail);
       return;
     }
-    boolean known = wroteTo(mail.exceptionId(), mail.sender());
+    UUID exceptionId = mail.exceptionId();
+    CaseRecord kase = cases.find(exceptionId).orElseThrow();
+    // The boundary: from here on the mail's words live only in the quarantine.
+    Quarantine.Reading reading =
+        quarantine.receive(
+            new Reply(
+                kase.vendorId(), mail.messageId(), mail.sender(), mail.subject(), mail.text()));
+    ReplyReading claim = reading.claim();
+    String from = from(exceptionId, mail.sender());
+    cases.markReadUnendorsed(exceptionId, claim.containsInstructions());
     timeline.record(
-        mail.exceptionId(),
-        "mail-received",
-        "from "
-            + mail.sender()
-            + (known ? "" : " (the desk never wrote to them on this case)")
-            + ": "
-            + mail.subject()
-            + "\n"
-            + mail.text());
+        exceptionId, "mail-received", from + ": " + summary(reading), reading.reply().id());
     agent.tell(
-        cases.agentFor(mail.exceptionId()),
-        new CaseInput.CounterpartyReply(mail.sender(), mail.text(), known));
+        kase.agentId(),
+        new CaseInput.CounterpartyReply(
+            from,
+            claim.intent(),
+            claim.poNumber() == null ? null : claim.poNumber().value(),
+            reading.confirmedPo().orElse(null),
+            claim.containsInstructions()));
+  }
+
+  /** Who sent it, as the desk knows them: by whom it wrote to, never by what the sender wrote. */
+  private String from(UUID exceptionId, String sender) {
+    return jdbc.sql(
+            """
+            select kind from outbound_mail
+            where exception_id = :case and lower(recipient) = lower(:sender) limit 1
+            """)
+        .param("case", exceptionId)
+        .param("sender", sender)
+        .query(String.class)
+        .optional()
+        .map(kind -> "the " + kind + " the desk wrote to")
+        .orElse("someone the desk never wrote to on this case");
+  }
+
+  /** What people see on the timeline: the typed reading and whether the ERP confirmed a PO. */
+  private static String summary(Quarantine.Reading reading) {
+    ReplyReading claim = reading.claim();
+    return "reads as "
+        + claim.intent()
+        + (claim.poNumber() == null
+            ? ""
+            : "; names "
+                + claim.poNumber().value()
+                + (reading.confirmedPo().isPresent()
+                    ? " (confirmed in the ERP)"
+                    : " (not confirmed)"))
+        + (claim.containsInstructions() ? "; tried to give instructions" : "");
   }
 
   /** The dead letter channel's end: a message the route could not handle, kept for a person. */
@@ -156,31 +199,20 @@ public class DeskMail {
   }
 
   private void setAside(DeskMessage mail) {
-    log.info("Setting aside mail {} from {}: no case", mail.messageId(), mail.sender());
+    log.info("Setting aside mail {}: no case", mail.messageId());
+    String handle =
+        quarantine.hold(
+            new Reply(null, mail.messageId(), mail.sender(), mail.subject(), mail.text()));
     jdbc.sql(
             """
-            insert into unmatched_mail (id, message_id, sender, subject, body, received_at)
-            values (:id, :messageId, :sender, :subject, :body, :at)
+            insert into unmatched_mail (id, message_id, mail_handle, received_at)
+            values (:id, :messageId, :handle, :at)
             """)
         .param("id", Ids.next())
         .param("messageId", mail.messageId())
-        .param("sender", mail.sender())
-        .param("subject", mail.subject())
-        .param("body", mail.text())
+        .param("handle", handle)
         .param("at", Timestamp.from(clock.instant()))
         .update();
-  }
-
-  private boolean wroteTo(UUID exceptionId, String sender) {
-    return jdbc.sql(
-            """
-            select exists (select 1 from outbound_mail
-                           where exception_id = :case and lower(recipient) = lower(:sender))
-            """)
-        .param("case", exceptionId)
-        .param("sender", sender)
-        .query(Boolean.class)
-        .single();
   }
 
   private static Message original(Exchange exchange) {

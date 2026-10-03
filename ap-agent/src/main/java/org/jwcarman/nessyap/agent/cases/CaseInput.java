@@ -18,6 +18,7 @@ package org.jwcarman.nessyap.agent.cases;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.util.UUID;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReceiptPosted;
 
@@ -45,10 +46,18 @@ public sealed interface CaseInput {
   record PersonNote(String author, String text) implements CaseInput {}
 
   /**
-   * Mail arrived on the case. {@code knownSender} says whether the desk wrote to that address on
-   * this case; anyone can put a case's reference in a subject line.
+   * Mail arrived on the case, read in quarantine. The agent never receives the mail's text: only
+   * who it came from, as the desk knows them, and a typed reading. Each field but {@code
+   * confirmedPo} is a claim; {@code confirmedPo} is a PO number the ERP holds for the case's
+   * vendor.
    */
-  record CounterpartyReply(String from, String text, boolean knownSender) implements CaseInput {}
+  record CounterpartyReply(
+      String from,
+      Intent intent,
+      String claimedPo,
+      String confirmedPo,
+      boolean containsInstructions)
+      implements CaseInput {}
 
   /** A decision reached the ERP after the agent had stopped waiting for it. */
   record DecisionApplied(UUID decisionId, String action, String outcome) implements CaseInput {}

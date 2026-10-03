@@ -193,3 +193,24 @@ test_an_invoice_that_repeats_a_number_is_not_paid_through_its_other_exception if
 	ap.decision.effect == "deny" with input as proposal("approve-variance", facts)
 	ap.decision.to == "ap-clerk" with input as proposal("hold", facts)
 }
+
+tainted(instructions) := {
+	"reasonCode": "NO_PO", "amountAtIssue": 1000, "invoiceTotal": 1000, "bankChangeUnverified": false,
+	"influencedByUnendorsed": true, "instructionsSeen": instructions,
+}
+
+test_no_payment_after_a_reply_tried_to_instruct_the_desk if {
+	every action in {"approve-variance", "short-pay", "request-credit-memo"} {
+		ap.decision.effect == "deny" with input as proposal(action, tainted(true))
+	}
+	contains(ap.decision.reason, "tried to instruct") with input as proposal("approve-variance", tainted(true))
+}
+
+test_a_hold_or_a_reject_still_goes_through_after_instructions if {
+	ap.decision.to == "ap-clerk" with input as proposal("hold", tainted(true))
+	ap.decision.to == "ap-manager" with input as proposal("reject", tainted(true))
+}
+
+test_a_reply_without_instructions_does_not_block_payment if {
+	ap.decision.effect == "delegate" with input as proposal("approve-variance", tainted(false))
+}

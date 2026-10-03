@@ -34,6 +34,8 @@ import org.jwcarman.nessyap.agent.decisions.PolicyConfig;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
 import org.jwcarman.nessyap.agent.erp.ErpOutcome;
 import org.jwcarman.nessyap.agent.mail.UnmatchedMail;
+import org.jwcarman.nessyap.agent.quarantine.Quarantine;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -66,6 +68,7 @@ public class WorkbenchController {
   private final ErpClient erp;
   private final QueuedHarness<CaseInput> agent;
   private final UnmatchedMail unmatched;
+  private final Quarantine quarantine;
 
   public WorkbenchController(
       Cases cases,
@@ -74,7 +77,8 @@ public class WorkbenchController {
       DecisionExecutor executor,
       ErpClient erp,
       QueuedHarness<CaseInput> agent,
-      UnmatchedMail unmatched) {
+      UnmatchedMail unmatched,
+      Quarantine quarantine) {
     this.cases = cases;
     this.timeline = timeline;
     this.decisions = decisions;
@@ -82,6 +86,7 @@ public class WorkbenchController {
     this.erp = erp;
     this.agent = agent;
     this.unmatched = unmatched;
+    this.quarantine = quarantine;
   }
 
   /** A pending decision as the worklist shows it: the decision and the case it belongs to. */
@@ -137,6 +142,20 @@ public class WorkbenchController {
             .filter(d -> Deciders.mayDecide(d, me.getName(), roles))
             .toList());
     return "workbench/case";
+  }
+
+  /**
+   * Quarantined mail, for a person who works cases. The quarantine decides who may read it and
+   * records each read; anybody else gets a 404, which says nothing about whether it exists.
+   */
+  @GetMapping("/mail/{handle}")
+  public String mail(@PathVariable String handle, Model model) {
+    Reply reply =
+        quarantine
+            .forPerson(handle)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No such mail"));
+    model.addAttribute("reply", reply);
+    return "workbench/mail";
   }
 
   /** The timeline alone, for the case page to refresh in place. */

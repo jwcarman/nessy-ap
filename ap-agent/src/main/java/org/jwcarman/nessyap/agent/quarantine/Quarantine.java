@@ -72,9 +72,14 @@ public class Quarantine {
     Optional<String> confirmed =
         confirmPo.derive(made) instanceof Derived.Made<ConfirmedPo>(Occluded<ConfirmedPo> po)
                 && agentConfirmedPos.reveal(po) instanceof Revealed.Allowed<ConfirmedPo> fact
-            ? Optional.of(fact.plaintext().poNumber())
+            ? Optional.of(fact.plaintext().poNumber().value())
             : Optional.empty();
     return new Reading(held, claim, confirmed);
+  }
+
+  /** Holds mail that answers no case, unread, for a person to sort out. Returns its handle. */
+  public String hold(Reply reply) {
+    return deskMail.occlude(reply).id();
   }
 
   /** The reply itself, for a person who works cases; empty for anybody else. */

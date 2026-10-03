@@ -60,12 +60,15 @@ class QuarantineDeclarationsTest {
           charter,
           reply ->
               new ReplyReading(
-                  reply.vendorId(), Intent.OTHER, "PO-7", reply.body().contains("Ignore")));
+                  reply.vendorId(),
+                  Intent.OTHER,
+                  new PoNumber("PO-7"),
+                  reply.body().contains("Ignore")));
   private final Derivation<ReplyReading, ConfirmedPo> confirmPo =
       QuarantinePortals.confirmPo(
           charter,
           reading ->
-              "PO-7".equals(reading.poNumber()) && VENDOR.equals(reading.vendorId())
+              new PoNumber("PO-7").equals(reading.poNumber()) && VENDOR.equals(reading.vendorId())
                   ? Optional.of(new ConfirmedPo(reading.poNumber()))
                   : Optional.empty());
   private final Reveal<ConfirmedPo> agentConfirmedPos =
@@ -112,7 +115,7 @@ class QuarantineDeclarationsTest {
             Revealed.Allowed.class,
             a ->
                 assertThat(a.plaintext())
-                    .isEqualTo(new ReplyReading(VENDOR, Intent.OTHER, "PO-7", true)));
+                    .isEqualTo(new ReplyReading(VENDOR, Intent.OTHER, new PoNumber("PO-7"), true)));
   }
 
   @Test

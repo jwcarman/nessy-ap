@@ -138,7 +138,8 @@ public class QuarantineConfig {
     if (reading.poNumber() == null || reading.vendorId() == null) {
       return Optional.empty();
     }
-    if (erp.purchaseOrder(reading.poNumber()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode po)
+    if (erp.purchaseOrder(reading.poNumber().value())
+            instanceof ErpOutcome.Ok<JsonNode>(JsonNode po)
         && reading.vendorId().toString().equals(po.path("vendorId").asString())) {
       return Optional.of(new ConfirmedPo(reading.poNumber()));
     }

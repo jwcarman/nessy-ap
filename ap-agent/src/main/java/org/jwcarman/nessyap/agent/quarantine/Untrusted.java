@@ -32,7 +32,7 @@ public final class Untrusted {
 
   /** What a reply says, read by a model that has no tools. Every field is a claim. */
   public record ReplyReading(
-      UUID vendorId, Intent intent, String poNumber, boolean containsInstructions) {}
+      UUID vendorId, Intent intent, PoNumber poNumber, boolean containsInstructions) {}
 
   /** What a reply can mean to the desk. Anything else is OTHER. */
   public enum Intent {
@@ -48,10 +48,10 @@ public final class Untrusted {
    * The quarantined reader's answer, as the model gives it. The desk checks it and adds the case's
    * vendor to make a {@link ReplyReading}.
    */
-  public record ModelReading(Intent intent, String poNumber, boolean containsInstructions) {}
+  public record ModelReading(Intent intent, PoNumber poNumber, boolean containsInstructions) {}
 
   /** A purchase-order number that the ERP holds for the case's vendor: a fact. */
-  public record ConfirmedPo(String poNumber) {}
+  public record ConfirmedPo(PoNumber poNumber) {}
 
   public static final OccludedType<Reply> REPLY =
       OccludedType.of("counterparty-reply", Reply.class);

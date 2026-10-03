@@ -105,6 +105,18 @@ else := {"effect": "deny", "reason": "the amount in question is unknown"} if {
 	not at_issue
 }
 
+# Information flow: the case's agent has read mail that tried to instruct the desk or claimed an
+# approval. Everything it proposes after that is influenced by an attacker's words, so nothing that
+# moves money goes through until a person has read the mail. It fails safe: the worst an attacker
+# can do with it is force a hold.
+else := {
+	"effect": "deny",
+	"reason": "a reply on this case tried to instruct the desk or claimed an approval: hold the invoice until a person has read it",
+} if {
+	action in moves_money
+	object.get(input.facts, "instructionsSeen", false) == true
+}
+
 # The same invoice number as one already received is a repeat: nothing pays it from the desk, however
 # its text argues. Reject it (or hold it while someone looks).
 else := {

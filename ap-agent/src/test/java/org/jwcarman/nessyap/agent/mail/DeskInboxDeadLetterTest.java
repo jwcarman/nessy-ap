@@ -20,6 +20,7 @@ import static org.awaitility.Awaitility.await;
 
 import jakarta.mail.internet.MimeMessage;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 import org.apache.camel.CamelContext;
 import org.apache.camel.builder.AdviceWith;
@@ -29,6 +30,9 @@ import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.annotation.DirtiesContext;
 
 /**
@@ -46,6 +50,7 @@ class DeskInboxDeadLetterTest extends ApAgentIntegrationTest {
   @Autowired CamelContext camel;
   @Autowired JavaMailSender smtp;
   @Autowired CaseTimeline timeline;
+  @Autowired UnmatchedMail unmatchedMail;
 
   @Test
   void a_message_that_fails_part_way_is_set_aside_and_leaves_nothing_half_done() throws Exception {
@@ -81,14 +86,16 @@ class DeskInboxDeadLetterTest extends ApAgentIntegrationTest {
       camel.getRouteController().stopRoute(DeskInboxRoute.ROUTE_ID);
     }
 
-    assertThat(
-            jdbc.sql("select body from unmatched_mail where subject like :subject")
-                .param("subject", "%" + exceptionId + "%")
-                .query(String.class)
-                .list())
-        .singleElement()
-        .asString()
-        .contains("IllegalStateException");
+    // The set-aside message is in the quarantine; a manager reads it there.
+    signIn("mark", "ap-manager");
+    try {
+      assertThat(unmatchedMail.recent(100))
+          .filteredOn(m -> m.subject().contains(exceptionId.toString()))
+          .singleElement()
+          .satisfies(m -> assertThat(m.body()).contains("IllegalStateException"));
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
     assertThat(timeline.of(exceptionId)).isEmpty();
     assertThat(
             jdbc.sql("select count(*) from camel_messageprocessed where messageid = :id")
@@ -96,5 +103,13 @@ class DeskInboxDeadLetterTest extends ApAgentIntegrationTest {
                 .query(Long.class)
                 .single())
         .isZero();
+  }
+
+  private static void signIn(String user, String role) {
+    TestingAuthenticationToken auth =
+        new TestingAuthenticationToken(
+            user, "n/a", List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+    auth.setAuthenticated(true);
+    SecurityContextHolder.getContext().setAuthentication(auth);
   }
 }

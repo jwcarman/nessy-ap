@@ -18,7 +18,6 @@ package org.jwcarman.nessyap.agent.quarantine;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
-import java.util.regex.Pattern;
 import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.DirectHarness;
 import org.jwcarman.nessy.api.Outcome;
@@ -35,9 +34,6 @@ import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
  * answer is checked again here, and anything that does not fit reads as "a person must read this".
  */
 public class ModelReplyReader implements ReplyReader {
-
-  /** The PO numbers the ERP issues. A claimed number of any other shape is dropped. */
-  private static final Pattern PO_NUMBER = Pattern.compile("PO-[A-Z0-9-]{1,32}");
 
   static final String INSTRUCTIONS =
       """
@@ -86,11 +82,8 @@ public class ModelReplyReader implements ReplyReader {
         || answer == null) {
       return ReplyReader.unread(reply);
     }
-    String poNumber =
-        answer.poNumber() != null && PO_NUMBER.matcher(answer.poNumber()).matches()
-            ? answer.poNumber()
-            : null;
     Intent intent = answer.intent() == null ? Intent.OTHER : answer.intent();
-    return new ReplyReading(reply.vendorId(), intent, poNumber, answer.containsInstructions());
+    return new ReplyReading(
+        reply.vendorId(), intent, answer.poNumber(), answer.containsInstructions());
   }
 }
