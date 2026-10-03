@@ -182,6 +182,21 @@ class CaseInputRendererTest {
   }
 
   @Test
+  void an_answer_is_the_persons_own_word() {
+    String shown =
+        render(
+            new CaseInput.PersonAnswered(
+                "bob", "Did you agree 11.60?", "Agreed", "Yes, by phone in March."));
+
+    assertThat(shown)
+        .contains("bob")
+        .contains("Did you agree 11.60?")
+        .contains("Agreed")
+        .contains("Yes, by phone in March.")
+        .doesNotContain("claims");
+  }
+
+  @Test
   void an_applied_decision_says_what_happened() {
     UUID decision = UUID.randomUUID();
 

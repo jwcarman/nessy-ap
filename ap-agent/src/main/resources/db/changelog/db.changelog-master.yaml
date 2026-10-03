@@ -13,3 +13,5 @@ databaseChangeLog:
       file: db/changelog/006-camel-idempotent.sql
   - include:
       file: db/changelog/007-quarantine.sql
+  - include:
+      file: db/changelog/008-questions.sql

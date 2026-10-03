@@ -60,6 +60,8 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
               var confirmedPo,
               var instructions) ->
           reply(from, intent, offers, price, claimedPo, confirmedPo, instructions);
+      case CaseInput.PersonAnswered(var person, var question, var choice, var comment) ->
+          answer(person, question, choice, comment);
       case CaseInput.DecisionApplied(var decisionId, var action, var outcome) ->
           "Decision %s (%s) was %s. Re-read the invoice before doing anything else."
               .formatted(decisionId, action, outcome);
@@ -101,6 +103,13 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
               + " invoice and note the case for a person to read the reply.");
     }
     return text.toString();
+  }
+
+  /** A signed-in person's answer: their own word, which the agent may rely on. */
+  private static String answer(String person, String question, String choice, String comment) {
+    String said = choice == null ? comment : comment == null ? choice : choice + ". " + comment;
+    return "%s, who works this case, answered your question \"%s\" on the workbench: %s"
+        .formatted(person, question, said);
   }
 
   private static String says(Intent intent) {

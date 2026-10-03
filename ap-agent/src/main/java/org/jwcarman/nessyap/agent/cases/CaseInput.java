@@ -35,7 +35,8 @@ import org.jwcarman.nessyap.contracts.ReceiptPosted;
   @JsonSubTypes.Type(value = CaseInput.ReceiptArrived.class, name = "receipt-arrived"),
   @JsonSubTypes.Type(value = CaseInput.PersonNote.class, name = "person-note"),
   @JsonSubTypes.Type(value = CaseInput.CounterpartyReply.class, name = "counterparty-reply"),
-  @JsonSubTypes.Type(value = CaseInput.DecisionApplied.class, name = "decision-applied")
+  @JsonSubTypes.Type(value = CaseInput.DecisionApplied.class, name = "decision-applied"),
+  @JsonSubTypes.Type(value = CaseInput.PersonAnswered.class, name = "person-answered")
 })
 public sealed interface CaseInput {
 
@@ -62,6 +63,13 @@ public sealed interface CaseInput {
       String claimedPo,
       String confirmedPo,
       boolean containsInstructions)
+      implements CaseInput {}
+
+  /**
+   * A person inside the company answered the agent's question on the workbench, signed in. The
+   * answer is that person's own word, not a claim to check.
+   */
+  record PersonAnswered(String person, String question, String choice, String comment)
       implements CaseInput {}
 
   /** A decision reached the ERP after the agent had stopped waiting for it. */
