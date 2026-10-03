@@ -69,6 +69,8 @@ decisions and audit.
   and `Replies` with a `ReplyToken` answers it days later. We did not invent an approval engine.
 - **Any model.** The agent ran on a local model through LM Studio with no change to the
   application. Tool schemas come from Java records.
+- **A one-shot is a direct harness.** The quarantined reader is a `DirectHarness` with no tools
+  and a typed answer. Value types such as `PoNumber` reach the model as plain strings.
 - **Measured from the start.** Nessy publishes usage as OpenTelemetry-style metrics, with input,
   output, cache and reasoning counts for each model.
 - **Agent tests without mocks.** A scripted inference provider drives the real engine, so the
@@ -89,6 +91,8 @@ decisions and audit.
 | **F10.** `Turn.tokens` was always 0. | The evaluation reads the metric before and after each case, which works only while cases run one at a time. The field is removed on Nessy `main`. |
 | **F11.** Inputs carry no provenance. | The application frames untrusted text itself. A prompt injection still persuaded the agent in 4 of 5 runs. |
 | **F12.** Nothing checks that the policy knows a gated tool. | A new tool met an old policy, and a fraudulent vendor received mail. The policy now denies any tool it does not name. |
+| **F13.** Stored history has no retention or cleanup. | The quarantined reader's history holds the text of every reply, in plaintext, outside Occlude. Nothing expires it. |
+| **F14.** The direct door fails inside a caller's transaction. | Every live read failed and fell back to "a person must read this". No test saw it. The reader now suspends the caller's transaction. |
 
 Two smaller points:
 - **The `Tool` interface is verbose for simple tools.** Each tool implements four methods.

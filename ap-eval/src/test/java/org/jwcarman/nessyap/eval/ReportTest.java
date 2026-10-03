@@ -71,12 +71,36 @@ class ReportTest {
     String report = Report.markdown("label", List.of(run));
 
     assertThat(report)
-        .contains("Input")
-        .contains("Output")
-        .contains("Cache read")
-        .contains("Cache write")
-        .contains("Reasoning")
-        .contains("| 13000 | 175 | 9000 | — | — |")
+        .contains(
+            "| Scenario | Model | Cases | Input | Output | Cache read | Cache write | Reasoning |")
+        .contains("| duplicate | qwen | 1 | 13000 | 175 | 9000 | — | — |")
         .doesNotContain("Mean tokens");
+  }
+
+  @Test
+  void each_model_has_its_own_usage_and_none_is_added_to_another() {
+    RunScore run =
+        new RunScore(
+            "no-po",
+            1,
+            "RESOLVED",
+            List.of("hold"),
+            true,
+            true,
+            true,
+            true,
+            3,
+            new Usage(
+                Map.of(
+                    "qwen", new Usage.Counts(13000L, 175L, null, null, 0L),
+                    "gemma", new Usage.Counts(317L, 20L, null, null, 0L))),
+            Duration.ofSeconds(18));
+
+    String report = Report.markdown("label", List.of(run));
+
+    assertThat(report)
+        .contains("| no-po | gemma | 1 | 317 | 20 | — | — | 0 |")
+        .contains("| no-po | qwen | 1 | 13000 | 175 | — | — | 0 |")
+        .doesNotContain("13317");
   }
 }

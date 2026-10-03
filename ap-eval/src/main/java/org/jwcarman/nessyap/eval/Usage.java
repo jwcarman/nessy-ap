@@ -43,27 +43,11 @@ public record Usage(Map<String, Counts> byModel) {
           minus(reasoning, before.reasoning));
     }
 
-    Counts plus(Counts other) {
-      return new Counts(
-          plus(input, other.input),
-          plus(output, other.output),
-          plus(cacheRead, other.cacheRead),
-          plus(cacheWrite, other.cacheWrite),
-          plus(reasoning, other.reasoning));
-    }
-
     private static Long minus(Long after, Long before) {
       if (after == null) {
         return null;
       }
       return before == null ? after : after - before;
-    }
-
-    private static Long plus(Long a, Long b) {
-      if (a == null) {
-        return b;
-      }
-      return b == null ? a : a + b;
     }
   }
 
@@ -82,10 +66,5 @@ public record Usage(Map<String, Counts> byModel) {
           }
         });
     return new Usage(spent);
-  }
-
-  /** Every model's counts added together. */
-  public Counts total() {
-    return byModel.values().stream().reduce(Counts.NONE, Counts::plus);
   }
 }

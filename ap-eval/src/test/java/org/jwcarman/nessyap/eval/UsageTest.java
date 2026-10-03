@@ -42,18 +42,7 @@ class UsageTest {
         new Usage(Map.of(QWEN, new Usage.Counts(10L, 1L, null, null, null)))
             .since(new Usage(Map.of()));
 
-    assertThat(spent.total().reasoning()).isNull();
-    assertThat(spent.total().input()).isEqualTo(10L);
-  }
-
-  @Test
-  void the_total_adds_every_model_together() {
-    Usage two =
-        new Usage(
-            Map.of(
-                "a", new Usage.Counts(10L, 1L, null, null, 5L),
-                "b", new Usage.Counts(20L, 2L, 7L, null, null)));
-
-    assertThat(two.total()).isEqualTo(new Usage.Counts(30L, 3L, 7L, null, 5L));
+    assertThat(spent.byModel().get(QWEN).reasoning()).isNull();
+    assertThat(spent.byModel().get(QWEN).input()).isEqualTo(10L);
   }
 }
