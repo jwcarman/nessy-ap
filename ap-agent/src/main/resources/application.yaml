@@ -76,7 +76,7 @@ ap:
   quarantine:
     reader:
       enabled: true
-      base-url: ${AP_MODEL_URL:http://localhost:1234/v1}
+      provider: ${AP_READER_PROVIDER:${nessy.provider}}
       model: ${AP_READER_MODEL:google/gemma-4-e4b}
       timeout: PT30S
   # Development only: a page (and API) for answering the desk's mail as its recipient.

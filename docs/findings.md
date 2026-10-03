@@ -17,4 +17,4 @@ down here instead of worked around in silence. The full text is in section 10 of
 | **F10.** `Turn.tokens` is always 0. | Removed on a Nessy branch. Usage is reported as a whole, never as a token count. |
 | **F11.** Inputs carry no provenance. | Open. Nessy AP's quarantine slice explores it with Occlude. |
 | **F12.** Nothing checks that the policy knows a gated tool. | Open. Nessy AP's policy denies any tool it does not name. |
-| **F13.** No one-shot, tool-less, structured model call. | Open. The quarantined reader calls the model's endpoint directly, outside Nessy's usage metrics. |
+| **F13.** Stored agent history has no retention or cleanup. | Open. The quarantined reader stores every read, untrusted text included, with no way to expire it. |

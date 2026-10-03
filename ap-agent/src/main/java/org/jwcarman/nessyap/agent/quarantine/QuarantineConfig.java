@@ -20,9 +20,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.jwcarman.nessy.api.AgentType;
+import org.jwcarman.nessy.api.DirectHarness;
+import org.jwcarman.nessy.api.DirectHarnessFactory;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
 import org.jwcarman.nessyap.agent.erp.ErpOutcome;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ConfirmedPo;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.ModelReading;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.jwcarman.occlude.AccessContext;
@@ -37,7 +42,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The quarantine's authority. The starter builds and binds the charter from the axes; this class
@@ -50,22 +54,45 @@ public class QuarantineConfig {
   private static final Set<String> WORK_CASES =
       Set.of("ap-clerk", "buyer", "ap-manager", "controller", "auditor");
 
+  /** The reader's agent type: one per application, a fresh agent for each reply. */
+  static final AgentType READER = new AgentType("reply-reader");
+
   @Bean
   public Axes quarantineAxes() {
     return QuarantineAxes.axes();
   }
 
-  /** The quarantined reader: a small model, no tools, an answer held to a schema. */
+  /**
+   * The quarantined reader: a Nessy direct harness with no tools and a typed answer, using the
+   * application's providers and a small model of its own. Its history is stored like any agent's,
+   * so each read is part of the record.
+   */
   @Bean
   @ConditionalOnProperty(
       name = "ap.quarantine.reader.enabled",
       havingValue = "true",
       matchIfMissing = true)
   public ReplyReader modelReplyReader(
-      @Value("${ap.quarantine.reader.base-url}") String baseUrl,
+      DirectHarnessFactory harnesses,
+      @Value("${ap.quarantine.reader.provider}") String provider,
       @Value("${ap.quarantine.reader.model}") String model,
       @Value("${ap.quarantine.reader.timeout}") Duration timeout) {
-    return new ModelReplyReader(baseUrl, model, timeout, JsonMapper.builder().build());
+    DirectHarness<Reply, ModelReading> reader =
+        harnesses.create(
+            READER,
+            ModelReading.class,
+            harness ->
+                harness
+                    .systemPrompt(ModelReplyReader.INSTRUCTIONS)
+                    .inputRenderer(ModelReplyReader::render)
+                    .inference(
+                        inference ->
+                            inference
+                                .provider(provider)
+                                .model(model)
+                                .maxTokens(256)
+                                .timeout(timeout)));
+    return new ModelReplyReader(reader);
   }
 
   /** With the reader switched off, nothing in a reply is known and a person must read it. */

@@ -24,10 +24,11 @@ public final class Untrusted {
   private Untrusted() {}
 
   /**
-   * Mail that arrived on a case. The vendor id is the case's, a fact the desk attaches; the sender,
-   * subject and body are whatever the sender wrote.
+   * Mail that arrived on a case. The vendor id is the case's, a fact the desk attaches; the
+   * Message-ID names the mail; the sender, subject and body are whatever the sender wrote.
    */
-  public record Reply(UUID vendorId, String sender, String subject, String body) {}
+  public record Reply(
+      UUID vendorId, String messageId, String sender, String subject, String body) {}
 
   /** What a reply says, read by a model that has no tools. Every field is a claim. */
   public record ReplyReading(
@@ -42,6 +43,12 @@ public final class Untrusted {
     ASKS_QUESTION,
     OTHER
   }
+
+  /**
+   * The quarantined reader's answer, as the model gives it. The desk checks it and adds the case's
+   * vendor to make a {@link ReplyReading}.
+   */
+  public record ModelReading(Intent intent, String poNumber, boolean containsInstructions) {}
 
   /** A purchase-order number that the ERP holds for the case's vendor: a fact. */
   public record ConfirmedPo(String poNumber) {}

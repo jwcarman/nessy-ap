@@ -475,11 +475,12 @@ Nessy design conversations, not changes made from this repo.
   policy for each gated tool at startup, or a decision could carry the policy's
   revision into the trail.
 
-- **F13 — No one-shot, tool-less, structured call.** The quarantined reader (slice
-  8) needs one model call with no tools and an answer held to a JSON schema. Nessy's
-  inference SPI is shaped around an agent's turn, so the reader calls the
-  OpenAI-compatible endpoint itself and loses Nessy's provider selection, usage
-  metrics and tracing for that call.
+- **F13 — Stored agent history has no retention or cleanup.** The quarantined reader
+  (slice 8) is a direct harness with no tools and a typed answer, which Nessy supports
+  directly. Each read is stored like any agent's history, which is right for audit.
+  But nothing expires or deletes an agent's stored history, so a one-shot reader's
+  transcripts, which hold untrusted plaintext, grow without limit, and that copy sits
+  outside the application's own controls (here, Occlude's labels and record).
 
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`

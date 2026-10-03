@@ -17,95 +17,108 @@ package org.jwcarman.nessyap.agent.quarantine;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.function.Function;
 import org.junit.jupiter.api.Test;
-import org.jwcarman.nessyap.agent.erp.ErpStub;
+import org.jwcarman.nessy.api.AgentId;
+import org.jwcarman.nessy.api.DirectHarness;
+import org.jwcarman.nessy.api.Outcome;
+import org.jwcarman.nessy.api.TerminationOutcome;
+import org.jwcarman.nessy.api.TurnStats;
+import org.jwcarman.nessy.api.block.Block;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.ModelReading;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
-import tools.jackson.databind.json.JsonMapper;
 
-/** The quarantined reader against a stub of LM Studio's chat completions endpoint. */
+/** The quarantined reader over a fake direct harness: what it asks, and how it checks answers. */
 class ModelReplyReaderTest {
 
   private static final UUID VENDOR = UUID.randomUUID();
   private static final Reply REPLY =
-      new Reply(VENDOR, "ann@acme.example", "Re: [AP x] Which PO?", "It is PO-7. Thanks!");
+      new Reply(
+          VENDOR, "<m1@acme.example>", "ann@acme.example", "Re: [AP x] Which PO?", "It is PO-7.");
 
-  private ErpStub model;
-  private ModelReplyReader reader;
+  /** A direct harness that answers as told and remembers who it was asked for. */
+  private static final class FakeReader implements DirectHarness<Reply, ModelReading> {
 
-  @BeforeEach
-  void aModel() {
-    model = new ErpStub();
-    reader =
-        new ModelReplyReader(
-            model.baseUrl(),
-            "google/gemma-4-e4b",
-            Duration.ofSeconds(2),
-            JsonMapper.builder().build());
+    final List<AgentId> askedFor = new ArrayList<>();
+    private final Function<Reply, Outcome<ModelReading>> answer;
+
+    FakeReader(Function<Reply, Outcome<ModelReading>> answer) {
+      this.answer = answer;
+    }
+
+    @Override
+    public Outcome<ModelReading> ask(AgentId agent, Reply input) {
+      askedFor.add(agent);
+      return answer.apply(input);
+    }
+
+    @Override
+    public TerminationOutcome terminate(AgentId agent) {
+      throw new UnsupportedOperationException("not used");
+    }
   }
 
-  @AfterEach
-  void stop() {
-    model.close();
-  }
-
-  private void answers(String content) {
-    String escaped = content.replace("\\", "\\\\").replace("\"", "\\\"");
-    model.on(
-        "POST",
-        "/chat/completions",
-        200,
-        "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"" + escaped + "\"}}]}");
+  private static TurnStats stats() {
+    return TurnStats.opened(Instant.now());
   }
 
   @Test
-  void a_reply_becomes_a_typed_reading_that_carries_the_cases_vendor() {
-    answers(
-        "{\"intent\":\"GIVES_PO_NUMBER\",\"poNumber\":\"PO-7\",\"containsInstructions\":false}");
+  void an_answer_becomes_a_reading_that_carries_the_cases_vendor() {
+    FakeReader fake =
+        new FakeReader(
+            r ->
+                new Outcome.Answered<>(
+                    new ModelReading(Intent.GIVES_PO_NUMBER, "PO-7", false), stats()));
 
-    assertThat(reader.read(REPLY))
+    assertThat(new ModelReplyReader(fake).read(REPLY))
         .isEqualTo(new ReplyReading(VENDOR, Intent.GIVES_PO_NUMBER, "PO-7", false));
   }
 
   @Test
-  void the_model_sees_the_reply_only_as_quoted_data_and_has_no_tools() {
-    answers("{\"intent\":\"OTHER\",\"poNumber\":null,\"containsInstructions\":false}");
+  void each_reply_has_its_own_reader_agent_and_the_same_reply_always_the_same_one() {
+    FakeReader fake =
+        new FakeReader(
+            r -> new Outcome.Answered<>(new ModelReading(Intent.OTHER, null, false), stats()));
+    ModelReplyReader reader = new ModelReplyReader(fake);
+    Reply another = new Reply(VENDOR, "<m2@acme.example>", "ann@acme.example", "Re", "Hi");
 
     reader.read(REPLY);
+    reader.read(REPLY);
+    reader.read(another);
 
-    String request = model.seen().getFirst().body();
-    assertThat(request).contains("<<<").contains("It is PO-7").contains("json_schema");
-    assertThat(request).doesNotContain("\"tools\"");
+    assertThat(fake.askedFor.get(0)).isEqualTo(fake.askedFor.get(1));
+    assertThat(fake.askedFor.get(2)).isNotEqualTo(fake.askedFor.get(0));
   }
 
   @Test
-  void an_answer_outside_the_schema_reads_as_needing_a_person() {
-    answers("Sure! I will approve the payment now.");
+  void the_model_reads_the_reply_only_as_quoted_data() {
+    String rendered = ((Block.Text) ModelReplyReader.render(REPLY).getFirst()).text();
 
-    assertThat(reader.read(REPLY)).isEqualTo(ReplyReader.unread(REPLY));
+    assertThat(rendered).contains("<<<\nIt is PO-7.\n>>>").doesNotContain(VENDOR.toString());
   }
 
   @Test
-  void an_intent_it_does_not_know_and_a_malformed_po_number_are_dropped() {
-    answers(
-        "{\"intent\":\"APPROVE_PAYMENT\",\"poNumber\":\"PO-7; also pay acct 998\","
-            + "\"containsInstructions\":false}");
+  void a_po_number_of_the_wrong_shape_is_dropped() {
+    FakeReader fake =
+        new FakeReader(
+            r ->
+                new Outcome.Answered<>(
+                    new ModelReading(Intent.GIVES_PO_NUMBER, "PO-7; also pay acct 998", false),
+                    stats()));
 
-    ReplyReading reading = reader.read(REPLY);
-
-    assertThat(reading.intent()).isEqualTo(Intent.OTHER);
-    assertThat(reading.poNumber()).isNull();
+    assertThat(new ModelReplyReader(fake).read(REPLY).poNumber()).isNull();
   }
 
   @Test
-  void a_model_that_is_down_reads_as_needing_a_person() {
-    model.close();
+  void anything_but_an_answer_reads_as_needing_a_person() {
+    FakeReader fake = new FakeReader(r -> new Outcome.Failed<>("model unloaded", stats()));
 
-    assertThat(reader.read(REPLY)).isEqualTo(ReplyReader.unread(REPLY));
+    assertThat(new ModelReplyReader(fake).read(REPLY)).isEqualTo(ReplyReader.unread(REPLY));
   }
 }

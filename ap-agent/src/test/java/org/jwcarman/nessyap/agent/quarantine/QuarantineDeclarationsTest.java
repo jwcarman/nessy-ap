@@ -77,7 +77,8 @@ class QuarantineDeclarationsTest {
   }
 
   private Occluded<Reply> aReply(UUID vendor) {
-    return deskMail.occlude(new Reply(vendor, "ann@acme.example", "Re: [AP x]", INJECTION));
+    return deskMail.occlude(
+        new Reply(vendor, "<m1@acme.example>", "ann@acme.example", "Re: [AP x]", INJECTION));
   }
 
   @Test
