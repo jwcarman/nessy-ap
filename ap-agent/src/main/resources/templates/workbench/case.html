@@ -13,6 +13,13 @@
   <p class="muted">Amount in question <strong th:text="${kase.amount}">40.00</strong>
     · purchase order <span th:text="${kase.poNumber != null ? kase.poNumber : 'none cited'}">PO-1</span></p>
 
+  <p class="flash warn" th:if="${integrity.influencedByUnendorsed()}">
+    This case read mail from outside. The agent saw only a typed reading of it, but what it
+    proposes may rest on what a vendor or a stranger said.
+    <span th:if="${integrity.instructionsSeen()}">The mail tried to give instructions, so the
+      policy blocks every action that moves money. A person must decide.</span>
+  </p>
+
   <section class="decide" th:each="d : ${decidable}">
     <h2>The agent proposes: <span th:text="${d.action}">approve-variance</span>
       <span th:if="${d.amount != null}" th:text="${d.amount}">950.00</span></h2>

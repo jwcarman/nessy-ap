@@ -45,6 +45,7 @@ button.deny { background: var(--bad); color: #fff; border-color: transparent; }
 button.link { background: none; border: none; color: var(--accent); padding: 0; }
 form.inline { display: inline; }
 .flash { background: var(--chip); border-left: 4px solid var(--accent); padding: .6rem .8rem; border-radius: 6px; }
+.flash.warn { border-left-color: #c2410c; }
 .timeline { list-style: none; padding: 0; margin: 0; }
 .timeline li { display: grid; grid-template-columns: 5.5rem 6rem 1fr; gap: .5rem; padding: .3rem 0;
   border-bottom: 1px dashed var(--line); font-size: .9rem; }

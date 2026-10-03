@@ -128,6 +128,7 @@ public class WorkbenchController {
     model.addAttribute("me", me.getName());
     model.addAttribute("roles", roles);
     model.addAttribute("kase", c);
+    model.addAttribute("integrity", cases.integrity(exceptionId));
     model.addAttribute("exceptionId", exceptionId);
     model.addAttribute("invoice", read(erp.invoice(c.invoiceId())));
     model.addAttribute(

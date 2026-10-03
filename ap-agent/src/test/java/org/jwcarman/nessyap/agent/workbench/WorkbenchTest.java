@@ -161,6 +161,18 @@ class WorkbenchTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void a_case_that_read_mail_from_outside_says_so_and_why_paying_is_blocked() throws Exception {
+    mvc.perform(get("/workbench/cases/{id}", exceptionId).with(as("connie", "controller")))
+        .andExpect(content().string(not(containsString("read mail from outside"))));
+
+    cases.markReadUnendorsed(exceptionId, true);
+
+    mvc.perform(get("/workbench/cases/{id}", exceptionId).with(as("connie", "controller")))
+        .andExpect(content().string(containsString("read mail from outside")))
+        .andExpect(content().string(containsString("tried to give instructions")));
+  }
+
+  @Test
   void the_refreshed_timeline_keeps_refreshing_the_same_case() throws Exception {
     awaitProposal();
 
