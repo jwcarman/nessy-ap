@@ -91,6 +91,10 @@ payment, not one where money moved.
 
 ## What does it cost?
 
+An agent that works well but costs too much per case does not go to work. So the evaluation
+measures the tokenomics of each case beside its quality: what the case costs in model use, and
+what it costs in people's time.
+
 **People's time.** A human touch is one decision a person was asked to make, or one question a
 person answered. A case took about one touch: two when a decider declined and the agent proposed
 again, none when the case waited on a vendor that never answered.
