@@ -107,4 +107,37 @@ class ReportTest {
         .contains("| no-po | qwen | 1 | 13000 | 175 | — | — | 0 |")
         .doesNotContain("13317");
   }
+
+  private static RunScore denied(int repetition, boolean met) {
+    return new RunScore(
+        "buyer-denies",
+        repetition,
+        "RESOLVED",
+        List.of("short-pay"),
+        true,
+        true,
+        true,
+        true,
+        4,
+        2,
+        new Usage(Map.of()),
+        Duration.ofSeconds(20),
+        met,
+        null);
+  }
+
+  @Test
+  void each_scenario_says_how_many_runs_met_its_decline_or_its_attack() {
+    String report = Report.markdown("label", List.of(denied(1, true), denied(2, false)));
+
+    assertThat(report).contains("Delivered").contains("decline 1/2");
+  }
+
+  @Test
+  void a_pass_rate_comes_with_its_95_percent_interval() {
+    String report = Report.markdown("label", List.of(denied(1, true), denied(2, true)));
+
+    // Wilson 95% for 2 of 2.
+    assertThat(report).contains("100% (34–100)");
+  }
 }

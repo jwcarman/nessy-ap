@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -65,9 +66,13 @@ final class Report {
     out.append("# AP agent evaluation: ").append(label).append("\n\n");
     out.append("Decisions are made by the realm's people as the routing policy names them.\n\n");
     out.append(
-        "| Scenario | Runs | Pass rate | Correct | Evidence | Safe | Routed | Mean tools |"
-            + " Mean touches | Mean wall |\n");
-    out.append("|---|---|---|---|---|---|---|---|---|---|\n");
+        "The pass rate's interval is the Wilson 95% interval. Delivered counts the runs that met"
+            + " the scenario's decline or the attack in the vendor's reply: a pass on an attack"
+            + " the run never met tests nothing.\n\n");
+    out.append(
+        "| Scenario | Runs | Pass rate | Correct | Evidence | Safe | Routed | Delivered |"
+            + " Mean tools | Mean touches | Mean wall |\n");
+    out.append("|---|---|---|---|---|---|---|---|---|---|---|\n");
     Map<String, List<RunScore>> byScenario =
         runs.stream()
             .collect(
@@ -77,14 +82,15 @@ final class Report {
             out.append(
                 String.format(
                     Locale.ROOT,
-                    "| %s | %d | %.0f%% | %d | %d | %d | %d | %.1f | %.1f | %.0fs |%n",
+                    "| %s | %d | %s | %d | %d | %d | %d | %s | %.1f | %.1f | %.0fs |%n",
                     scenario,
                     scores.size(),
-                    Scoring.passRate(scores) * 100,
+                    passRate(scores),
                     scores.stream().filter(RunScore::outcomeCorrect).count(),
                     scores.stream().filter(RunScore::evidenceComplete).count(),
                     scores.stream().filter(RunScore::safe).count(),
                     scores.stream().filter(RunScore::routedCorrectly).count(),
+                    delivered(scores),
                     scores.stream().mapToInt(RunScore::toolCalls).average().orElse(0),
                     scores.stream().mapToInt(RunScore::touches).average().orElse(0),
                     scores.stream().mapToLong(s -> s.wall().toSeconds()).average().orElse(0))));
@@ -112,6 +118,47 @@ final class Report {
                     String.join(" → ", r.proposedActions()),
                     r.passed() ? "yes" : "no")));
     return out.toString();
+  }
+
+  /** The pass rate and its Wilson 95% interval, as "95% (76–99)". */
+  private static String passRate(List<RunScore> scores) {
+    long passed = scores.stream().filter(RunScore::passed).count();
+    double[] interval = wilson(passed, scores.size());
+    return String.format(
+        Locale.ROOT,
+        "%.0f%% (%.0f–%.0f)",
+        Scoring.passRate(scores) * 100,
+        interval[0] * 100,
+        interval[1] * 100);
+  }
+
+  /** The Wilson score interval at 95% for k successes in n runs. */
+  static double[] wilson(long k, int n) {
+    if (n == 0) {
+      return new double[] {0, 0};
+    }
+    double z = 1.96;
+    double p = (double) k / n;
+    double denominator = 1 + z * z / n;
+    double centre = (p + z * z / (2.0 * n)) / denominator;
+    double half = z * Math.sqrt(p * (1 - p) / n + z * z / (4.0 * n * n)) / denominator;
+    return new double[] {Math.max(0, centre - half), Math.min(1, centre + half)};
+  }
+
+  /** How many runs met the scenario's decline or its attack; — when it scripts neither. */
+  private static String delivered(List<RunScore> scores) {
+    List<String> parts = new ArrayList<>();
+    count(scores, RunScore::declineMet).ifPresent(met -> parts.add("decline " + met));
+    count(scores, RunScore::attackMet).ifPresent(met -> parts.add("attack " + met));
+    return parts.isEmpty() ? "—" : String.join(", ", parts);
+  }
+
+  private static Optional<String> count(List<RunScore> scores, Function<RunScore, Boolean> met) {
+    List<Boolean> applicable = scores.stream().map(met).filter(Objects::nonNull).toList();
+    return applicable.isEmpty()
+        ? Optional.empty()
+        : Optional.of(
+            applicable.stream().filter(Boolean::booleanValue).count() + "/" + applicable.size());
   }
 
   /** One row for each model that reported usage in this scenario, models in name order. */

@@ -31,10 +31,43 @@ public record RunScore(
     int toolCalls,
     int touches,
     Usage usage,
-    Duration wall) {
+    Duration wall,
+    Boolean declineMet,
+    Boolean attackMet) {
 
   public RunScore {
     proposedActions = List.copyOf(proposedActions);
+  }
+
+  /** A run of a scenario that scripts no decline and no attack in a reply. */
+  public RunScore(
+      String scenario,
+      int repetition,
+      String caseStatus,
+      List<String> proposedActions,
+      boolean outcomeCorrect,
+      boolean evidenceComplete,
+      boolean safe,
+      boolean routedCorrectly,
+      int toolCalls,
+      int touches,
+      Usage usage,
+      Duration wall) {
+    this(
+        scenario,
+        repetition,
+        caseStatus,
+        proposedActions,
+        outcomeCorrect,
+        evidenceComplete,
+        safe,
+        routedCorrectly,
+        toolCalls,
+        touches,
+        usage,
+        wall,
+        null,
+        null);
   }
 
   public boolean passed() {

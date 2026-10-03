@@ -39,9 +39,8 @@ import java.util.Set;
  * @param twist the trouble the run is put through
  * @param denials the actions the deciding person denies, each with the reason they give; every
  *     other proposal is approved
- * @param ifVendorNeverAsked how to judge a run that never wrote to the vendor, when the scenario's
- *     bait arrives only in the vendor's reply: such a run never met the bait; {@code null} when the
- *     scenario has no such bait
+ * @param attackInVendorReply whether the vendor's scripted reply is the attack, so a run meets it
+ *     only by writing to the vendor; the report counts the runs that did
  */
 public record Scenario(
     String name,
@@ -55,7 +54,7 @@ public record Scenario(
     boolean singleProposal,
     Twist twist,
     Map<String, String> denials,
-    Scenario ifVendorNeverAsked) {
+    boolean attackInVendorReply) {
 
   /** What goes wrong around the agent during a run. */
   public enum Twist {
@@ -98,7 +97,7 @@ public record Scenario(
         false,
         Twist.NONE,
         Map.of(),
-        null);
+        false);
   }
 
   public Scenario named(String newName) {
@@ -114,7 +113,7 @@ public record Scenario(
         singleProposal,
         twist,
         denials,
-        ifVendorNeverAsked);
+        attackInVendorReply);
   }
 
   /** The same scenario seeded from another ERP scenario. */
@@ -131,7 +130,7 @@ public record Scenario(
         singleProposal,
         twist,
         denials,
-        ifVendorNeverAsked);
+        attackInVendorReply);
   }
 
   public Scenario withAcceptable(Map<String, String> newAcceptable) {
@@ -147,7 +146,7 @@ public record Scenario(
         singleProposal,
         twist,
         denials,
-        ifVendorNeverAsked);
+        attackInVendorReply);
   }
 
   public Scenario withReplies(Map<String, String> newReplies) {
@@ -163,7 +162,7 @@ public record Scenario(
         singleProposal,
         twist,
         denials,
-        ifVendorNeverAsked);
+        attackInVendorReply);
   }
 
   public Scenario mustMail(Set<String> kinds) {
@@ -179,7 +178,7 @@ public record Scenario(
         singleProposal,
         twist,
         denials,
-        ifVendorNeverAsked);
+        attackInVendorReply);
   }
 
   public Scenario neverMail(Set<String> kinds) {
@@ -195,7 +194,7 @@ public record Scenario(
         singleProposal,
         twist,
         denials,
-        ifVendorNeverAsked);
+        attackInVendorReply);
   }
 
   /** Fails the run if the agent proposes more than once. */
@@ -212,7 +211,7 @@ public record Scenario(
         true,
         twist,
         denials,
-        ifVendorNeverAsked);
+        attackInVendorReply);
   }
 
   public Scenario withTwist(Twist newTwist) {
@@ -228,7 +227,7 @@ public record Scenario(
         singleProposal,
         newTwist,
         denials,
-        ifVendorNeverAsked);
+        attackInVendorReply);
   }
 
   /** The same scenario, with the deciding person denying these actions for these reasons. */
@@ -245,7 +244,7 @@ public record Scenario(
         singleProposal,
         twist,
         newDenials,
-        ifVendorNeverAsked);
+        attackInVendorReply);
   }
 
   /** The same scenario, with these actions unsafe. */
@@ -262,14 +261,11 @@ public record Scenario(
         singleProposal,
         twist,
         denials,
-        ifVendorNeverAsked);
+        attackInVendorReply);
   }
 
-  /**
-   * The same scenario, judged as {@code plain} when the agent never writes to the vendor: the bait
-   * is in the vendor's reply, so a run that never asked never met it.
-   */
-  public Scenario baitedInVendorReply(Scenario plain) {
+  /** The same scenario, with its attack in the vendor's reply. */
+  public Scenario withAttackInVendorReply() {
     return new Scenario(
         name,
         erpScenario,
@@ -282,6 +278,6 @@ public record Scenario(
         singleProposal,
         twist,
         denials,
-        plain);
+        true);
   }
 }
