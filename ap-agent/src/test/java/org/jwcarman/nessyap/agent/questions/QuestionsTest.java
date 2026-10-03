@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 class QuestionsTest extends ApAgentIntegrationTest {
 
   @Autowired Questions questions;
+  @Autowired Answers answers;
   @Autowired CaseTimeline timeline;
 
   @Test
@@ -37,11 +38,11 @@ class QuestionsTest extends ApAgentIntegrationTest {
     Question q =
         questions.ask(exceptionId, "bob", "Did you agree 11.60?", List.of("Agreed", "Not agreed"));
 
-    Questions.Answered first = questions.answer(q.id(), "bob", "Agreed", null);
-    Questions.Answered second = questions.answer(q.id(), "bob", "Not agreed", null);
+    Answers.Answered first = answers.answer(q.id(), "bob", "Agreed", null);
+    Answers.Answered second = answers.answer(q.id(), "bob", "Not agreed", null);
 
-    assertThat(first).isInstanceOf(Questions.Answered.Told.class);
-    assertThat(second).isInstanceOf(Questions.Answered.AlreadyAnswered.class);
+    assertThat(first).isInstanceOf(Answers.Answered.Told.class);
+    assertThat(second).isInstanceOf(Answers.Answered.AlreadyAnswered.class);
     assertThat(questions.forCase(exceptionId))
         .singleElement()
         .satisfies(
@@ -58,8 +59,8 @@ class QuestionsTest extends ApAgentIntegrationTest {
   void nobody_but_the_person_asked_may_answer() {
     Question q = questions.ask(openCase(), "bob", "Which order?", List.of());
 
-    assertThat(questions.answer(q.id(), "betty", null, "PO-7"))
-        .isInstanceOf(Questions.Answered.NotYours.class);
+    assertThat(answers.answer(q.id(), "betty", null, "PO-7"))
+        .isInstanceOf(Answers.Answered.NotYours.class);
     assertThat(questions.forCase(q.exceptionId())).singleElement().matches(w -> !w.answered());
   }
 
@@ -68,12 +69,12 @@ class QuestionsTest extends ApAgentIntegrationTest {
     Question choices = questions.ask(openCase(), "bob", "Agreed?", List.of("Yes", "No"));
     Question open = questions.ask(openCase(), "bob", "Which order?", List.of());
 
-    assertThat(questions.answer(choices.id(), "bob", "Maybe", null))
-        .isInstanceOf(Questions.Answered.NotAChoice.class);
-    assertThat(questions.answer(open.id(), "bob", null, " "))
-        .isInstanceOf(Questions.Answered.NeedsAnAnswer.class);
-    assertThat(questions.answer(UUID.randomUUID(), "bob", null, "x"))
-        .isInstanceOf(Questions.Answered.NoSuchQuestion.class);
+    assertThat(answers.answer(choices.id(), "bob", "Maybe", null))
+        .isInstanceOf(Answers.Answered.NotAChoice.class);
+    assertThat(answers.answer(open.id(), "bob", null, " "))
+        .isInstanceOf(Answers.Answered.NeedsAnAnswer.class);
+    assertThat(answers.answer(UUID.randomUUID(), "bob", null, "x"))
+        .isInstanceOf(Answers.Answered.NoSuchQuestion.class);
   }
 
   @Test
@@ -83,11 +84,11 @@ class QuestionsTest extends ApAgentIntegrationTest {
 
     assertThatThrownBy(() -> questions.ask(exceptionId, "bob", "Two?", List.of()))
         .isInstanceOf(IllegalStateException.class);
-    questions.answer(first.id(), "bob", null, "yes");
+    answers.answer(first.id(), "bob", null, "yes");
     Question second = questions.ask(exceptionId, "bob", "Two?", List.of());
-    questions.answer(second.id(), "bob", null, "yes");
+    answers.answer(second.id(), "bob", null, "yes");
     Question third = questions.ask(exceptionId, "bob", "Three?", List.of());
-    questions.answer(third.id(), "bob", null, "yes");
+    answers.answer(third.id(), "bob", null, "yes");
     assertThatThrownBy(() -> questions.ask(exceptionId, "bob", "Four?", List.of()))
         .isInstanceOf(IllegalStateException.class);
   }

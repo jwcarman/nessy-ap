@@ -39,9 +39,10 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
 /**
- * The agent's mail: to the buyer who placed the order, and to the vendor. The agent never chooses
- * an address; each tool writes to the address of record, so a changed or injected address cannot be
- * reached at all. Sends per case are capped, and every send lands on the case timeline.
+ * The agent's mail, to the vendor only: people inside the company are asked on the workbench
+ * ({@code ask_buyer}). The agent never chooses an address; each tool writes to the address of
+ * record, so a changed or injected address cannot be reached at all. Sends per case are capped, and
+ * every send lands on the case timeline.
  */
 @Component
 public class MailTools {
@@ -86,15 +87,6 @@ public class MailTools {
     this.maxPerCase = maxPerCase;
   }
 
-  public Tool<Letter> emailBuyer() {
-    return new Send(
-        "email_buyer",
-        "Email the buyer who placed this case's purchase order, for example to ask whether a price"
-            + " was agreed or which order an invoice belongs to. Replies come back to the case.",
-        "buyer",
-        this::buyerOf);
-  }
-
   public Tool<Letter> emailVendor() {
     return new Send(
         "email_vendor",
@@ -102,19 +94,6 @@ public class MailTools {
             + " allowed while the vendor has an unverified bank-detail change.",
         "vendor",
         this::vendorOf);
-  }
-
-  private Recipient buyerOf(CaseRecord c) {
-    if (c.poNumber() == null) {
-      return new Recipient.Nobody(
-          "This case has no purchase order, so there is no buyer of record to write to.");
-    }
-    if (erp.purchaseOrder(c.poNumber()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode po)
-        && po.hasNonNull("buyer")) {
-      return new Recipient.To(po.get("buyer").asString() + "@" + peopleDomain);
-    }
-    return new Recipient.Nobody(
-        "The purchase order " + c.poNumber() + " could not be read, or names no buyer.");
   }
 
   private Recipient vendorOf(CaseRecord c) {

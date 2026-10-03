@@ -20,16 +20,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
-import org.jwcarman.nessy.api.QueuedHarness;
-import org.jwcarman.nessyap.agent.cases.CaseInput;
-import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
-import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.support.Ids;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -37,8 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Questions for the people inside the company. A question waits for one person, who answers it on
- * the workbench once. The answer is that person's own word: it reaches the case's agent as a
- * trusted input, in the same transaction that records it.
+ * the workbench once ({@link Answers}).
  */
 @Component
 public class Questions {
@@ -48,37 +41,13 @@ public class Questions {
   static final int MAX_CHOICE = 80;
   static final int MAX_PER_CASE = 3;
 
-  /** What became of an answer. */
-  public sealed interface Answered {
-    record Told(Question question) implements Answered {}
-
-    record NotYours() implements Answered {}
-
-    record AlreadyAnswered() implements Answered {}
-
-    record NotAChoice() implements Answered {}
-
-    record NeedsAnAnswer() implements Answered {}
-
-    record NoSuchQuestion() implements Answered {}
-  }
-
   private final JdbcClient jdbc;
-  private final Cases cases;
   private final CaseTimeline timeline;
-  private final QueuedHarness<CaseInput> agent;
   private final Clock clock;
 
-  public Questions(
-      JdbcClient jdbc,
-      Cases cases,
-      CaseTimeline timeline,
-      QueuedHarness<CaseInput> agent,
-      Clock clock) {
+  public Questions(JdbcClient jdbc, CaseTimeline timeline, Clock clock) {
     this.jdbc = jdbc;
-    this.cases = cases;
     this.timeline = timeline;
-    this.agent = agent;
     this.clock = clock;
   }
 
@@ -139,72 +108,6 @@ public class Questions {
     return question;
   }
 
-  /** Answers a question as one person. Only the person asked may answer, and only once. */
-  @Transactional
-  public Answered answer(UUID questionId, String person, String choice, String comment) {
-    Optional<Question> found =
-        jdbc.sql("select * from question where id = :id for update")
-            .param("id", questionId)
-            .query(Questions::question)
-            .optional();
-    if (found.isEmpty()) {
-      return new Answered.NoSuchQuestion();
-    }
-    Question question = found.get();
-    if (!question.askedOf().equals(person)) {
-      return new Answered.NotYours();
-    }
-    if (question.answered()) {
-      return new Answered.AlreadyAnswered();
-    }
-    String picked = choice == null || choice.isBlank() ? null : choice;
-    String words = comment == null || comment.isBlank() ? null : comment.strip();
-    if (picked != null && !question.choices().contains(picked)) {
-      return new Answered.NotAChoice();
-    }
-    if (picked == null && words == null) {
-      return new Answered.NeedsAnAnswer();
-    }
-    Instant now = clock.instant();
-    jdbc.sql(
-            """
-            update question set answered_by = :person, choice = :choice, comment = :comment,
-                answered_at = :at
-            where id = :id
-            """)
-        .param("person", person)
-        .param("choice", picked)
-        .param("comment", words)
-        .param("at", Timestamp.from(now))
-        .param("id", questionId)
-        .update();
-    timeline.record(
-        question.exceptionId(),
-        "answer",
-        person
-            + " answered: "
-            + (picked == null ? words : picked + (words == null ? "" : ". " + words)));
-    cases
-        .find(question.exceptionId())
-        .map(CaseRecord::agentId)
-        .ifPresent(
-            agentId ->
-                agent.tell(
-                    agentId, new CaseInput.PersonAnswered(person, question.text(), picked, words)));
-    return new Answered.Told(
-        new Question(
-            question.id(),
-            question.exceptionId(),
-            person,
-            question.text(),
-            question.choices(),
-            question.askedAt(),
-            person,
-            picked,
-            words,
-            now));
-  }
-
   public List<Question> forCase(UUID exceptionId) {
     return jdbc.sql("select * from question where exception_id = :case order by asked_at")
         .param("case", exceptionId)
@@ -229,7 +132,7 @@ public class Questions {
         .single();
   }
 
-  private static Question question(ResultSet rs, int row) throws SQLException {
+  static Question question(ResultSet rs, int row) throws SQLException {
     Array choices = rs.getArray("choices");
     Timestamp answeredAt = rs.getTimestamp("answered_at");
     return new Question(

@@ -32,6 +32,7 @@ import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.quarantine.Quarantine;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
+import org.jwcarman.nessyap.agent.questions.QuestionNotice;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -50,6 +51,7 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
   @Autowired CaseTimeline timeline;
   @Autowired Quarantine quarantine;
   @Autowired UnmatchedMail unmatchedMail;
+  @Autowired QuestionNotice notice;
 
   private UUID exceptionId;
   private AgentId agentId;
@@ -178,6 +180,19 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
     drain();
 
     assertThat(unmatched()).containsOnlyOnce("Hello");
+  }
+
+  @Test
+  void a_reply_to_a_question_notice_reaches_no_case() throws Exception {
+    notice.send("stranger", "INV-1");
+    String noticeId = mailbox.awaitOne("stranger@nessy-ap.example").getHeader("Message-ID")[0];
+    mailbox.purgeAll();
+
+    reply("stranger@nessy-ap.example", "Re: A question waits for you", noticeId, "Yes", false);
+    drain();
+
+    assertThat(received(exceptionId)).isEmpty();
+    assertThat(unmatched()).containsOnlyOnce("Re: A question waits for you");
   }
 
   @Test

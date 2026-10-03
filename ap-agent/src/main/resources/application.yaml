@@ -83,6 +83,9 @@ ap:
       provider: ${AP_READER_PROVIDER:${nessy.provider}}
       model: ${AP_READER_MODEL:google/gemma-4-e4b}
       timeout: PT30S
+  # Where people answer the agent's questions; the notice mail links here.
+  workbench:
+    url: ${AP_WORKBENCH_URL:http://localhost:8082}
   # Development only: a page (and API) for answering the desk's mail as its recipient.
   counterparty:
     enabled: true

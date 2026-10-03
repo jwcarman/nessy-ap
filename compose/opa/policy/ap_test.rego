@@ -146,7 +146,7 @@ test_a_tool_the_policy_does_not_know_is_denied if {
 }
 
 test_the_buyer_and_the_case_notebook_need_no_approval if {
-	ap.decision == {"effect": "allow"} with input as {"toolName": "email_buyer", "arguments": {}, "facts": {}}
+	ap.decision == {"effect": "allow"} with input as {"toolName": "ask_buyer", "arguments": {}, "facts": {}}
 	ap.decision == {"effect": "allow"} with input as {"toolName": "note_case", "arguments": {}, "facts": {}}
 }
 
@@ -213,4 +213,9 @@ test_a_hold_or_a_reject_still_goes_through_after_instructions if {
 
 test_a_reply_without_instructions_does_not_block_payment if {
 	ap.decision.effect == "delegate" with input as proposal("approve-variance", tainted(false))
+}
+
+# Mail to the buyer is gone: people inside the company answer on the workbench.
+test_email_buyer_is_no_longer_a_tool_and_is_denied if {
+	ap.decision.effect == "deny" with input as {"toolName": "email_buyer", "arguments": {}, "facts": {}}
 }
