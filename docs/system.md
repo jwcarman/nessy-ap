@@ -17,33 +17,37 @@ The agent never moves money. It reads, writes mail to addresses of record, and p
 ## 2. The parts
 
 ```mermaid
-flowchart LR
-  subgraph ERP side
-    ERP[erp-sim<br/>ERP simulator]
-  end
-  subgraph Desk
+flowchart TB
+  PEOPLE([People<br/>clerk, buyer, manager, controller, auditor])
+  EVAL[ap-eval<br/>plays the people and the counterparties]
+  KC[Keycloak<br/>identity]
+
+  subgraph DESK[The desk]
     AGENT[ap-agent<br/>Nessy agents + workbench]
     OPA[OPA<br/>routing policy]
+    LLM[LM Studio<br/>local model]
   end
-  KC[Keycloak<br/>identity]
-  MQ[(RabbitMQ<br/>ERP events)]
-  PG[(Postgres)]
-  MAIL[GreenMail<br/>SMTP + IMAP]
-  LLM[LM Studio<br/>local model]
-  PEOPLE([People<br/>clerk, buyer, manager, controller, auditor])
-  EVAL[ap-eval<br/>scored scenarios]
 
-  ERP -- match-exception.raised, receipt.posted --> MQ --> AGENT
-  AGENT -- reads, service token --> ERP
-  AGENT -- every proposal and vendor mail --> OPA
-  AGENT -- inference --> LLM
-  AGENT -- sends and reads mail --> MAIL
+  MAIL[GreenMail<br/>SMTP + IMAP]
+  MQ[(RabbitMQ<br/>ERP events)]
+
+  subgraph ERPSIDE[The ERP]
+    ERP[erp-sim<br/>ERP simulator]
+  end
+
+  PG[(Postgres)]
+
   PEOPLE -- sign in --> KC
   PEOPLE -- decide in the workbench --> AGENT
-  AGENT -- the decision, with the decider's own token --> ERP
-  ERP --- PG
+  EVAL -.-> AGENT
+  AGENT -- each proposal and vendor mail --> OPA
+  AGENT -- inference --> LLM
+  AGENT <-- mail --> MAIL
+  ERP -- events --> MQ --> AGENT
+  AGENT -- reads, service token --> ERP
+  AGENT -- decisions, the decider's token --> ERP
   AGENT --- PG
-  EVAL -. plays the people and the counterparties .-> AGENT
+  ERP --- PG
 ```
 
 | Part | What it is |
@@ -210,9 +214,4 @@ flowchart LR
 
 ## 8. How to run it
 
-1. Start the infrastructure: `docker compose up -d`.
-2. Start the ERP: `java -jar erp-sim/target/erp-sim-0.1.0-SNAPSHOT.jar`.
-3. Start the desk: `java -jar ap-agent/target/ap-agent-0.1.0-SNAPSHOT.jar`.
-4. Open the workbench at http://localhost:8082/workbench. Sign in as `clara`, `bob`, `mark`,
-   `connie` or `audrey`. Each password is the user name.
-5. Run the evaluation: `java -jar ap-eval/target/ap-eval-0.1.0-SNAPSHOT.jar --repetitions=5`.
+See [Getting started](getting-started.md).

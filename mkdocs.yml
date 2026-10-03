@@ -1,0 +1,83 @@
+#
+# Copyright © 2026 James Carman
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+site_name: Nessy AP
+site_description: An accounts-payable exception desk built on Nessy, with the controls, trust boundaries and evaluation an enterprise needs.
+site_url: https://jwcarman.github.io/nessy-ap/
+repo_url: https://github.com/jwcarman/nessy-ap
+repo_name: jwcarman/nessy-ap
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+
+# Specs, plans and ledgers are working notes, not documentation. They stay out of the site.
+exclude_docs: |
+  /superpowers/
+
+theme:
+  name: material
+  font:
+    text: IBM Plex Sans
+    code: IBM Plex Mono
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - How it works: system.md
+  - Evaluation:
+      - evaluation/index.md
+      - "Slice 4: authority": evaluation/slice-4-enforcement.md
+      - "Slice 5: mail": evaluation/slice-5-mail.md
+      - "Slice 6: the full evaluation": evaluation/slice-6-evaluation.md
+  - Findings for Nessy: findings.md

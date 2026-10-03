@@ -36,7 +36,7 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <pre>
  * --repetitions=5 --timeout=PT5M --quiet=PT8S --erp=http://localhost:8081 --agent=http://localhost:8082
- * --label=qwen3-coder-30b --out=eval-results --scenarios=price-variance-small,duplicate
+ * --label=qwen3-coder-30b --out=target/eval-results --scenarios=price-variance-small,duplicate
  * --keycloak=http://localhost:58080/realms/nessy-ap
  * </pre>
  */
@@ -58,7 +58,7 @@ public class ApEvalApplication {
       int repetitions = Integer.parseInt(option(args, "repetitions", "5"));
       Duration timeout = Duration.parse(option(args, "timeout", "PT5M"));
       String label = option(args, "label", "unlabelled");
-      Path out = Path.of(option(args, "out", "eval-results"));
+      Path out = Path.of(option(args, "out", "target/eval-results"));
       List<Scenario> scenarios =
           args.containsOption("scenarios")
               ? Arrays.stream(option(args, "scenarios", "").split(","))
