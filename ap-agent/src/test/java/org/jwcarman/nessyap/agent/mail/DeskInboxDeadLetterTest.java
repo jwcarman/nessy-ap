@@ -41,6 +41,7 @@ import org.springframework.test.annotation.DirtiesContext;
 class DeskInboxDeadLetterTest extends ApAgentIntegrationTest {
 
   private static final String DESK = "ap-desk@nessy-ap.example";
+  private static final String MESSAGE_ID = "<dead-letter-test@nessy-ap.example>";
 
   @Autowired CamelContext camel;
   @Autowired JavaMailSender smtp;
@@ -68,6 +69,8 @@ class DeskInboxDeadLetterTest extends ApAgentIntegrationTest {
     helper.setTo(DESK);
     helper.setSubject("Re: [AP " + exceptionId + "] Which PO?");
     helper.setText("PO-7");
+    // JavaMailSenderImpl keeps a Message-ID set before sending, so the test knows its key.
+    reply.setHeader("Message-ID", MESSAGE_ID);
     smtp.send(reply);
     await().until(() -> mailbox.unseen(DESK) == 1);
 
@@ -87,7 +90,11 @@ class DeskInboxDeadLetterTest extends ApAgentIntegrationTest {
         .asString()
         .contains("IllegalStateException");
     assertThat(timeline.of(exceptionId)).isEmpty();
-    assertThat(jdbc.sql("select count(*) from camel_messageprocessed").query(Long.class).single())
+    assertThat(
+            jdbc.sql("select count(*) from camel_messageprocessed where messageid = :id")
+                .param("id", MESSAGE_ID)
+                .query(Long.class)
+                .single())
         .isZero();
   }
 }

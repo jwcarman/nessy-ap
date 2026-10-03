@@ -23,8 +23,12 @@ import org.springframework.stereotype.Component;
  * The desk's inbox. Each unseen message is read, deduplicated by its Message-ID, and either told to
  * its case's agent or set aside, in one transaction: the idempotent key, the timeline and the tell
  * commit or roll back together, and the mail consumer marks the message seen only when the exchange
- * completes. A message that cannot be handled is set aside in a transaction of its own and the
- * failed one rolled back, so it is marked seen and never holds up the inbox.
+ * completes.
+ *
+ * <p>A message that cannot be handled is set aside in a transaction of its own and the failed one
+ * rolled back; it is then marked seen. If setting it aside also fails, or the commit itself fails,
+ * the message stays unseen and is read again at the next poll. It never blocks the messages behind
+ * it, because each message is its own exchange.
  */
 @Component
 public class DeskInboxRoute extends RouteBuilder {
@@ -41,12 +45,6 @@ public class DeskInboxRoute extends RouteBuilder {
 
   @Override
   public void configure() {
-    onException(Exception.class)
-        .handled(true)
-        .useOriginalMessage()
-        .to(SET_ASIDE)
-        .markRollbackOnlyLast();
-
     from("imap://{{ap.mail.imap.host}}:{{ap.mail.imap.port}}"
             + "?username=RAW({{ap.mail.imap.username}})&password=RAW({{ap.mail.imap.password}})"
             + "&unseen=true&peek=true&delete=false&mapMailMessage=false"
@@ -54,16 +52,25 @@ public class DeskInboxRoute extends RouteBuilder {
             + "&additionalJavaMailProperties=#deskImapTimeouts")
         .routeId(ROUTE_ID)
         .autoStartup("{{ap.mail.poll.enabled}}")
-        .transacted()
+        .onException(Exception.class)
+        .handled(true)
+        .useOriginalMessage()
+        .to(SET_ASIDE)
+        .markRollbackOnlyLast()
+        .end()
+        .transacted(DeskMailConfig.REQUIRED)
         .bean(DeskMail.class, "read")
         .id("desk-read")
         .idempotentConsumer(simple("${body.messageId}"), handled)
         .skipDuplicate(true)
+        // The key is undone by the transaction's rollback, not by the repository.
+        .removeOnFailure(false)
         .bean(DeskMail.class, "deliver")
         .id(DELIVER);
 
     from(SET_ASIDE)
         .routeId("desk-set-aside")
+        .errorHandler(noErrorHandler())
         .transacted(DeskMailConfig.REQUIRES_NEW)
         .bean(DeskMail.class, "setAsideUnreadable");
   }

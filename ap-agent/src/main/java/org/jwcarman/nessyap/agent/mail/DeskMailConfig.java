@@ -29,6 +29,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Configuration(proxyBeanMethods = false)
 public class DeskMailConfig {
 
+  static final String REQUIRED = "deskRequired";
   static final String REQUIRES_NEW = "deskRequiresNew";
 
   /**
@@ -42,6 +43,14 @@ public class DeskMailConfig {
         new JdbcMessageIdRepository(dataSource, tx, DeskInboxRoute.ROUTE_ID);
     repository.setCreateTableIfNotExists(false);
     return repository;
+  }
+
+  /** The inbox route's one transaction: the idempotent key, the timeline and the tell. */
+  @Bean(REQUIRED)
+  public SpringTransactionPolicy deskRequired(PlatformTransactionManager transactions) {
+    SpringTransactionPolicy policy = new SpringTransactionPolicy(transactions);
+    policy.setPropagationBehaviorName("PROPAGATION_REQUIRED");
+    return policy;
   }
 
   /** Setting a message aside commits on its own, whatever happens to the exchange that failed. */
