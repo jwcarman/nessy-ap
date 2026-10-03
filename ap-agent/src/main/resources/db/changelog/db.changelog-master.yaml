@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/001-cases.sql
+  - include:
+      file: db/changelog/002-timeline.sql
+  - include:
+      file: db/changelog/003-decisions.sql

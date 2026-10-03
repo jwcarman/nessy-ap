@@ -13,14 +13,13 @@ services:
   rabbitmq:
     image: rabbitmq:4-management-alpine
     hostname: rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: nessyap
-      RABBITMQ_DEFAULT_PASS: nessyap
     ports:
       - "55672:5672"
       - "55673:15672"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+      - ./compose/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./compose/rabbitmq/10-definitions.conf:/etc/rabbitmq/conf.d/10-definitions.conf:ro
 volumes:
   postgres-data:
   rabbitmq-data:

@@ -37,6 +37,8 @@
   <modules>
     <module>ap-contracts</module>
     <module>erp-sim</module>
+    <module>ap-agent</module>
+    <module>ap-eval</module>
   </modules>
 
   <properties>
@@ -51,6 +53,13 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.jwcarman.nessy</groupId>
+        <artifactId>nessy-bom</artifactId>
+        <version>${nessy.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>testcontainers-bom</artifactId>

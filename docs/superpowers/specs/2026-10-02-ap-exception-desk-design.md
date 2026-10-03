@@ -407,6 +407,21 @@ Nessy design conversations, not changes made from this repo.
   name a moment ago" assumes a join that is impossible. Noted, not yet acted
   on — collect more findings first.
 
+- **F7 — `ApprovalRequest.callKey()` is unique only within one agent.** It is
+  `turn/callId`, and turn numbers count per agent, so two agents' first
+  proposals share a key. An app keying decisions by it alone collides across
+  agents; `pending_decision` keys on `(agent_id, call_key)`. The javadoc does
+  not say so.
+
+- **F8 — The queued door's dispatcher could stop for good (FIXED on a Nessy
+  branch, 2026-10-03).** Seen in the first live eval: `EffectDispatcher`
+  released `batchSize - attempts.size()`, a claim returned more rows than its
+  batch, the semaphore threw, and the drained permits were never returned.
+  Every later case was told but never ran. Fixed on Nessy branch
+  `fix-effect-claim-overshoot`: the dispatcher never releases a negative count,
+  and the JDBC claim locks its rows in a CTE. Why the claim overshot was not
+  reproduced in a test.
+
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`
 give an idempotent answer path (§3.3); `PolicyApprover` + `Verdict.Delegate`
