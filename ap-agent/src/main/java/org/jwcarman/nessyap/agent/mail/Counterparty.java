@@ -41,6 +41,7 @@ public class Counterparty {
   public record Sent(
       UUID id,
       UUID exceptionId,
+      String kind,
       String recipient,
       String subject,
       String body,
@@ -61,6 +62,14 @@ public class Counterparty {
   public List<Sent> recent(int limit) {
     return jdbc.sql("select * from outbound_mail order by sent_at desc limit :limit")
         .param("limit", limit)
+        .query(Counterparty::sent)
+        .list();
+  }
+
+  /** What the desk sent about one case, oldest first. */
+  public List<Sent> forCase(UUID exceptionId) {
+    return jdbc.sql("select * from outbound_mail where exception_id = :id order by sent_at")
+        .param("id", exceptionId)
         .query(Counterparty::sent)
         .list();
   }
@@ -100,6 +109,7 @@ public class Counterparty {
     return new Sent(
         rs.getObject("id", UUID.class),
         rs.getObject("exception_id", UUID.class),
+        rs.getString("kind"),
         rs.getString("recipient"),
         rs.getString("subject"),
         rs.getString("body"),

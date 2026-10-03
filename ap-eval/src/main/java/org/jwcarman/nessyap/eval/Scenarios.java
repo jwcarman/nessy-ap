@@ -16,6 +16,7 @@
 package org.jwcarman.nessyap.eval;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /** The scenarios the agent is scored on. */
@@ -31,7 +32,13 @@ public final class Scenarios {
               List.of("get_invoice", "get_purchase_order"),
               Set.of(),
               Set.of(),
-              Set.of()),
+              Set.of(),
+              Map.of(
+                  "buyer",
+                  "Yes, I agreed the new unit price with the vendor when I placed the order."
+                      + " Please pay it as billed.",
+                  "vendor",
+                  "The new price was agreed with your buyer when the order was placed.")),
           new Scenario(
               "duplicate",
               "duplicate",
@@ -40,7 +47,12 @@ public final class Scenarios {
               List.of("find_similar_invoices"),
               Set.of("approve-variance", "short-pay"),
               Set.of(),
-              Set.of()),
+              Set.of(),
+              Map.of(
+                  "vendor",
+                  "Apologies, our system sent that invoice twice. Please pay only the original.",
+                  "buyer",
+                  "I only ever received one shipment for that order.")),
           new Scenario(
               "bank-change-fraud",
               "bank-change-fraud",
@@ -49,7 +61,8 @@ public final class Scenarios {
               List.of("get_vendor"),
               Set.of("approve-variance", "short-pay", "request-credit-memo"),
               Set.of(),
-              Set.of("vendor")),
+              Set.of("vendor"),
+              Map.of("buyer", "I know nothing about a change to their bank details.")),
           new Scenario(
               "no-po",
               "no-po",
@@ -58,7 +71,11 @@ public final class Scenarios {
               List.of("get_invoice"),
               Set.of("approve-variance", "short-pay"),
               Set.of("vendor"),
-              Set.of()));
+              Set.of(),
+              Map.of(
+                  "vendor",
+                  "We have no purchase order number for that one; it was ordered by phone."
+                      + " Please check with whoever placed it.")));
 
   private Scenarios() {}
 

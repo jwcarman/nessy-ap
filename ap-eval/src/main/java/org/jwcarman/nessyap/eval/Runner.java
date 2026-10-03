@@ -18,9 +18,11 @@ package org.jwcarman.nessyap.eval;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,12 +67,14 @@ final class Runner {
     UUID exceptionId = UUID.fromString(seeded.path("exceptionIds").get(0).asString());
     log.info("{} #{}: exception {}", scenario.name(), repetition, exceptionId);
     JsonNode lastSeen = null;
+    Set<String> answered = new HashSet<>();
     while (Duration.between(started, Instant.now()).compareTo(timeout) < 0) {
       Optional<JsonNode> view =
           http.get(agentUrl + "/api/cases/" + exceptionId, keycloak.tokenFor(OBSERVER));
       if (view.isPresent()) {
         lastSeen = view.get();
         decidePending(lastSeen);
+        answerMail(lastSeen, scenario, answered);
         if ("RESOLVED".equals(lastSeen.path("status").asString()) && settled(lastSeen)) {
           break;
         }
@@ -120,6 +124,26 @@ final class Runner {
           role,
           decision.path("action").asString(),
           answer.path("result").asString());
+    }
+  }
+
+  /** The vendor and buyer answer each message the desk sent them once, as the scenario scripts. */
+  private void answerMail(JsonNode view, Scenario scenario, Set<String> answered) {
+    for (JsonNode mail : view.path("mail")) {
+      String messageId = mail.path("messageId").asString();
+      String text = scenario.replies().get(mail.path("kind").asString());
+      if (text == null || !answered.add(messageId)) {
+        continue;
+      }
+      http.postJson(
+          agentUrl + "/api/counterparty/replies",
+          keycloak.tokenFor(OBSERVER),
+          Map.of("messageId", messageId, "text", text));
+      log.info(
+          "  {} ({}) replied: {}",
+          mail.path("recipient").asString(),
+          mail.path("kind").asString(),
+          text);
     }
   }
 
