@@ -303,8 +303,15 @@ class MatchEngineTest {
     }
 
     @Test
-    void flags_the_same_po_and_total_within_a_week() {
+    void the_same_po_and_total_within_a_week_is_only_a_possible_duplicate() {
       assertThat(base().withPriors(prior("INV-0999", "PO-1", DATE.minusDays(5), "1000.00")).match())
+          .extracting(MatchFinding::code)
+          .containsExactly(ReasonCode.POSSIBLE_DUPLICATE);
+    }
+
+    @Test
+    void the_same_number_is_a_duplicate_even_when_the_po_and_total_match_too() {
+      assertThat(base().withPriors(prior("INV1001", "PO-1", DATE.minusDays(5), "1000.00")).match())
           .extracting(MatchFinding::code)
           .containsExactly(ReasonCode.DUPLICATE);
     }

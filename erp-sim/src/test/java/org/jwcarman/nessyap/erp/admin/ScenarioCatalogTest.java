@@ -52,7 +52,8 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
         Arguments.of("no-po", List.of(ReasonCode.NO_PO), "1000.00"),
         Arguments.of("unplanned-freight", List.of(ReasonCode.UNPLANNED_CHARGE), "85.00"),
         Arguments.of("bank-change-fraud", List.of(ReasonCode.VENDOR_BANK_CHANGED), "1000.00"),
-        Arguments.of("duplicate-injected", List.of(ReasonCode.DUPLICATE), "1000.00"));
+        Arguments.of("duplicate-injected", List.of(ReasonCode.DUPLICATE), "1000.00"),
+        Arguments.of("possible-duplicate", List.of(ReasonCode.POSSIBLE_DUPLICATE), "1000.00"));
   }
 
   @ParameterizedTest(name = "{0}")

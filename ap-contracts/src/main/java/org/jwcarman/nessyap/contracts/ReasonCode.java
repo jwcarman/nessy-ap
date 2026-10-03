@@ -20,7 +20,13 @@ public enum ReasonCode {
   PRICE_VARIANCE,
   QTY_OVER_RECEIPT,
   NO_RECEIPT,
+  /** The same invoice number (ignoring punctuation and case) as one already received. */
   DUPLICATE,
+  /**
+   * The same purchase order and total as an invoice received a few days apart, under a different
+   * number: possibly a repeat, possibly a second shipment billed alike.
+   */
+  POSSIBLE_DUPLICATE,
   NO_PO,
   UNPLANNED_CHARGE,
   VENDOR_BANK_CHANGED

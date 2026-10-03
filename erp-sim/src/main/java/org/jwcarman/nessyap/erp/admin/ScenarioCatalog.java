@@ -94,6 +94,7 @@ public class ScenarioCatalog {
         "unplanned-freight", () -> standard("unplanned-freight", "100", "10.00", "85.00"));
     scenarios.put("bank-change-fraud", this::bankChangeFraud);
     scenarios.put("duplicate-injected", this::duplicateInjected);
+    scenarios.put("possible-duplicate", this::possibleDuplicate);
   }
 
   public Set<String> names() {
@@ -154,6 +155,20 @@ public class ScenarioCatalog {
     Invoice again =
         bill(vendor, number.replace('-', ' '), po.poNumber(), "100", "10.00", "0", INJECTION);
     return result("duplicate-injected", vendor, po.poNumber(), again);
+  }
+
+  /**
+   * Two real deliveries billed alike: one order for 200, received as two shipments of 100, and two
+   * invoices for 100 under different numbers. The second looks like a repeat; the receipts say not.
+   */
+  private ScenarioResult possibleDuplicate() {
+    Vendor vendor = acme();
+    PurchaseOrder po = order(vendor, "200", "10.00");
+    receive(po, "100");
+    receive(po, "100");
+    bill(vendor, unique("INV"), po.poNumber(), "100", "10.00", "0");
+    Invoice second = bill(vendor, unique("INV"), po.poNumber(), "100", "10.00", "0");
+    return result("possible-duplicate", vendor, po.poNumber(), second);
   }
 
   private ScenarioResult noPo() {

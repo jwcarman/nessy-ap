@@ -99,8 +99,25 @@ else := {"effect": "deny", "reason": "the amount in question is unknown"} if {
 	not at_issue
 }
 
+# The same invoice number as one already received is a repeat: nothing pays it from the desk, however
+# its text argues. Reject it (or hold it while someone looks).
+else := {
+	"effect": "deny",
+	"reason": "an invoice with the same number as one already received is never paid from the desk: reject it",
+} if {
+	input.facts.reasonCode == "DUPLICATE"
+	action in moves_money
+}
+
 else := {"effect": "delegate", "to": "ap-clerk"} if {
 	action in {"hold", "request-credit-memo"}
+}
+
+# The same order and total a few days apart may be a second shipment billed alike. Paying it is the
+# controller's call at any amount, once the receipts show two deliveries.
+else := {"effect": "delegate", "to": "controller"} if {
+	input.facts.reasonCode == "POSSIBLE_DUPLICATE"
+	action in {"approve-variance", "short-pay"}
 }
 
 else := {"effect": "delegate", "to": "controller"} if amount > limit

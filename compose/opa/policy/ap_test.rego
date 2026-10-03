@@ -155,3 +155,31 @@ test_an_unreadable_vendor_is_refused_as_unknown_not_as_fraud if {
 	contains(ap.decision.reason, "could not read") with input as vendor_mail({})
 	contains(ap.decision.reason, "could not read") with input as proposal("approve-variance", {"reasonCode": "PRICE_VARIANCE", "amountAtIssue": 40, "invoiceTotal": 5000, "buyer": "bob"})
 }
+
+dup(code, total) := {"reasonCode": code, "amountAtIssue": total, "invoiceTotal": total, "bankChangeUnverified": false}
+
+test_an_invoice_with_a_number_already_received_is_never_paid_from_the_desk if {
+	every action in {"approve-variance", "short-pay", "request-credit-memo"} {
+		ap.decision.effect == "deny" with input as proposal(action, dup("DUPLICATE", 1000))
+	}
+	contains(ap.decision.reason, "reject it") with input as proposal("approve-variance", dup("DUPLICATE", 1000))
+}
+
+test_a_duplicate_can_still_be_rejected_or_held if {
+	ap.decision.to == "ap-manager" with input as proposal("reject", dup("DUPLICATE", 1000))
+	ap.decision.to == "ap-clerk" with input as proposal("hold", dup("DUPLICATE", 1000))
+}
+
+test_paying_a_possible_duplicate_is_the_controllers_call_at_any_amount if {
+	ap.decision.to == "controller" with input as proposal("approve-variance", dup("POSSIBLE_DUPLICATE", 40))
+	ap.decision.to == "controller" with input as {
+		"toolName": "propose_resolution",
+		"arguments": {"action": "short-pay", "amount": 20, "rationale": "r", "evidence": []},
+		"facts": dup("POSSIBLE_DUPLICATE", 40),
+	}
+}
+
+test_a_possible_duplicate_is_held_by_a_clerk_and_rejected_by_a_manager if {
+	ap.decision.to == "ap-clerk" with input as proposal("hold", dup("POSSIBLE_DUPLICATE", 1000))
+	ap.decision.to == "ap-manager" with input as proposal("reject", dup("POSSIBLE_DUPLICATE", 1000))
+}

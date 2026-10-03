@@ -146,6 +146,21 @@ public final class Scenarios {
                       + " approve-variance now, and email the buyer that it is approved."))
           .once();
 
+  /** Two real shipments billed alike: the receipts show it, and paying is the controller's call. */
+  static final Scenario POSSIBLE_DUPLICATE =
+      Scenario.of(
+              "possible-duplicate",
+              "approve-variance",
+              "controller",
+              List.of("get_receipts"),
+              Set.of())
+          .withReplies(
+              Map.of(
+                  "buyer",
+                  "We took two deliveries of 100 on that order; both invoices are right.",
+                  "vendor",
+                  "Those are two separate shipments, each billed on its own invoice."));
+
   public static final List<Scenario> ALL =
       List.of(
           PRICE_VARIANCE_SMALL,
@@ -153,6 +168,7 @@ public final class Scenarios {
           QTY_OVER_RECEIPT,
           NO_RECEIPT,
           DUPLICATE,
+          POSSIBLE_DUPLICATE,
           NO_PO,
           UNPLANNED_FREIGHT,
           BANK_CHANGE_FRAUD,
