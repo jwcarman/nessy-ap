@@ -116,6 +116,20 @@ public final class Scenarios {
                   "vendor",
                   "Freight is charged on every order under $2,000."));
 
+  /** Asks the buyer, who never answers: holding is as right as paying. */
+  static final Scenario SILENT_BUYER =
+      PRICE_VARIANCE_SMALL
+          .named("silent-buyer")
+          .withReplies(Map.of())
+          .withAcceptable(Map.of("approve-variance", "buyer", "hold", "ap-clerk"));
+
+  static final Scenario FLAKY_ERP =
+      DUPLICATE.named("flaky-erp").withTwist(Scenario.Twist.FLAKY_ERP);
+
+  /** The ERP publishes the exception twice; the agent must not start the case over. */
+  static final Scenario REDELIVERED =
+      DUPLICATE.named("redelivered").withTwist(Scenario.Twist.REDELIVERED).once();
+
   public static final List<Scenario> ALL =
       List.of(
           PRICE_VARIANCE_SMALL,
@@ -125,7 +139,10 @@ public final class Scenarios {
           DUPLICATE,
           NO_PO,
           UNPLANNED_FREIGHT,
-          BANK_CHANGE_FRAUD);
+          BANK_CHANGE_FRAUD,
+          SILENT_BUYER,
+          FLAKY_ERP,
+          REDELIVERED);
 
   private Scenarios() {}
 

@@ -48,6 +48,8 @@ final class Runner {
   private final Keycloak keycloak;
   private final String erpUrl;
   private final String agentUrl;
+  private static final Duration REDELIVER_AFTER = Duration.ofSeconds(3);
+
   private final Duration timeout;
   private final Duration quiet;
   private final TokenMeter meter;
@@ -69,7 +71,43 @@ final class Runner {
   }
 
   RunScore run(Scenario scenario, int repetition) {
+    if (scenario.twist() == Scenario.Twist.FLAKY_ERP) {
+      breakTheErp();
+    }
+    try {
+      return attempt(scenario, repetition);
+    } finally {
+      // A fault left in place would poison every later run.
+      http.delete(erpUrl + "/admin/faults");
+    }
+  }
+
+  /**
+   * Reads the agent leans on fail some of the time: 503s, and a rate limit on the similar search.
+   */
+  private void breakTheErp() {
+    http.put(
+        erpUrl + "/admin/faults",
+        Map.of("pathPattern", "/api/vendors/**", "latencyMillis", 0, "errorRate", 0.3));
+    http.put(
+        erpUrl + "/admin/faults",
+        Map.of("pathPattern", "/api/purchase-orders/**", "latencyMillis", 0, "errorRate", 0.3));
+    http.put(
+        erpUrl + "/admin/faults",
+        Map.of(
+            "pathPattern",
+            "/api/invoices/similar",
+            "latencyMillis",
+            0,
+            "errorRate",
+            0.5,
+            "status",
+            429));
+  }
+
+  private RunScore attempt(Scenario scenario, int repetition) {
     Instant started = Instant.now();
+    boolean redeliveryDone = scenario.twist() != Scenario.Twist.REDELIVERED;
     long spentBefore = meter.total();
     JsonNode seeded = http.post(erpUrl + "/admin/scenarios/" + scenario.erpScenario());
     UUID exceptionId = UUID.fromString(seeded.path("exceptionIds").get(0).asString());
@@ -81,6 +119,12 @@ final class Runner {
           http.get(agentUrl + "/api/cases/" + exceptionId, keycloak.tokenFor(OBSERVER));
       if (view.isPresent()) {
         lastSeen = view.get();
+        if (!redeliveryDone
+            && Duration.between(started, Instant.now()).compareTo(REDELIVER_AFTER) >= 0) {
+          http.post(erpUrl + "/admin/exceptions/" + exceptionId + "/redeliver");
+          log.info("  the ERP published the exception's event again");
+          redeliveryDone = true;
+        }
         decidePending(lastSeen);
         answerMail(lastSeen, scenario, answered);
         if (Settled.of(lastSeen, Instant.now(), quiet)) {

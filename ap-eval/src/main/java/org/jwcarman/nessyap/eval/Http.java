@@ -58,6 +58,17 @@ final class Http {
         .orElseThrow(() -> new IllegalStateException("POST " + url + " found nothing"));
   }
 
+  void put(String url, Object body) {
+    send(
+        HttpRequest.newBuilder(URI.create(url))
+            .header("Content-Type", "application/json")
+            .PUT(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))));
+  }
+
+  void delete(String url) {
+    send(HttpRequest.newBuilder(URI.create(url)).DELETE());
+  }
+
   private Optional<JsonNode> send(HttpRequest.Builder request) {
     try {
       HttpResponse<String> response =

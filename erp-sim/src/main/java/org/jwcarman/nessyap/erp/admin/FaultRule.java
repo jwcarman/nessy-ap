@@ -22,11 +22,19 @@ import org.jwcarman.nessyap.erp.support.InvalidRequestException;
  *
  * @param pathPattern a Spring path pattern under {@code /api/}, e.g. {@code /api/vendors/**}
  * @param latencyMillis how long to stall every matching request
- * @param errorRate the share of matching requests answered 503, from 0 to 1
+ * @param errorRate the share of matching requests that fail, from 0 to 1
+ * @param status how they fail: 503 (the default, when absent) or 429, a rate limit
  */
-public record FaultRule(String pathPattern, long latencyMillis, double errorRate) {
+public record FaultRule(String pathPattern, long latencyMillis, double errorRate, Integer status) {
+
+  public static final int UNAVAILABLE = 503;
+  public static final int RATE_LIMITED = 429;
 
   public FaultRule {
+    status = status == null ? UNAVAILABLE : status;
+    if (status != UNAVAILABLE && status != RATE_LIMITED) {
+      throw new InvalidRequestException("status must be 503 or 429");
+    }
     if (pathPattern == null || !pathPattern.startsWith("/api/")) {
       throw new InvalidRequestException("Faults apply only under /api/");
     }

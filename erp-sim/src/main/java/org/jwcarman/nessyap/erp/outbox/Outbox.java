@@ -16,6 +16,7 @@
 package org.jwcarman.nessyap.erp.outbox;
 
 import java.sql.Timestamp;
+import java.util.UUID;
 import org.jwcarman.nessyap.contracts.ErpEvent;
 import org.jwcarman.nessyap.contracts.ErpEvents;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -51,5 +52,20 @@ public class Outbox {
         .param("payload", json.writeValueAsString(event))
         .param("createdAt", Timestamp.from(event.occurredAt()))
         .update();
+  }
+
+  /**
+   * Publishes an exception's "raised" event again, under the same event id: what a broker
+   * redelivery or a publisher crash after sending looks like to a consumer. For the evaluation.
+   */
+  public boolean redeliverRaised(UUID exceptionId) {
+    return jdbc.sql(
+                """
+                update outbox set published_at = null
+                where event_type = 'match-exception.raised' and payload->>'exceptionId' = :id
+                """)
+            .param("id", exceptionId.toString())
+            .update()
+        > 0;
   }
 }

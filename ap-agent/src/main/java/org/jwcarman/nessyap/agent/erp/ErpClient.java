@@ -192,6 +192,12 @@ public class ErpClient {
       return new ErpOutcome.Unavailable<>("interrupted");
     }
     int status = response.statusCode();
+    if (status == 429) {
+      // A rate limit is a wait, never a refusal: say how long the ERP asked for.
+      String wait = response.headers().firstValue("Retry-After").orElse("a few");
+      return new ErpOutcome.Unavailable<>(
+          "rate limited by the ERP; retry after " + wait + " seconds");
+    }
     if (status >= 500) {
       return new ErpOutcome.Unavailable<>("HTTP " + status + " " + detailOf(response.body()));
     }

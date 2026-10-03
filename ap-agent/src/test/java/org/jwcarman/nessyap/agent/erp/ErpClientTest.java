@@ -120,6 +120,20 @@ class ErpClientTest {
     }
 
     @Test
+    void a_rate_limit_is_a_wait_not_a_refusal() {
+      erp.on(
+          "GET",
+          "/api/invoices/" + ID,
+          429,
+          "{\"status\":429,\"code\":\"RATE_LIMITED\",\"detail\":\"Injected rate limit\"}");
+
+      assertThat(client.invoice(ID))
+          .isInstanceOfSatisfying(
+              ErpOutcome.Unavailable.class,
+              u -> assertThat(u.reason()).contains("rate limited").contains("retry"));
+    }
+
+    @Test
     void a_slow_erp_is_unavailable() {
       erp.on("GET", "/api/invoices/" + ID, 200, "{}", Duration.ofSeconds(3));
 
