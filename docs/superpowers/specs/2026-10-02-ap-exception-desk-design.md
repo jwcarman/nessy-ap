@@ -1,6 +1,6 @@
 # AP Exception Desk — design
 
-Status: DRAFT r2 (2026-10-02). §0, §2 and §3 were walked through and agreed in
+Status: APPROVED r2 (2026-10-02). §0, §2 and §3 were walked through and agreed in
 conversation; the rest was drafted from those decisions. r2 folds in a Fable
 review checked against the Nessy source (see "Decisions from review", §12).
 
@@ -75,9 +75,9 @@ possible later identity lesson — §3.4 does not need it).
 
 Maven multi-module repo: `erp-sim`, `ap-agent`, `ap-eval`, and a small
 `ap-contracts` module holding the event and API DTOs shared by all three.
-Java 25, Spring Boot 4.1.x (matching Nessy), Nessy pinned to 0.3.0 (which has
-`Replies` and deferral); move to a SNAPSHOT only when a finding needs a Nessy
-change to proceed.
+Java 25, Spring Boot 4.1.x (matching Nessy), Nessy at the **local
+`0.4.0-SNAPSHOT`** (`./mvnw install -DskipTests` in `nessy`; reinstall after
+any Nessy change before building here, or a stale jar in `~/.m2` shadows it).
 
 ## 2. `erp-sim` — the simulated ERP
 
