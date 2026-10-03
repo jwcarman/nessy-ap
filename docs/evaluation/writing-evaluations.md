@@ -87,6 +87,34 @@ scorer checks the citations:
 The desk applies the same rule, and the workbench warns an approver about any citation that the
 agent never read.
 
+### A model can copy an id wrongly
+
+In one `possible-duplicate` run, gpt-6.1-sol reached the right answer and cited a vendor id that
+did not exist. One character was wrong:
+
+```text
+invoice    01a10360-722c-7012-…
+original   01a10360-7228-76fe-…
+vendor     01a10360-721d-7753-…   the id the tool returned
+cited      01a10360-722d-7753-…   the id the agent wrote
+```
+
+A model does not type an id. It reproduces the id one token at a time from the text it has seen.
+These ids are UUIDv7: they start with a timestamp, so every record the seed creates for one case
+shares its first 13 characters. The cited id is a blend of the invoices it had just read
+(`722`) and the vendor (`d-7753`).
+
+The evidence check failed the run, because no tool had returned that id. Without the check, an
+approver would see a plausible vendor id that points at nothing. The agent noticed the error by
+itself a few seconds after the approval and wrote a correction note, but the approval had
+already happened.
+
+It happened once in about 1,170 hosted runs. Two lessons follow:
+
+- **Check every citation mechanically.** A model cannot promise to copy a string exactly.
+- **Ids are part of what the model reads.** Ids that differ in a few characters are easy to
+  confuse. If an agent must cite records, give it references that are short and distinct.
+
 ## 6. Play every other person through the real doors
 
 The evaluation plays the buyer, the vendor and every decider. It uses the doors a person uses:
