@@ -198,7 +198,7 @@ public class MailTools {
         MailSent sent =
             mailer.send(c.exceptionId(), kind, address, letter.subject(), letter.body());
         timeline.record(c.exceptionId(), "mail-sent", kind + " " + address + ": " + sent.subject());
-        cases.setStatus(c.exceptionId(), CaseStatus.AWAITING_ANSWER);
+        cases.moveStatus(c.exceptionId(), CaseStatus.INVESTIGATING, CaseStatus.AWAITING_ANSWER);
         return ToolResult.ok(
             new Block.Text(
                 "Sent to the "

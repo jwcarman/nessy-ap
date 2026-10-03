@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.UUID;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.support.Ids;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,6 +62,9 @@ public class Questions {
    */
   @Transactional
   public Question ask(UUID exceptionId, String askedOf, String text, List<String> choices) {
+    if (choices != null && choices.stream().anyMatch(c -> c == null || c.isBlank())) {
+      throw new IllegalArgumentException("A choice needs words.");
+    }
     List<String> offered = choices == null ? List.of() : List.copyOf(choices);
     if (text == null || text.isBlank() || text.length() > MAX_TEXT) {
       throw new IllegalArgumentException(
@@ -92,18 +96,25 @@ public class Questions {
             null,
             null,
             null);
-    jdbc.sql(
-            """
+    try {
+      jdbc.sql(
+              """
             insert into question (id, exception_id, asked_of, text, choices, asked_at)
             values (:id, :case, :askedOf, :text, :choices, :at)
             """)
-        .param("id", question.id())
-        .param("case", exceptionId)
-        .param("askedOf", askedOf)
-        .param("text", text)
-        .param("choices", offered.toArray(String[]::new))
-        .param("at", Timestamp.from(question.askedAt()))
-        .update();
+          .param("id", question.id())
+          .param("case", exceptionId)
+          .param("askedOf", askedOf)
+          .param("text", text)
+          .param("choices", offered.toArray(String[]::new))
+          .param("at", Timestamp.from(question.askedAt()))
+          .update();
+    } catch (DuplicateKeyException askedAtOnce) {
+      // Another question was asked on this case at the same moment, and it waits now.
+      throw new IllegalStateException(
+          "A question already waits on this case. Wait for its answer before asking another.",
+          askedAtOnce);
+    }
     timeline.record(exceptionId, "question-asked", "to " + askedOf + ": " + text);
     return question;
   }

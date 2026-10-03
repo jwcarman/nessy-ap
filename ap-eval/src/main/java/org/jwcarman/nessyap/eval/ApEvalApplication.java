@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
+import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -61,7 +62,8 @@ public class ApEvalApplication {
    * Makes the runs side by side, at most {@code parallel} at once, on virtual threads; the scores
    * come back in the schedule's order, whatever order the runs finish in.
    */
-  static List<RunScore> together(Runner runner, List<Schedule.Run> runs, int parallel) {
+  static List<RunScore> together(
+      BiFunction<Scenario, Integer, RunScore> runner, List<Schedule.Run> runs, int parallel) {
     Semaphore slots = new Semaphore(parallel);
     try (ExecutorService threads = Executors.newVirtualThreadPerTaskExecutor()) {
       List<Future<RunScore>> pending =
@@ -72,7 +74,16 @@ public class ApEvalApplication {
                           () -> {
                             slots.acquire();
                             try {
-                              return runner.run(run.scenario(), run.repetition());
+                              return runner.apply(run.scenario(), run.repetition());
+                            } catch (RuntimeException broke) {
+                              // One broken run must not take the others' results with it.
+                              log.warn(
+                                  "{} #{} broke: {}",
+                                  run.scenario().name(),
+                                  run.repetition(),
+                                  broke.toString());
+                              return Scoring.score(
+                                  run.scenario(), run.repetition(), Runner.unobserved("ERROR"));
                             } finally {
                               slots.release();
                             }
@@ -117,7 +128,7 @@ public class ApEvalApplication {
       runner.clearFaults();
       Schedule schedule = Schedule.of(scenarios, repetitions);
       int parallel = Integer.parseInt(option(args, "parallel", "4"));
-      List<RunScore> scores = new ArrayList<>(together(runner, schedule.together(), parallel));
+      List<RunScore> scores = new ArrayList<>(together(runner::run, schedule.together(), parallel));
       schedule.alone().forEach(run -> scores.add(runner.run(run.scenario(), run.repetition())));
       Path report = Report.write(out, label, scores, json);
       log.info(

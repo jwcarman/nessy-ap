@@ -150,6 +150,7 @@ flowchart TB
 | Invoice and PO numbers as written on the invoice | The vendor | Claims, shown as text. The ERP checks only that the invoice number is not blank (see §7). |
 | Mail replies | Anyone who can send mail | Held by Occlude, labelled unendorsed. The agent never reads the text. A model with no tools reads each reply into a typed reading: intent, a PO number of the ERP's shape, and whether the mail tried to give instructions. A PO number is trusted only when the ERP holds it for the case's vendor. People who work cases read the mail on the workbench, and each read is in Occlude's record. Mail that answers no case is held the same way, for managers. |
 | Notes from the workbench | Signed-in people with a deciding role | Instructions from the team. |
+| Answers to the agent's questions | The person asked, signed in on the workbench | That person's own word. Only the person asked may answer, once. The question goes to the buyer the ERP names on a PO that belongs to the case's vendor. |
 | The model's output | The model | Proposals only. They have no authority. |
 
 ## 5. The controls
@@ -212,9 +213,9 @@ flowchart LR
 
 - **Vendor-written numbers are free text.** The invoice number and the PO number as written on an
   invoice reach the agent as text. The ERP checks only that the invoice number is not blank.
-- **An honest reply can read as an instruction.** "Please pay it as billed" from the buyer is
-  flagged, and the policy then holds a case that a person could approve. The cost is a hold,
-  never a payment.
+- **A flagged case is settled outside the desk.** When a reply tries to give instructions or
+  claim an approval, or cannot be read at all, the desk will not move money on that case again.
+  Nothing in the desk lowers the flag; a person settles the invoice in the ERP.
 - **Stored history is never expired.** Nessy keeps every agent's history, encrypted, with no
   retention rule (Nessy finding F13).
 - **The eval's approver approves everything.** A real approver sees the evidence. The eval measures

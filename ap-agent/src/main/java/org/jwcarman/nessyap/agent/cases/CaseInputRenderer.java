@@ -59,14 +59,18 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
               var claimedPo,
               var confirmedPo,
               var instructions) ->
-          reply(from, intent, offers, price, claimedPo, confirmedPo, instructions);
+          reply(from, intent, offers, price, claimedPo, confirmedPo, instructions) + NEXT;
       case CaseInput.PersonAnswered(var person, var question, var choice, var comment) ->
-          answer(person, question, choice, comment);
+          answer(person, question, choice, comment) + NEXT;
       case CaseInput.DecisionApplied(var decisionId, var action, var outcome) ->
           "Decision %s (%s) was %s. Re-read the invoice before doing anything else."
               .formatted(decisionId, action, outcome);
     };
   }
+
+  /** An answer settles a wait, so it always ends by asking for a move. */
+  private static final String NEXT =
+      " Now propose the resolution that fits, or ask again if you still need to know something.";
 
   /** A reply as the agent may know it: who, and a typed reading. Never the mail's words. */
   private static String reply(

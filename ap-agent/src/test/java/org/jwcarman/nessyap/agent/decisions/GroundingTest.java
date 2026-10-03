@@ -67,7 +67,9 @@ class GroundingTest extends ApAgentIntegrationTest {
         "GET",
         "/api/invoices/" + ORIGINAL,
         200,
-        "{\"invoice\":{\"id\":\"" + ORIGINAL + "\",\"status\":\"MATCHED\"},\"exceptions\":[]}");
+        "{\"invoice\":{\"id\":\""
+            + ORIGINAL
+            + "\",\"poNumber\":\"PO-12\",\"status\":\"MATCHED\"},\"exceptions\":[]}");
     model.script(
         steps(
             call("c1", "get_invoice", "{\"invoiceId\":\"" + ORIGINAL + "\"}"),
@@ -80,7 +82,7 @@ class GroundingTest extends ApAgentIntegrationTest {
                     + ORIGINAL
                     + "\",\""
                     + NEVER_READ
-                    + "\"]}")));
+                    + "\",\"PO-1\"]}")));
     UUID exceptionId = UUID.randomUUID();
     MatchExceptionRaised raised =
         new MatchExceptionRaised(
@@ -104,17 +106,19 @@ class GroundingTest extends ApAgentIntegrationTest {
             .until(() -> decisions.forCase(exceptionId), list -> !list.isEmpty())
             .getFirst();
 
-    assertThat(proposed.evidence()).hasSize(3);
+    // Only what a tool returned counts: not the opening message, not the agent's own words, and
+    // never a fragment of a longer id.
+    assertThat(proposed.evidence()).hasSize(4);
     assertThat(grounding.ungrounded(agentId, proposed.evidence()))
-        .containsExactly(NEVER_READ.toString());
+        .containsExactly(INVOICE.toString(), NEVER_READ.toString(), "PO-1");
     MockMvc mvc =
         MockMvcBuilders.webAppContextSetup(web)
             .apply(SecurityMockMvcConfigurers.springSecurity())
             .build();
     mvc.perform(get("/api/cases/{id}", exceptionId).with(bearer("connie", "controller")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.decisions[0].evidence.length()").value(3))
-        .andExpect(jsonPath("$.decisions[0].ungrounded[0]").value(NEVER_READ.toString()));
+        .andExpect(jsonPath("$.decisions[0].evidence.length()").value(4))
+        .andExpect(jsonPath("$.decisions[0].ungrounded[1]").value(NEVER_READ.toString()));
     mvc.perform(
             get("/workbench/cases/{id}", exceptionId)
                 .with(

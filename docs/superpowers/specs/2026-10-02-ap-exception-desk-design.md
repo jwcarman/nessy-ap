@@ -576,6 +576,10 @@ respect the time of the people in the loop; follow sound information-flow-contro
 - **Ask once.** When the decision would be the buyer's own anyway (a price variance on their PO
   within their authority), the agent proposes it with its evidence and does not ask first. The
   buyer decides on the workbench.
+- **No interim hold (James's ruling).** Asking needs no hold: the invoice is already stopped
+  by its exception. A case that waits on someone is `AWAITING_ANSWER`, and goes back to
+  `INVESTIGATING` when the answer or reply arrives. A status set by a decision is never undone
+  by mail or an answer.
 - **Not in this slice:** reminders or escalation of an unanswered question. An unanswered
-  question leaves the case on hold, as a silent buyer does today.
+  question leaves the case waiting, and the workbench shows on whom.
 

@@ -30,7 +30,8 @@ final class Settled {
    * After a reply arrives the agent's next turn writes nothing until its first move, and a local
    * model can think for a long time first: wait at least this long after the last reply.
    */
-  static final Duration AFTER_REPLY = Duration.ofSeconds(60);
+  // Mail goes by SMTP, an IMAP poll and a reader that may take 30 seconds, behind other mail.
+  static final Duration AFTER_REPLY = Duration.ofSeconds(120);
 
   private Settled() {}
 
@@ -45,6 +46,9 @@ final class Settled {
    */
   static boolean of(JsonNode view, Instant now, Duration quiet, Instant lastAnswered) {
     String status = view.path("status").asString();
+    if ("INVESTIGATING".equals(status)) {
+      return stalled(view, now);
+    }
     if (!"RESOLVED".equals(status) && !"AWAITING_ANSWER".equals(status)) {
       return false;
     }
@@ -70,5 +74,31 @@ final class Settled {
     Duration wait =
         "mail-received".equals(lastKind) && AFTER_REPLY.compareTo(quiet) > 0 ? AFTER_REPLY : quiet;
     return !last.plus(wait).isAfter(now);
+  }
+
+  /**
+   * A case the agent left investigating, with nothing to decide and nobody asked, and no move for
+   * longer than a reply takes: it is not going to move. It is settled so it can be scored, as a
+   * failure, rather than waited on until the run times out.
+   */
+  private static boolean stalled(JsonNode view, Instant now) {
+    for (JsonNode decision : view.path("decisions")) {
+      if (!"ANSWERED".equals(decision.path("status").asString())) {
+        return false;
+      }
+    }
+    for (JsonNode question : view.path("questions")) {
+      if (!question.hasNonNull("answeredAt")) {
+        return false;
+      }
+    }
+    Instant last = Instant.EPOCH;
+    for (JsonNode event : view.path("timeline")) {
+      Instant at = Instant.parse(event.path("at").asString());
+      if (at.isAfter(last)) {
+        last = at;
+      }
+    }
+    return !last.plus(AFTER_REPLY).isAfter(now);
   }
 }

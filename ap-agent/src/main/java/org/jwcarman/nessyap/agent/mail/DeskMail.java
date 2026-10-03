@@ -130,7 +130,7 @@ public class DeskMail {
     ReplyReading claim = reading.claim();
     String from = from(exceptionId, mail.sender());
     cases.markReadUnendorsed(exceptionId, claim.containsInstructions());
-    cases.setStatus(exceptionId, CaseStatus.INVESTIGATING);
+    cases.moveStatus(exceptionId, CaseStatus.AWAITING_ANSWER, CaseStatus.INVESTIGATING);
     // The reader that read this reply worked the case too: its usage is the case's.
     cases.addAgent(exceptionId, QuarantineConfig.READER, ModelReplyReader.agentFor(reply));
     timeline.record(

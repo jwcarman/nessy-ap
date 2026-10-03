@@ -116,7 +116,7 @@ public class Answers {
         person
             + " answered: "
             + (picked == null ? words : picked + (words == null ? "" : ". " + words)));
-    cases.setStatus(question.exceptionId(), CaseStatus.INVESTIGATING);
+    cases.moveStatus(question.exceptionId(), CaseStatus.AWAITING_ANSWER, CaseStatus.INVESTIGATING);
     cases
         .find(question.exceptionId())
         .map(CaseRecord::agentId)

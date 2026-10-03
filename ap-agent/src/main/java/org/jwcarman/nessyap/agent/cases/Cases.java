@@ -183,6 +183,24 @@ public class Cases {
         .orElse(new Integrity(false, false));
   }
 
+  /**
+   * Moves a case from one status to another, and only from that one. Waiting is something a case
+   * goes into from investigating and comes out of into investigating; a status set by a decision,
+   * such as resolved or awaiting a decision, is never undone by mail or an answer arriving.
+   */
+  public void moveStatus(UUID exceptionId, CaseStatus from, CaseStatus to) {
+    jdbc.sql(
+            """
+            update ap_case set status = :to, updated_at = :now
+            where exception_id = :id and status = :from
+            """)
+        .param("to", to.name())
+        .param("from", from.name())
+        .param("now", Timestamp.from(clock.instant()))
+        .param("id", exceptionId)
+        .update();
+  }
+
   public void setStatus(UUID exceptionId, CaseStatus status) {
     jdbc.sql("update ap_case set status = :status, updated_at = :now where exception_id = :id")
         .param("status", status.name())

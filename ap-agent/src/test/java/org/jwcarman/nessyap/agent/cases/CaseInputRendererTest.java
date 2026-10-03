@@ -176,6 +176,7 @@ class CaseInputRendererTest {
 
     assertThat(shown)
         .contains("defends the amount")
+        .contains("Now propose the resolution that fits")
         .contains("offers a credit memo")
         .contains("states a unit price of 11.60")
         .contains("claims");
@@ -193,6 +194,7 @@ class CaseInputRendererTest {
         .contains("Did you agree 11.60?")
         .contains("Agreed")
         .contains("Yes, by phone in March.")
+        .contains("Now propose the resolution that fits")
         .doesNotContain("claims");
   }
 

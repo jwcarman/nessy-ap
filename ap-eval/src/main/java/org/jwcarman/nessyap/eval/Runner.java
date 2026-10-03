@@ -291,6 +291,12 @@ final class Runner {
     return facts;
   }
 
+  /** What a run left behind when nothing could be observed: no case, no proposal, no usage. */
+  static Observed unobserved(String status) {
+    return new Observed(
+        status, List.of(), List.of(), List.of(), List.of(), Usage.UNKNOWN, Duration.ZERO);
+  }
+
   private static Observed observe(
       JsonNode view, Usage usage, Duration wall, Map<String, List<String>> facts) {
     if (view == null) {

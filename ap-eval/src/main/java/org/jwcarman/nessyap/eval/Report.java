@@ -92,8 +92,8 @@ final class Report {
         String.format(
             Locale.ROOT, "%n**Overall pass rate: %.0f%%**%n%n", Scoring.passRate(runs) * 100));
     out.append(
-        "## Usage\n\nFor each model, the mean per case of each kind Nessy reports, the difference"
-            + " in its gen_ai.client.token.usage metric across the case. A model's counts are never"
+        "## Usage\n\nFor each model, the mean per case of each kind Nessy reports, read from the"
+            + " desk's projection of every agent on the case over Nessy's stored history. A model's counts are never"
             + " added to another's. Cases counts the cases in which the model reported usage; —"
             + " means it never reported that kind.\n\n"
             + "| Scenario | Model | Cases | Input | Output | Cache read | Cache write | Reasoning |\n"

@@ -57,7 +57,6 @@ public class QuarantineConfig {
   private static final Set<String> WORK_CASES =
       Set.of("ap-clerk", "buyer", "ap-manager", "controller", "auditor");
 
-  /** The reader's agent type: one per application, a fresh agent for each reply. */
   /** The agent type of the quarantined reader. */
   public static final AgentType READER = new AgentType("reply-reader");
 

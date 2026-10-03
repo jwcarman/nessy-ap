@@ -113,11 +113,12 @@ else := {"effect": "deny", "reason": "the amount in question is unknown"} if {
 
 # Information flow: the case's agent has read mail that tried to instruct the desk or claimed an
 # approval. Everything it proposes after that is influenced by an attacker's words, so nothing that
-# moves money goes through until a person has read the mail. It fails safe: the worst an attacker
+# moves money goes through on this case, ever: nothing in the desk lowers the flag, and a person
+# settles the invoice in the ERP. It fails safe: the worst an attacker
 # can do with it is force a hold.
 else := {
 	"effect": "deny",
-	"reason": "a reply on this case tried to instruct the desk or claimed an approval: hold the invoice until a person has read it",
+	"reason": "a reply on this case tried to instruct the desk or claimed an approval, or could not be read: the desk does not move money on this case; a person settles it in the ERP",
 } if {
 	action in moves_money
 	object.get(input.facts, "instructionsSeen", false) == true

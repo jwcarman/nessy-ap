@@ -20,6 +20,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
 import org.jwcarman.nessyap.agent.cases.CaseStatus;
@@ -116,5 +120,43 @@ class QuestionsTest extends ApAgentIntegrationTest {
 
     assertThat(questions.waitingFor("bob")).extracting(Question::id).contains(mine.id());
     assertThat(questions.waitingFor("bob")).extracting(Question::askedOf).containsOnly("bob");
+  }
+
+  @Test
+  void an_answer_to_a_resolved_case_leaves_it_resolved() {
+    UUID exceptionId = openCase();
+    Question q = questions.ask(exceptionId, "bob", "Which order?", List.of());
+    caseIndex.setStatus(exceptionId, CaseStatus.RESOLVED);
+
+    answers.answer(q.id(), "bob", null, "PO-7");
+
+    assertThat(caseIndex.find(exceptionId).orElseThrow().status()).isEqualTo(CaseStatus.RESOLVED);
+  }
+
+  @Test
+  void two_questions_asked_at_once_leave_one_waiting() throws Exception {
+    UUID exceptionId = openCase();
+    CountDownLatch start = new CountDownLatch(1);
+    try (ExecutorService threads = Executors.newVirtualThreadPerTaskExecutor()) {
+      List<Future<Boolean>> asked =
+          List.of("One?", "Two?").stream()
+              .map(
+                  text ->
+                      threads.submit(
+                          () -> {
+                            start.await();
+                            try {
+                              questions.ask(exceptionId, "bob", text, List.of());
+                              return true;
+                            } catch (IllegalStateException refused) {
+                              return false;
+                            }
+                          }))
+              .toList();
+      start.countDown();
+
+      assertThat(List.of(asked.get(0).get(), asked.get(1).get())).containsOnlyOnce(true);
+    }
+    assertThat(questions.forCase(exceptionId)).hasSize(1);
   }
 }

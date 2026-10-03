@@ -15,26 +15,33 @@
  */
 package org.jwcarman.nessyap.agent.decisions;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
 import org.jwcarman.nessy.api.AgentId;
-import org.jwcarman.nessy.api.block.Block;
 import org.jwcarman.nessy.api.turn.Exchange;
+import org.jwcarman.nessy.api.turn.ToolOutcome;
 import org.jwcarman.nessy.api.turn.Turn;
 import org.jwcarman.nessy.engine.store.TurnHistories;
 import org.jwcarman.nessyap.agent.AgentConfiguration;
-import org.jwcarman.nessyap.agent.tools.ProposeResolutionTool;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Whether a proposal's evidence rests on what its agent actually read.
  *
- * <p>A citation is grounded when the id appears in what the agent was told or in what a tool gave
- * it, or in the arguments of a call it made to look something up. The proposal's own arguments do
- * not count: an id an agent only ever wrote in its proposal is one it never read.
+ * <p>A citation is grounded only when a tool gave it to the agent: it appears, whole, in the result
+ * of a call that succeeded. What the agent was told in its opening message, what it wrote itself
+ * (prose, a question, a letter, the arguments of a lookup) and what a failed call echoed back do
+ * not count: an approver relies on a citation meaning "the agent looked this up".
  */
 @Component
 public class Grounding {
+
+  /** Ids are made of letters, digits and hyphens; anything else separates them. */
+  private static final Pattern SEPARATOR = Pattern.compile("[^A-Za-z0-9-]+");
 
   private final TurnHistories histories;
   private final JsonMapper json;
@@ -46,24 +53,22 @@ public class Grounding {
 
   /** The cited ids the agent never read, in the order cited. */
   public List<String> ungrounded(AgentId agent, List<String> cited) {
-    String seen = seen(agent);
+    Set<String> seen = seen(agent);
     return cited.stream().filter(id -> !seen.contains(id)).toList();
   }
 
-  private String seen(AgentId agent) {
-    StringBuilder seen = new StringBuilder();
+  /** Every whole token in the results of the agent's calls that succeeded. */
+  private Set<String> seen(AgentId agent) {
+    Set<String> seen = new HashSet<>();
     for (Turn turn : histories.forAgent(AgentConfiguration.AGENT_TYPE, agent).turnsFrom(0)) {
-      seen.append(json.writeValueAsString(turn.input()));
       for (Exchange exchange : turn.exchanges()) {
-        exchange.request().stream()
-            .filter(
-                r ->
-                    !(r instanceof Block.ToolCall call
-                        && call.name().equals(ProposeResolutionTool.NAME)))
-            .forEach(r -> seen.append(json.writeValueAsString(r)));
-        seen.append(json.writeValueAsString(exchange.outcomes()));
+        for (ToolOutcome outcome : exchange.outcomes()) {
+          if (outcome instanceof ToolOutcome.Succeeded(var _, var blocks)) {
+            seen.addAll(Arrays.asList(SEPARATOR.split(json.writeValueAsString(blocks))));
+          }
+        }
       }
     }
-    return seen.toString();
+    return seen;
   }
 }

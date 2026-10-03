@@ -39,6 +39,16 @@ class QuestionToolsTest extends ApAgentIntegrationTest {
   @Autowired QuestionTools tools;
   @Autowired Questions questions;
 
+  /** PO-1, placed by {@code buyer} with the case's own vendor. */
+  private void poOf(UUID exceptionId, String buyer) {
+    UUID vendor = caseIndex.find(exceptionId).orElseThrow().vendorId();
+    erp.on(
+        "GET",
+        "/api/purchase-orders/PO-1",
+        200,
+        "{\"poNumber\":\"PO-1\",\"buyer\":\"" + buyer + "\",\"vendorId\":\"" + vendor + "\"}");
+  }
+
   private ToolResult ask(AgentId agentId, String question, List<String> choices) {
     Awaited<ToolResult> awaited =
         tools.askBuyer().call(Calls.by(agentId, new QuestionTools.Ask(question, choices)));
@@ -49,7 +59,7 @@ class QuestionToolsTest extends ApAgentIntegrationTest {
   void a_question_goes_to_the_buyer_the_erp_names_and_a_notice_says_where_to_answer()
       throws Exception {
     UUID exceptionId = openCase();
-    erp.on("GET", "/api/purchase-orders/PO-1", 200, "{\"poNumber\":\"PO-1\",\"buyer\":\"bob\"}");
+    poOf(exceptionId, "bob");
 
     ToolResult result =
         ask(
@@ -71,7 +81,7 @@ class QuestionToolsTest extends ApAgentIntegrationTest {
   @Test
   void a_second_question_waits_for_the_first_answer() {
     UUID exceptionId = openCase();
-    erp.on("GET", "/api/purchase-orders/PO-1", 200, "{\"poNumber\":\"PO-1\",\"buyer\":\"bob\"}");
+    poOf(exceptionId, "bob");
     AgentId agentId = caseIndex.agentFor(exceptionId);
     ask(agentId, "One?", List.of());
 
@@ -104,5 +114,32 @@ class QuestionToolsTest extends ApAgentIntegrationTest {
         .isInstanceOfSatisfying(
             ToolResult.Failure.class, f -> assertThat(f.message()).contains("purchase order"));
     assertThat(questions.forCase(noPo)).isEmpty();
+  }
+
+  @Test
+  void asking_does_not_take_a_case_off_a_decision_that_waits() {
+    UUID exceptionId = openCase();
+    poOf(exceptionId, "bob");
+    caseIndex.setStatus(exceptionId, CaseStatus.AWAITING_DECISION);
+
+    ask(caseIndex.agentFor(exceptionId), "Which order?", List.of());
+
+    assertThat(caseIndex.find(exceptionId).orElseThrow().status())
+        .isEqualTo(CaseStatus.AWAITING_DECISION);
+  }
+
+  @Test
+  void a_po_that_belongs_to_another_vendor_names_nobody_to_ask() {
+    UUID exceptionId = openCase();
+    erp.on(
+        "GET",
+        "/api/purchase-orders/PO-1",
+        200,
+        "{\"poNumber\":\"PO-1\",\"buyer\":\"betty\",\"vendorId\":\"" + UUID.randomUUID() + "\"}");
+
+    ToolResult result = ask(caseIndex.agentFor(exceptionId), "Which order?", List.of());
+
+    assertThat(result).isInstanceOf(ToolResult.Failure.class);
+    assertThat(questions.forCase(exceptionId)).isEmpty();
   }
 }

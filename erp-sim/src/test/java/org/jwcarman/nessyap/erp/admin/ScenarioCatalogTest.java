@@ -82,15 +82,18 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
     ScenarioResult twoDeliveries = catalog.load("possible-duplicate");
     ScenarioResult shortShipment = catalog.load("qty-over-receipt");
 
+    // An invoice is the same fact by id or by number.
     assertThat(duplicate.facts().get("original-invoice"))
-        .singleElement()
-        .isNotEqualTo(duplicate.invoiceId().toString());
-    assertThat(duplicate.facts().get("invoice")).containsExactly(duplicate.invoiceId().toString());
+        .hasSize(2)
+        .doesNotContain(duplicate.invoiceId().toString());
+    assertThat(duplicate.facts().get("invoice"))
+        .hasSize(2)
+        .contains(duplicate.invoiceId().toString());
     // A PO is cited by its number or by its id; either is the same fact.
     assertThat(duplicate.facts().get("purchase-order")).hasSize(2).contains(duplicate.poNumber());
     assertThat(duplicate.facts().get("vendor")).containsExactly(duplicate.vendorId().toString());
     assertThat(twoDeliveries.facts().get("receipts")).hasSize(2);
-    assertThat(twoDeliveries.facts().get("original-invoice")).hasSize(1);
+    assertThat(twoDeliveries.facts().get("original-invoice")).hasSize(2);
     assertThat(shortShipment.facts().get("receipts")).hasSize(1);
   }
 

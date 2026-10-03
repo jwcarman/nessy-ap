@@ -203,6 +203,17 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void a_reply_to_a_resolved_case_leaves_it_resolved() throws Exception {
+    caseIndex.setStatus(exceptionId, CaseStatus.RESOLVED);
+    reply("bob@nessy-ap.example", "Re: [AP " + exceptionId + "] Which PO?", null, "PO-7", false);
+
+    drain();
+
+    assertThat(received(exceptionId)).hasSize(1);
+    assertThat(caseIndex.find(exceptionId).orElseThrow().status()).isEqualTo(CaseStatus.RESOLVED);
+  }
+
+  @Test
   void a_reply_seen_twice_is_told_once() throws Exception {
     reply("bob@nessy-ap.example", "Re: [AP " + exceptionId + "] Which PO?", null, "PO-7", false);
     drain();

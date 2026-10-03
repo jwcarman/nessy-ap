@@ -37,10 +37,11 @@ import org.springframework.transaction.support.TransactionOperations;
  * model's answer is a claim: a PO number in it is kept only if it has the ERP's shape, and an
  * answer that does not fit at all reads as "a person must read this".
  *
- * <p>The read runs outside the caller's transaction. Nessy's direct door cannot run inside one: it
- * writes the turn on the caller's connection and runs the model call on another, which cannot see
- * that write (finding F14). Outside it, the record of the read also commits on its own, so it stays
- * when the mail is rolled back, and a model call does not hold the mail's transaction open.
+ * <p>The read runs with the caller's transaction suspended. Nessy's direct door cannot run inside
+ * one: it writes the turn on the caller's connection and runs the model call on another, which
+ * cannot see that write (finding F14). Suspended, the record of the read commits on its own and
+ * stays if the mail is rolled back. The caller's transaction is not ended: its connection stays
+ * open, idle, until the read returns, so a slow model holds a connection per reply in flight.
  */
 public class ModelReplyReader implements ReplyReader {
 

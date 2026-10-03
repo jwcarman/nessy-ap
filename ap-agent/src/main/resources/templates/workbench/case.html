@@ -16,8 +16,9 @@
   <p class="flash warn" th:if="${integrity.influencedByUnendorsed()}">
     This case read mail from outside. The agent saw only a typed reading of it, but what it
     proposes may rest on what a vendor or a stranger said.
-    <span th:if="${integrity.instructionsSeen()}">The mail tried to give instructions, so the
-      policy blocks every action that moves money. A person must decide.</span>
+    <span th:if="${integrity.instructionsSeen()}">A reply tried to give instructions or claim an
+      approval, or could not be read. The desk will not move money on this case; settle it in
+      the ERP.</span>
   </p>
 
   <section class="questions" th:unless="${questions.isEmpty()}">

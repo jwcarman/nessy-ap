@@ -211,7 +211,7 @@ public class ScenarioCatalog {
         second,
         Map.of(
             "original-invoice",
-            List.of(earlier.id().toString()),
+            List.of(earlier.id().toString(), earlier.invoiceNumber()),
             "receipts",
             List.of(first, next)));
   }
@@ -245,7 +245,7 @@ public class ScenarioCatalog {
   }
 
   private static Map<String, List<String>> original(Invoice original) {
-    return Map.of("original-invoice", List.of(original.id().toString()));
+    return Map.of("original-invoice", List.of(original.id().toString(), original.invoiceNumber()));
   }
 
   private Vendor acme() {
@@ -323,7 +323,8 @@ public class ScenarioCatalog {
     Map<String, List<String>> facts = new HashMap<>(more);
     facts.put("vendor", List.of(vendor.id().toString()));
     facts.put("purchase-order", poFact(poNumber));
-    facts.put("invoice", List.of(invoice.id().toString()));
+    // An invoice is the same fact by its id or by its number.
+    facts.put("invoice", List.of(invoice.id().toString(), invoice.invoiceNumber()));
     return new ScenarioResult(
         name,
         vendor.id(),

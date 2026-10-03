@@ -71,7 +71,21 @@ class SettledTest {
     JsonNode waiting = view("AWAITING_ANSWER", "ANSWERED", NOW.minusSeconds(30));
 
     assertThat(Settled.of(waiting, NOW, QUIET, NOW.minusSeconds(5))).isFalse();
-    assertThat(Settled.of(waiting, NOW, QUIET, NOW.minusSeconds(120))).isTrue();
+    assertThat(Settled.of(waiting, NOW, QUIET, NOW.minus(Settled.AFTER_REPLY).minusSeconds(1)))
+        .isTrue();
+  }
+
+  @Test
+  void a_case_the_agent_left_investigating_with_nothing_pending_is_settled_as_stalled() {
+    JsonNode stalled =
+        JSON.readTree(
+            """
+            {"status": "INVESTIGATING", "decisions": [], "questions": [],
+             "timeline": [{"at": "%s", "kind": "note"}]}
+            """
+                .formatted(NOW.minus(Settled.AFTER_REPLY).minusSeconds(1)));
+
+    assertThat(Settled.of(stalled, NOW, QUIET)).isTrue();
   }
 
   @Test
@@ -89,7 +103,13 @@ class SettledTest {
         .isFalse();
     assertThat(
             Settled.of(
-                view("RESOLVED", "ANSWERED", NOW.minusSeconds(61), "mail-received"), NOW, QUIET))
+                view(
+                    "RESOLVED",
+                    "ANSWERED",
+                    NOW.minus(Settled.AFTER_REPLY).minusSeconds(1),
+                    "mail-received"),
+                NOW,
+                QUIET))
         .isTrue();
   }
 }
