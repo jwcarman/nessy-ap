@@ -18,6 +18,7 @@ package org.jwcarman.nessyap.erp.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.Map;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.nessyap.erp.ErpIntegrationTest;
 import org.jwcarman.nessyap.erp.invoice.Invoice;
 import org.jwcarman.nessyap.erp.vendor.Vendor;
+import org.jwcarman.nessyap.erp.vendor.VendorMaster;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
@@ -54,6 +56,7 @@ class ErpSecurityTest extends ErpIntegrationTest {
   }
 
   @Autowired WebApplicationContext web;
+  @Autowired VendorMaster vendors;
 
   private MockMvc mvc;
 
@@ -86,6 +89,40 @@ class ErpSecurityTest extends ErpIntegrationTest {
             get("/api/vendors/{id}", vendor.id())
                 .header("Authorization", "Bearer " + TOKENS.service("ap-agent-service")))
         .andExpect(status().isOk());
+  }
+
+  @Test
+  void the_agents_own_token_cannot_change_the_vendor_master() throws Exception {
+    Vendor vendor = data().vendor();
+
+    mvc.perform(
+            post("/api/vendors/{id}/bank-changes", vendor.id())
+                .header("Authorization", "Bearer " + TOKENS.service("ap-agent-service"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"accountNumber": "998877665", "routingNumber": "026009593",
+                     "proposedByEmail": "accounts@acme-billing.example"}
+                    """))
+        .andExpect(status().isForbidden());
+    assertThat(vendors.get(vendor.id()).hasUnverifiedBankChange()).isFalse();
+  }
+
+  @Test
+  void a_clerks_own_token_cannot_approve_a_variance() throws Exception {
+    Vendor acme = data().vendor();
+    data().po(acme, "PO-1");
+    data().receive("PO-1", "100");
+    Invoice invoice = data().invoice(acme, "INV-1001", "PO-1", "100", "10.40");
+
+    mvc.perform(
+            post("/api/invoices/{id}/approve-variance", invoice.id())
+                .header("Authorization", "Bearer " + TOKENS.user("clara", "workbench", "erp-sim"))
+                .header("Idempotency-Key", "k1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"expectedVersion\": 1}"))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value("NOT_AUTHORISED"));
   }
 
   @Test
