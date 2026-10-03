@@ -46,6 +46,7 @@
     <nessy.version>0.4.0-SNAPSHOT</nessy.version>
     <jug.version>5.2.0</jug.version>
     <testcontainers.version>2.0.5</testcontainers.version>
+    <camel.version>4.22.1</camel.version>
     <spotless.version>3.10.3</spotless.version>
     <license.plugin.version>5.1.2</license.plugin.version>
     <license.owner>James Carman</license.owner>
@@ -53,6 +54,20 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.apache.camel</groupId>
+        <artifactId>camel-bom</artifactId>
+        <version>${camel.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.camel.springboot</groupId>
+        <artifactId>camel-spring-boot-bom</artifactId>
+        <version>${camel.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
       <dependency>
         <groupId>org.jwcarman.nessy</groupId>
         <artifactId>nessy-bom</artifactId>

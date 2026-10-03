@@ -36,10 +36,11 @@ from("direct:set-aside").routeId("desk-set-aside").bean(DeskMail, "setAsideUnrea
   - `{{…}}` property placeholders, not Java string building.
   - Beans invoked with `bean(...)` / `method(...)`.
   - No `Processor` lambdas for business logic.
-- **Virtual threads:**
-  - Camel reads `camel.threads.virtual.enabled` once, in `ThreadType`'s static initialiser (measured on 4.22.1), and camel-spring-boot never reads `spring.threads.virtual.enabled`.
-  - So `ApAgentApplication.main` sets `camel.threads.virtual.enabled=true` with `System.setProperty` before `SpringApplication.run` (unless already set). Surefire's `argLine` sets it for tests, as Camel's own build does.
-  - Assert in a test that `ThreadType.current()` (or the equivalent) reports VIRTUAL.
+- **Virtual threads:** camel-spring-boot 4.22.1's `CamelVirtualThreadEnvironmentPostProcessor` sets
+  `camel.threads.virtual.enabled` from Boot's `spring.threads.virtual.enabled`, which nessy-ap already
+  sets (measured; Camel core alone defaults to platform threads). So there is no Camel-specific
+  setting. CamelVirtualThreadsTest asserts that `ThreadType` is VIRTUAL and that a Camel pool runs
+  on a virtual thread.
 - **Dedupe:** the idempotent consumer's `JdbcMessageIdRepository` (processor name `desk-inbox`). Its table comes from a Liquibase changeset, never from Camel's auto-create. It replaces `inbound_mail`, and `unmatched_mail` stays.
 - **No behaviour changes:** every InboxPollerTest behaviour survives as an InboxRouteTest:
   - routed by the reference token;
