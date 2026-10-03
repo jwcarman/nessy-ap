@@ -18,6 +18,23 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: workbench
+            client-secret: workbench-secret
+            authorization-grant-type: authorization_code
+            scope: openid,profile,email
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:58080/realms/nessy-ap
+            user-name-attribute: preferred_username
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:58080/realms/nessy-ap
+          jwk-set-uri: http://localhost:58080/realms/nessy-ap/protocol/openid-connect/certs
 nessy:
   # The model the agent reasons with. The default is the local pair measured to work with Nessy:
   # Qwen3-Coder-30B in LM Studio. Point AP_PROVIDER / AP_MODEL elsewhere to compare.
