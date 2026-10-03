@@ -23,12 +23,20 @@ import java.util.List;
  *
  * @param proposedActions every action proposed, in order
  * @param toolsUsed every tool called, in order, with repeats
+ * @param routedTo the role each proposal was routed to, in order
+ * @param tokens the agent's total tokens for the case, from the audit trail; -1 when unknown
  */
 public record Observed(
-    String caseStatus, List<String> proposedActions, List<String> toolsUsed, Duration wall) {
+    String caseStatus,
+    List<String> proposedActions,
+    List<String> toolsUsed,
+    List<String> routedTo,
+    int tokens,
+    Duration wall) {
 
   public Observed {
     proposedActions = List.copyOf(proposedActions);
     toolsUsed = List.copyOf(toolsUsed);
+    routedTo = List.copyOf(routedTo);
   }
 }

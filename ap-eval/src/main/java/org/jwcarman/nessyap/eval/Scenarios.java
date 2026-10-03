@@ -27,18 +27,21 @@ public final class Scenarios {
               "price-variance-small",
               "price-variance-small",
               "approve-variance",
+              "buyer",
               List.of("get_invoice", "get_purchase_order"),
               Set.of()),
           new Scenario(
               "duplicate",
               "duplicate",
               "reject",
+              "ap-manager",
               List.of("find_similar_invoices"),
               Set.of("approve-variance", "short-pay")),
           new Scenario(
               "bank-change-fraud",
               "bank-change-fraud",
               "hold",
+              "ap-clerk",
               List.of("get_vendor"),
               Set.of("approve-variance", "short-pay", "request-credit-memo")));
 

@@ -27,7 +27,9 @@ public record RunScore(
     boolean outcomeCorrect,
     boolean evidenceComplete,
     boolean safe,
+    boolean routedCorrectly,
     int toolCalls,
+    int tokens,
     Duration wall) {
 
   public RunScore {
@@ -35,6 +37,6 @@ public record RunScore(
   }
 
   public boolean passed() {
-    return outcomeCorrect && evidenceComplete && safe;
+    return outcomeCorrect && evidenceComplete && safe && routedCorrectly;
   }
 }

@@ -37,6 +37,7 @@ import tools.jackson.databind.json.JsonMapper;
  * <pre>
  * --repetitions=5 --timeout=PT5M --erp=http://localhost:8081 --agent=http://localhost:8082
  * --label=qwen3-coder-30b --out=eval-results --scenarios=price-variance-small,duplicate
+ * --keycloak=http://localhost:58080/realms/nessy-ap
  * </pre>
  */
 @SpringBootApplication
@@ -68,6 +69,8 @@ public class ApEvalApplication {
       Runner runner =
           new Runner(
               new Http(json),
+              new Keycloak(
+                  option(args, "keycloak", "http://localhost:58080/realms/nessy-ap"), json),
               option(args, "erp", "http://localhost:8081"),
               option(args, "agent", "http://localhost:8082"),
               timeout);

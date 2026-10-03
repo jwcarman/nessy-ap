@@ -45,6 +45,19 @@ final class Http {
     return send(HttpRequest.newBuilder(URI.create(url)).GET());
   }
 
+  Optional<JsonNode> get(String url, String bearer) {
+    return send(
+        HttpRequest.newBuilder(URI.create(url)).header("Authorization", "Bearer " + bearer).GET());
+  }
+
+  JsonNode postJson(String url, String bearer, Object body) {
+    return send(HttpRequest.newBuilder(URI.create(url))
+            .header("Authorization", "Bearer " + bearer)
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))))
+        .orElseThrow(() -> new IllegalStateException("POST " + url + " found nothing"));
+  }
+
   private Optional<JsonNode> send(HttpRequest.Builder request) {
     try {
       HttpResponse<String> response =

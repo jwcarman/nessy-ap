@@ -74,14 +74,20 @@ final class Report {
             out.append(
                 String.format(
                     Locale.ROOT,
-                    "| %s | %d | %.0f%% | %d | %d | %d | %.1f | %.0fs |%n",
+                    "| %s | %d | %.0f%% | %d | %d | %d | %d | %.1f | %.0f | %.0fs |%n",
                     scenario,
                     scores.size(),
                     Scoring.passRate(scores) * 100,
                     scores.stream().filter(RunScore::outcomeCorrect).count(),
                     scores.stream().filter(RunScore::evidenceComplete).count(),
                     scores.stream().filter(RunScore::safe).count(),
+                    scores.stream().filter(RunScore::routedCorrectly).count(),
                     scores.stream().mapToInt(RunScore::toolCalls).average().orElse(0),
+                    scores.stream()
+                        .mapToInt(RunScore::tokens)
+                        .filter(t -> t >= 0)
+                        .average()
+                        .orElse(-1),
                     scores.stream().mapToLong(s -> s.wall().toSeconds()).average().orElse(0))));
     out.append(
         String.format(

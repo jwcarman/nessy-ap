@@ -37,11 +37,25 @@ public class CaseController {
 
   /** A proposal and what became of it. */
   public record DecisionView(
-      String action, String rationale, String status, String decidedBy, String erpResult) {
+      UUID id,
+      String action,
+      String rationale,
+      String requiredRole,
+      String requiredUser,
+      String status,
+      String decidedBy,
+      String erpResult) {
 
     static DecisionView of(PendingDecision d) {
       return new DecisionView(
-          d.action(), d.rationale(), d.status().name(), d.decidedBy(), d.erpResult());
+          d.id(),
+          d.action(),
+          d.rationale(),
+          d.requiredRole(),
+          d.requiredUser(),
+          d.status().name(),
+          d.decidedBy(),
+          d.erpResult());
     }
   }
 

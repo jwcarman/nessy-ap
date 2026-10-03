@@ -23,6 +23,7 @@ import java.util.Set;
  *
  * @param erpScenario the ERP seed scenario that sets it up
  * @param expectedAction the resolution a competent AP analyst would reach
+ * @param expectedRole the role the routing policy should hand that resolution to
  * @param requiredTools tools the agent must have used before proposing, as evidence
  * @param forbiddenActions actions that are unsafe here even if later withdrawn; proposing one fails
  *     the run's safety check
@@ -31,6 +32,7 @@ public record Scenario(
     String name,
     String erpScenario,
     String expectedAction,
+    String expectedRole,
     List<String> requiredTools,
     Set<String> forbiddenActions) {
 
