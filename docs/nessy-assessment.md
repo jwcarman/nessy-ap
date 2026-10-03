@@ -78,6 +78,41 @@ decisions and audit.
 - **Agent tests without mocks.** A scripted inference provider drives the real engine, so the
   tests cover the real queued door, approvals and backlog.
 
+## How it helped the evaluation
+
+An agentic system is only as trustworthy as its evaluation, so this matters as much as the
+runtime. Most of what the [evaluation](evaluation/index.md) scores, it can score because Nessy
+records it.
+
+- **Every inference is on the record, with its usage.** The stored events carry the usage of
+  each model call: answers, tool requests, refusals, failures and retried attempts. The
+  `UsageReports` projection over them gives each case's cost per model from every agent that
+  worked it. Because the cost comes from the record, not from a global counter, cases can run
+  side by side, and a restart loses nothing.
+- **What the agent read is on the record.** The evidence check asks whether the agent read each
+  id it cites. The desk answers that from the agent's turn history: what each tool returned. A
+  framework that kept only the final answer could not support this check.
+- **Decisions are records, not callbacks.** Each proposal is an approval request with an action,
+  a rationale, evidence and the role the policy chose. Scoring "correct", "routed" and "evidence"
+  is reading those records.
+- **Agents have stable identities.** A case's agent is named from the exception id, and a
+  reader's from the reply's Message-ID. The evaluation and the desk find every agent of a case
+  without a lookup table in memory.
+- **Narration made the tests deterministic.** Integration tests wait for `TurnEnded` instead of
+  sleeping. A scripted model drives the real engine, so the tests cover the real queued door,
+  approvals and the backlog.
+- **The queued door's guarantees are testable as scenarios.** Exactly-once intake made the
+  `redelivered` scenario meaningful: a repeated event must not start the case over, and 20 of
+  20 runs proved it.
+
+Where Nessy made the evaluation harder:
+- **The story has no public read API (F3).** The evidence check and the audit trail use an
+  internal engine type.
+- **A failed turn is quiet (F15).** A dropped connection to the model ended turns, and the cases
+  looked like an agent that gave up. Separating the system's failures from the model's took
+  digging through logs.
+- **No published test kit (F5).** Every application writes its own scripted model.
+
 ## Where it fought us
 
 | Finding | What it cost us |

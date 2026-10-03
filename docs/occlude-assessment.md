@@ -66,6 +66,22 @@ import nothing from Occlude.
   failed and the desk's log was silent. Occlude's record showed `DERIVE reply.read REFUSED` for
   each reply. The cause was in Nessy (finding F14).
 
+## How it helped the evaluation
+
+- **Its record found the bug the evaluation could not see.** In the first live run every
+  reading failed, and the safe fallback made the results look good. Occlude's record of
+  refusals (`DERIVE reply.read REFUSED`) was the only evidence, and it pointed straight at the
+  failing step.
+- **It made "the agent never saw the text" structural, not statistical.** The agent's gates
+  admit only the typed reading and a confirmed PO, never the reply. So the injection scenarios
+  measure what a poisoned reading can do, not whether the model resisted the text. A test of
+  the gates, with no model at all, proves the boundary.
+- **Typed values made the agent's inputs checkable.** The reading has a fixed shape (intent,
+  offers, a price, a PO number of the ERP's shape, an instructions flag), so a scenario can say
+  exactly what the agent was told, and a failure can be traced to the reading or to the agent.
+- **Its testing guide made the boundary cheap to test.** Static gate declarations and an
+  in-memory store let a plain unit test check the real ceilings in milliseconds.
+
 ## Where it fought us
 
 | Finding | What it cost us |
