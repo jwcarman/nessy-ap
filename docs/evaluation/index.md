@@ -52,6 +52,7 @@ Model: `qwen/qwen3-coder-30b` on LM Studio. Each scenario runs five times.
 | 4 | The ERP enforces authority | 14 of 15. [Details](slice-4-enforcement.md) |
 | 5 | Mail to buyers and vendors | 17 of 20. [Details](slice-5-mail.md) |
 | 6 | The whole catalogue and the failure variants | 51 of 55. [Details](slice-6-evaluation.md) |
+| 7 | The inbox becomes a Camel route | Mail scenarios unchanged. [Details](slice-7-camel-inbox.md) |
 
 Prompt injection, from slice 6:
 

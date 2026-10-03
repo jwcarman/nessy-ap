@@ -80,4 +80,5 @@ nav:
       - "Slice 4: authority": evaluation/slice-4-enforcement.md
       - "Slice 5: mail": evaluation/slice-5-mail.md
       - "Slice 6: the full evaluation": evaluation/slice-6-evaluation.md
+      - "Slice 7: the Camel inbox": evaluation/slice-7-camel-inbox.md
   - Findings for Nessy: findings.md
