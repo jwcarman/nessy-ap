@@ -15,6 +15,9 @@
  */
 package org.jwcarman.nessyap.agent.decisions;
 
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -27,6 +30,8 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "ap.decisions.auto", havingValue = "true")
 public class AutoDecider {
 
+  private static final Logger log = LoggerFactory.getLogger(AutoDecider.class);
+
   private final Decisions decisions;
   private final DecisionExecutor executor;
 
@@ -37,8 +42,12 @@ public class AutoDecider {
 
   @Scheduled(fixedDelayString = "${ap.decisions.auto-interval-ms:1000}")
   public void decidePending() {
-    decisions
-        .pending()
-        .forEach(id -> executor.decide(id, "auto-decider", true, "approved automatically"));
+    for (UUID id : decisions.pending()) {
+      try {
+        executor.decide(id, "auto-decider", true, "approved automatically");
+      } catch (RuntimeException e) {
+        log.warn("Could not decide {}; will try again", id, e);
+      }
+    }
   }
 }

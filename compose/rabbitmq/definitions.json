@@ -4,46 +4,131 @@
       "name": "nessyap",
       "password_hash": "p9CTFr97hq7Cgd4fq67CqmBRb5n2LS8DWLUH3Os+2wk8ssZX",
       "hashing_algorithm": "rabbit_password_hashing_sha256",
-      "tags": ["administrator"],
+      "tags": [
+        "administrator"
+      ],
       "limits": {}
     }
   ],
-  "vhosts": [{"name": "/"}],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
   "permissions": [
-    {"user": "nessyap", "vhost": "/", "configure": ".*", "write": ".*", "read": ".*"}
+    {
+      "user": "nessyap",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
   ],
   "exchanges": [
     {
-      "name": "erp.events", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false,
-      "internal": false, "arguments": {"alternate-exchange": "erp.events.unrouted"}
+      "name": "erp.events",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {
+        "alternate-exchange": "erp.events.unrouted"
+      }
     },
     {
-      "name": "erp.events.unrouted", "vhost": "/", "type": "fanout", "durable": true,
-      "auto_delete": false, "internal": false, "arguments": {}
+      "name": "erp.events.unrouted",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "ap-agent.erp-events.retry",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
     }
   ],
   "queues": [
     {
-      "name": "erp.events.unrouted", "vhost": "/", "durable": true, "auto_delete": false,
-      "arguments": {"x-queue-type": "quorum"}
+      "name": "erp.events.unrouted",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
     },
     {
-      "name": "ap-agent.erp-events", "vhost": "/", "durable": true, "auto_delete": false,
-      "arguments": {"x-queue-type": "quorum"}
+      "name": "ap-agent.erp-events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-dead-letter-exchange": "ap-agent.erp-events.retry"
+      }
+    },
+    {
+      "name": "ap-agent.erp-events.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 2000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "ap-agent.erp-events"
+      }
+    },
+    {
+      "name": "ap-agent.erp-events.dead",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
     }
   ],
   "bindings": [
     {
-      "source": "erp.events.unrouted", "vhost": "/", "destination": "erp.events.unrouted",
-      "destination_type": "queue", "routing_key": "", "arguments": {}
+      "source": "erp.events.unrouted",
+      "vhost": "/",
+      "destination": "erp.events.unrouted",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
     },
     {
-      "source": "erp.events", "vhost": "/", "destination": "ap-agent.erp-events",
-      "destination_type": "queue", "routing_key": "match-exception.raised", "arguments": {}
+      "source": "erp.events",
+      "vhost": "/",
+      "destination": "ap-agent.erp-events",
+      "destination_type": "queue",
+      "routing_key": "match-exception.raised",
+      "arguments": {}
     },
     {
-      "source": "erp.events", "vhost": "/", "destination": "ap-agent.erp-events",
-      "destination_type": "queue", "routing_key": "receipt.posted", "arguments": {}
+      "source": "erp.events",
+      "vhost": "/",
+      "destination": "ap-agent.erp-events",
+      "destination_type": "queue",
+      "routing_key": "receipt.posted",
+      "arguments": {}
+    },
+    {
+      "source": "ap-agent.erp-events.retry",
+      "vhost": "/",
+      "destination": "ap-agent.erp-events.retry",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
     }
   ]
 }

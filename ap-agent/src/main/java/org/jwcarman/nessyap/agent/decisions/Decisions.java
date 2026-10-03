@@ -149,6 +149,14 @@ public class Decisions {
         .update();
   }
 
+  /** The ERP refused before the command could be sent; the answer will say so. */
+  public void rememberRefusal(UUID id, String refusal) {
+    jdbc.sql("update pending_decision set erp_result = :refusal where id = :id")
+        .param("refusal", refusal)
+        .param("id", id)
+        .update();
+  }
+
   public void markAnswered(UUID id, String erpResult) {
     jdbc.sql("update pending_decision set status = 'ANSWERED', erp_result = :result where id = :id")
         .param("result", erpResult, Types.VARCHAR)

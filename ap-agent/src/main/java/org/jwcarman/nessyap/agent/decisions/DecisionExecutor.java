@@ -60,23 +60,46 @@ public class DecisionExecutor {
   /**
    * Decides a proposal. A proposal already decided is carried through as first decided, whatever
    * this call says; one already answered is left alone.
+   *
+   * <p>Two transactions, on purpose. The first records the decision and the invoice version the ERP
+   * command will name, and commits: from then on the row is the outbox, and a crash anywhere later
+   * leaves it DECIDED for the sweeper, which repeats exactly the same command under the same key.
+   * The second carries it through: the ERP command, the answer to the waiting call, and the row
+   * marked answered, committing together.
    */
   public void decide(UUID decisionId, String decidedBy, boolean approve, String comment) {
+    tx.executeWithoutResult(status -> record(decisionId, decidedBy, approve, comment));
     tx.executeWithoutResult(
-        status -> {
-          PendingDecision d =
-              decisions
-                  .lock(decisionId)
-                  .orElseThrow(() -> new IllegalArgumentException("no decision " + decisionId));
-          if (d.status() == DecisionStatus.ANSWERED) {
-            return;
-          }
-          if (d.status() == DecisionStatus.PENDING) {
-            decisions.markDecided(decisionId, decidedBy, approve, comment, clock.instant());
-            d = decisions.find(decisionId).orElseThrow();
-          }
-          carryThrough(d);
-        });
+        status ->
+            decisions
+                .lock(decisionId)
+                .filter(d -> d.status() == DecisionStatus.DECIDED)
+                .ifPresent(this::carryThrough));
+  }
+
+  private void record(UUID decisionId, String decidedBy, boolean approve, String comment) {
+    PendingDecision d =
+        decisions
+            .lock(decisionId)
+            .orElseThrow(() -> new IllegalArgumentException("no decision " + decisionId));
+    if (d.status() == DecisionStatus.PENDING) {
+      decisions.markDecided(decisionId, decidedBy, approve, comment, clock.instant());
+      d = decisions.find(decisionId).orElseThrow();
+    }
+    if (d.status() != DecisionStatus.DECIDED
+        || !Boolean.TRUE.equals(d.approved())
+        || d.expectedVersion() != null
+        || d.erpResult() != null) {
+      return;
+    }
+    switch (targets.erp().invoice(d.invoiceId())) {
+      case ErpOutcome.Ok<JsonNode>(JsonNode view) ->
+          decisions.rememberExpectedVersion(d.id(), view.path("invoice").path("version").asLong());
+      case ErpOutcome.Refused<JsonNode>(int s, String code, String detail) ->
+          decisions.rememberRefusal(d.id(), "ERP refused: " + code + ": " + detail);
+      case ErpOutcome.Unavailable<JsonNode>(String reason) ->
+          log.info("ERP unavailable reading invoice for decision {}: {}", d.id(), reason);
+    }
   }
 
   private void carryThrough(PendingDecision d) {
@@ -88,23 +111,12 @@ public class DecisionExecutor {
       answer(d, ApprovalResult.deniedBy(reason, d.id().toString()), "declined", false);
       return;
     }
-    Long version = d.expectedVersion();
-    if (version == null) {
-      ErpOutcome<JsonNode> invoice = targets.erp().invoice(d.invoiceId());
-      switch (invoice) {
-        case ErpOutcome.Ok<JsonNode>(JsonNode view) -> {
-          version = view.path("invoice").path("version").asLong();
-          decisions.rememberExpectedVersion(d.id(), version);
-        }
-        case ErpOutcome.Refused<JsonNode>(int s, String code, String detail) -> {
-          refused(d, code, detail);
-          return;
-        }
-        case ErpOutcome.Unavailable<JsonNode>(String reason) -> {
-          log.info("ERP unavailable reading invoice for decision {}: {}", d.id(), reason);
-          return;
-        }
+    if (d.expectedVersion() == null) {
+      if (d.erpResult() != null) {
+        answer(d, ApprovalResult.deniedBy(d.erpResult(), d.id().toString()), d.erpResult(), false);
       }
+      // Otherwise the ERP could not be read yet; the sweeper comes back for it.
+      return;
     }
     ErpOutcome<JsonNode> outcome =
         targets
@@ -113,7 +125,7 @@ public class DecisionExecutor {
                 d.invoiceId(),
                 d.action(),
                 d.id().toString(),
-                version,
+                d.expectedVersion(),
                 d.amount(),
                 "Decided by " + d.decidedBy() + ": " + d.rationale());
     switch (outcome) {

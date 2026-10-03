@@ -16,6 +16,7 @@
 package org.jwcarman.nessyap.agent.decisions;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.jwcarman.nessyap.agent.ScriptedProvider.call;
 import static org.jwcarman.nessyap.agent.ScriptedProvider.steps;
@@ -236,6 +237,52 @@ class DecisionFlowTest extends ApAgentIntegrationTest {
               assertThat(post.header("Idempotency-Key")).isEqualTo(proposal.id().toString());
               assertThat(post.body()).contains("\"expectedVersion\":1");
             });
+  }
+
+  @Test
+  void a_rollback_after_the_erp_said_yes_leaves_the_decision_for_the_sweeper_to_repeat_exactly() {
+    PendingDecision proposal = awaitProposal();
+    erp.on("POST", "/api/invoices/" + INVOICE + "/approve-variance", 200, APPROVED_JSON);
+    // Fails the carry-through after the ERP command has succeeded: the decision's timeline row.
+    jdbc.sql(
+            """
+            create or replace function fail_decision_events() returns trigger language plpgsql as
+            $body$ begin raise exception 'simulated crash after the ERP write'; end $body$
+            """)
+        .update();
+    jdbc.sql(
+            """
+            create trigger fail_decision_events before insert on case_event for each row
+            when (new.kind = 'decision') execute function fail_decision_events()
+            """)
+        .update();
+    try {
+      assertThatThrownBy(() -> executor.decide(proposal.id(), "connie", true, "fine"))
+          .isInstanceOf(RuntimeException.class);
+    } finally {
+      jdbc.sql("drop trigger fail_decision_events on case_event").update();
+    }
+
+    PendingDecision recorded = decisions.find(proposal.id()).orElseThrow();
+    assertThat(recorded.status()).isEqualTo(DecisionStatus.DECIDED);
+    assertThat(recorded.expectedVersion()).isEqualTo(1L);
+
+    sweeper.sweep(Duration.ZERO);
+
+    awaitTurnEnded(1);
+    assertThat(posts())
+        .hasSize(2)
+        .allSatisfy(
+            post -> {
+              assertThat(post.header("Idempotency-Key")).isEqualTo(proposal.id().toString());
+              assertThat(post.body()).contains("\"expectedVersion\":1");
+            });
+    assertThat(posts().get(0).body()).isEqualTo(posts().get(1).body());
+    assertThat(decisions.find(proposal.id()).orElseThrow().status())
+        .isEqualTo(DecisionStatus.ANSWERED);
+    assertThat(model.outcomesSeen())
+        .filteredOn(ToolOutcome.Succeeded.class::isInstance)
+        .isNotEmpty();
   }
 
   @Test

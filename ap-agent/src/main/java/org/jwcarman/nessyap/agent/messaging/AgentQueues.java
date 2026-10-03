@@ -20,6 +20,7 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Declarables;
 import org.springframework.amqp.core.ExchangeBuilder;
+import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
@@ -36,7 +37,11 @@ public class AgentQueues {
 
   @Bean
   public Declarables agentTopology() {
-    Queue queue = QueueBuilder.durable(ErpEvents.AGENT_QUEUE).quorum().build();
+    Queue queue =
+        QueueBuilder.durable(ErpEvents.AGENT_QUEUE)
+            .quorum()
+            .deadLetterExchange(ErpEvents.AGENT_RETRY_EXCHANGE)
+            .build();
     // Declared with exactly erp-sim's arguments, so whichever app starts first creates it and the
     // other's declaration is a no-op. A mismatch would fail loudly with PRECONDITION_FAILED.
     TopicExchange erpEvents =
@@ -46,6 +51,23 @@ public class AgentQueues {
             .build();
     Binding raised = BindingBuilder.bind(queue).to(erpEvents).with("match-exception.raised");
     Binding receipts = BindingBuilder.bind(queue).to(erpEvents).with("receipt.posted");
-    return new Declarables(erpEvents, queue, raised, receipts);
+    FanoutExchange retry = new FanoutExchange(ErpEvents.AGENT_RETRY_EXCHANGE, true, false);
+    Queue retryQueue =
+        QueueBuilder.durable(ErpEvents.AGENT_RETRY_QUEUE)
+            .quorum()
+            .ttl(ErpEvents.AGENT_RETRY_DELAY_MILLIS)
+            .deadLetterExchange("")
+            .deadLetterRoutingKey(ErpEvents.AGENT_QUEUE)
+            .build();
+    Queue dead = QueueBuilder.durable(ErpEvents.AGENT_DEAD_LETTER_QUEUE).quorum().build();
+    return new Declarables(
+        erpEvents,
+        queue,
+        raised,
+        receipts,
+        retry,
+        retryQueue,
+        BindingBuilder.bind(retryQueue).to(retry),
+        dead);
   }
 }

@@ -19,6 +19,8 @@ import com.rabbitmq.client.Channel;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.util.List;
+import java.util.Map;
 import org.jwcarman.nessy.api.QueuedHarness;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.Cases;
@@ -30,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -52,6 +55,7 @@ public class ErpEventListener {
   private final TransactionTemplate tx;
   private final JsonMapper json;
   private final Clock clock;
+  private final RabbitTemplate rabbit;
 
   public ErpEventListener(
       QueuedHarness<CaseInput> agent,
@@ -59,13 +63,15 @@ public class ErpEventListener {
       JdbcClient jdbc,
       TransactionTemplate tx,
       JsonMapper json,
-      Clock clock) {
+      Clock clock,
+      RabbitTemplate rabbit) {
     this.agent = agent;
     this.cases = cases;
     this.jdbc = jdbc;
     this.tx = tx;
     this.json = json;
     this.clock = clock;
+    this.rabbit = rabbit;
   }
 
   @RabbitListener(queues = ErpEvents.AGENT_QUEUE, ackMode = "MANUAL")
@@ -88,9 +94,49 @@ public class ErpEventListener {
       tx.executeWithoutResult(status -> handle(event));
       channel.basicAck(tag, false);
     } catch (RuntimeException e) {
-      log.warn("Could not handle ERP event {}; it will be redelivered", event.eventId(), e);
-      channel.basicNack(tag, false, true);
+      giveBack(message, channel, tag, event, e);
     }
+  }
+
+  /**
+   * Hands a message it could not handle back for a later try, or parks it once it has had its
+   * tries. Rejecting without requeue dead-letters it into the retry queue, which returns it after a
+   * delay; the broker counts each pass in the message's {@code x-death} header. A requeueing nack
+   * would come straight back, and RabbitMQ does not count it toward a delivery limit.
+   */
+  private void giveBack(
+      Message message, Channel channel, long tag, ErpEvent event, RuntimeException e)
+      throws IOException {
+    long tries = failedTries(message) + 1;
+    if (tries >= ErpEvents.AGENT_MAX_ATTEMPTS) {
+      log.error(
+          "Giving up on ERP event {} after {} tries; parked in {}",
+          event.eventId(),
+          tries,
+          ErpEvents.AGENT_DEAD_LETTER_QUEUE,
+          e);
+      rabbit.send("", ErpEvents.AGENT_DEAD_LETTER_QUEUE, message);
+      channel.basicAck(tag, false);
+      return;
+    }
+    log.warn(
+        "Could not handle ERP event {} (try {} of {}); retrying shortly",
+        event.eventId(),
+        tries,
+        ErpEvents.AGENT_MAX_ATTEMPTS,
+        e);
+    channel.basicReject(tag, false);
+  }
+
+  private static long failedTries(Message message) {
+    List<Map<String, ?>> deaths = message.getMessageProperties().getXDeathHeader();
+    if (deaths == null) {
+      return 0;
+    }
+    return deaths.stream()
+        .filter(death -> ErpEvents.AGENT_QUEUE.equals(death.get("queue")))
+        .mapToLong(death -> death.get("count") instanceof Number n ? n.longValue() : 0)
+        .sum();
   }
 
   private void handle(ErpEvent event) {

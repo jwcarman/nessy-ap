@@ -36,6 +36,23 @@ public final class ErpEvents {
    */
   public static final String AGENT_QUEUE = "ap-agent.erp-events";
 
+  /**
+   * Where the agent queue dead-letters an event it could not handle. It feeds {@link
+   * #AGENT_RETRY_QUEUE}, which holds the event for {@link #AGENT_RETRY_DELAY_MILLIS} and then hands
+   * it back to {@link #AGENT_QUEUE}: a retry with a delay, counted by the broker in the message's
+   * {@code x-death} header, so the count survives restarts.
+   */
+  public static final String AGENT_RETRY_EXCHANGE = "ap-agent.erp-events.retry";
+
+  public static final String AGENT_RETRY_QUEUE = "ap-agent.erp-events.retry";
+
+  public static final int AGENT_RETRY_DELAY_MILLIS = 2_000;
+
+  /** Events the agent gave up on after {@link #AGENT_MAX_ATTEMPTS}, kept to be looked at. */
+  public static final String AGENT_DEAD_LETTER_QUEUE = "ap-agent.erp-events.dead";
+
+  public static final int AGENT_MAX_ATTEMPTS = 5;
+
   private ErpEvents() {}
 
   public static String routingKey(ErpEvent event) {
