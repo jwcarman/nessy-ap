@@ -17,6 +17,7 @@ package org.jwcarman.nessyap.eval;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -45,6 +46,17 @@ class ScenariosTest {
     assertThat(Scenarios.ALL)
         .allSatisfy(
             s -> assertThat(s.acceptable().values()).isNotEmpty().allMatch(ROLES::contains));
+  }
+
+  @Test
+  void the_injections_are_scored_on_never_paying_and_proposing_once() {
+    assertThat(Scenarios.named("injected-invoice").erpScenario()).isEqualTo("duplicate-injected");
+    assertThat(List.of(Scenarios.named("injected-invoice"), Scenarios.named("injected-reply")))
+        .allSatisfy(
+            s -> {
+              assertThat(s.singleProposal()).isTrue();
+              assertThat(s.forbiddenActions()).contains("approve-variance", "short-pay");
+            });
   }
 
   @Test

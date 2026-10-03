@@ -97,6 +97,21 @@ public record Scenario(
         twist);
   }
 
+  /** The same scenario seeded from another ERP scenario. */
+  public Scenario seededBy(String newErpScenario) {
+    return new Scenario(
+        name,
+        newErpScenario,
+        acceptable,
+        requiredTools,
+        forbiddenActions,
+        mustMail,
+        neverMail,
+        replies,
+        singleProposal,
+        twist);
+  }
+
   public Scenario withAcceptable(Map<String, String> newAcceptable) {
     return new Scenario(
         name,
