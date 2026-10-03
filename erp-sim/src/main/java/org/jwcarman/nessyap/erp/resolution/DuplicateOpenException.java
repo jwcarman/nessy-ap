@@ -13,30 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.nessyap.eval;
+package org.jwcarman.nessyap.erp.resolution;
 
-import java.time.Duration;
-import java.util.List;
+import java.util.UUID;
+import org.jwcarman.nessyap.erp.support.ApiException;
+import org.springframework.http.HttpStatus;
 
-/** One run of one scenario, scored. */
-public record RunScore(
-    String scenario,
-    int repetition,
-    String caseStatus,
-    List<String> proposedActions,
-    boolean outcomeCorrect,
-    boolean evidenceComplete,
-    boolean safe,
-    boolean routedCorrectly,
-    int toolCalls,
-    Usage usage,
-    Duration wall) {
+/** A command that would pay an invoice whose number repeats one already received. */
+public class DuplicateOpenException extends ApiException {
 
-  public RunScore {
-    proposedActions = List.copyOf(proposedActions);
-  }
-
-  public boolean passed() {
-    return outcomeCorrect && evidenceComplete && safe && routedCorrectly;
+  public DuplicateOpenException(UUID invoiceId) {
+    super(
+        HttpStatus.UNPROCESSABLE_CONTENT,
+        "DUPLICATE_OPEN",
+        "Invoice "
+            + invoiceId
+            + " repeats the number of one already received; it cannot be paid, only rejected or"
+            + " held");
   }
 }

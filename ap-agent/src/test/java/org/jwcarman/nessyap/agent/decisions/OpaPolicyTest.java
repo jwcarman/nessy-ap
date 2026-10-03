@@ -30,7 +30,7 @@ class OpaPolicyTest {
   @Test
   void the_routing_policy_passes_its_own_tests() {
     try (GenericContainer<?> opa =
-        new GenericContainer<>("openpolicyagent/opa:0.68.0")
+        new GenericContainer<>("openpolicyagent/opa:1.21.1")
             .withCopyFileToContainer(
                 MountableFile.forHostPath(Path.of("../compose/opa/policy").toAbsolutePath()),
                 "/policy")

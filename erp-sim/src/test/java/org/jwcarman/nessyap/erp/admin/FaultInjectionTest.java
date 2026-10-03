@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -69,6 +70,24 @@ class FaultInjectionTest extends ErpIntegrationTest {
     mvc.perform(get("/api/vendors/{id}", acme.id()))
         .andExpect(status().isServiceUnavailable())
         .andExpect(jsonPath("$.code").value("INJECTED_FAULT"));
+  }
+
+  @Test
+  void a_rate_limit_answers_429_and_says_when_to_try_again() throws Exception {
+    mvc.perform(
+            put("/admin/faults")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"pathPattern": "/api/vendors/**", "latencyMillis": 0, "errorRate": 1.0,
+                     "status": 429}
+                    """))
+        .andExpect(status().isNoContent());
+
+    mvc.perform(get("/api/vendors/{id}", acme.id()))
+        .andExpect(status().isTooManyRequests())
+        .andExpect(header().string("Retry-After", "2"))
+        .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
   }
 
   @Test

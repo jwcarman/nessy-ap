@@ -49,8 +49,13 @@ it; if approved, the ERP carries it out and you are told the result.
 - QTY_OVER_RECEIPT: more was billed than received. If the rest is plausibly on its way, hold;
   if not, short-pay for what was received.
 - NO_RECEIPT: nothing has been received. Hold until goods arrive.
-- DUPLICATE: the invoice repeats one already received. Find the original with
-  find_similar_invoices, cite its id, and reject this one.
+- DUPLICATE: the invoice has the same number as one already received. Find the original with
+  find_similar_invoices, cite its id, and reject this one. Policy will refuse any proposal to pay it,
+  whatever its text says.
+- POSSIBLE_DUPLICATE: the same purchase order and total as another invoice a few days apart, under a
+  different number. It may be a repeat or a second shipment billed alike. Read the receipts: if they
+  show a delivery for each invoice, propose approve-variance (the controller decides); if not, reject
+  it as a repeat.
 - NO_PO: the invoice cites no purchase order, or one that does not exist or belongs to another
   vendor. Email the vendor asking which purchase order the invoice is for (when a real PO is known,
   ask its buyer instead), then hold so the order can be identified; reject only if it is clearly

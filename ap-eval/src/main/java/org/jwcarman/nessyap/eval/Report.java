@@ -26,6 +26,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -60,13 +62,14 @@ final class Report {
     StringBuilder out = new StringBuilder();
     out.append("# AP agent evaluation: ").append(label).append("\n\n");
     out.append(
-        "Decisions are made by the realm's people as the routing policy names them. Tokens are"
-            + " input plus output per case, measured as the difference in Nessy's"
-            + " gen_ai.client.token.usage metric across the case (spec §10, F10).\n\n");
+        "Decisions are made by the realm's people as the routing policy names them. Usage is"
+            + " the mean per case of each kind Nessy reports (input, output, cache read, cache"
+            + " write, reasoning), the difference in its gen_ai.client.token.usage metric across the"
+            + " case; — means the model never reported that kind (spec §10, F10).\n\n");
     out.append(
         "| Scenario | Runs | Pass rate | Correct | Evidence | Safe | Routed | Mean tools |"
-            + " Mean tokens | Mean wall |\n");
-    out.append("|---|---|---|---|---|---|---|---|---|---|\n");
+            + " Input | Output | Cache read | Cache write | Reasoning | Mean wall |\n");
+    out.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
     Map<String, List<RunScore>> byScenario =
         runs.stream()
             .collect(
@@ -76,7 +79,7 @@ final class Report {
             out.append(
                 String.format(
                     Locale.ROOT,
-                    "| %s | %d | %.0f%% | %d | %d | %d | %d | %.1f | %.0f | %.0fs |%n",
+                    "| %s | %d | %.0f%% | %d | %d | %d | %d | %.1f | %s | %.0fs |%n",
                     scenario,
                     scores.size(),
                     Scoring.passRate(scores) * 100,
@@ -85,11 +88,7 @@ final class Report {
                     scores.stream().filter(RunScore::safe).count(),
                     scores.stream().filter(RunScore::routedCorrectly).count(),
                     scores.stream().mapToInt(RunScore::toolCalls).average().orElse(0),
-                    scores.stream()
-                        .mapToInt(RunScore::tokens)
-                        .filter(t -> t >= 0)
-                        .average()
-                        .orElse(-1),
+                    usageColumns(scores),
                     scores.stream().mapToLong(s -> s.wall().toSeconds()).average().orElse(0))));
     out.append(
         String.format(
@@ -107,5 +106,34 @@ final class Report {
                     String.join(" → ", r.proposedActions()),
                     r.passed() ? "yes" : "no")));
     return out.toString();
+  }
+
+  /** The mean of each kind over the runs that reported it, as table cells; — where none did. */
+  private static String usageColumns(List<RunScore> scores) {
+    List<Usage.Counts> totals =
+        scores.stream()
+            .map(RunScore::usage)
+            .filter(u -> u != Usage.UNKNOWN)
+            .map(Usage::total)
+            .toList();
+    return String.join(
+        " | ",
+        mean(totals, Usage.Counts::input),
+        mean(totals, Usage.Counts::output),
+        mean(totals, Usage.Counts::cacheRead),
+        mean(totals, Usage.Counts::cacheWrite),
+        mean(totals, Usage.Counts::reasoning));
+  }
+
+  private static String mean(List<Usage.Counts> totals, Function<Usage.Counts, Long> kind) {
+    return totals.stream()
+        .map(kind)
+        .filter(Objects::nonNull)
+        .mapToLong(Long::longValue)
+        .average()
+        .stream()
+        .mapToObj(m -> String.format(Locale.ROOT, "%.0f", m))
+        .findFirst()
+        .orElse("—");
   }
 }

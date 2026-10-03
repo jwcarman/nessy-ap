@@ -23,8 +23,8 @@ import java.util.Set;
  * One thing the agent is asked to get right.
  *
  * @param erpScenario the ERP seed scenario that sets it up
- * @param expectedAction the resolution a competent AP analyst would reach
- * @param expectedRole the role the routing policy should hand that resolution to
+ * @param acceptable every resolution a competent AP analyst could reach, each with the role the
+ *     routing policy should hand it to; the case is judged on its final proposal
  * @param requiredTools tools the agent must have used before proposing, as evidence
  * @param forbiddenActions actions that are unsafe here even if later withdrawn; proposing one fails
  *     the run's safety check
@@ -33,23 +33,167 @@ import java.util.Set;
  * @param neverMail who the agent must never have written to; writing to one fails the safety check
  * @param replies what each counterparty ({@code buyer}, {@code vendor}) answers, once, to every
  *     message the desk sends them; a kind with no entry never answers
+ * @param singleProposal whether more than one proposal fails the safety check (a redelivered event
+ *     must not start the case over)
+ * @param twist the trouble the run is put through
  */
 public record Scenario(
     String name,
     String erpScenario,
-    String expectedAction,
-    String expectedRole,
+    Map<String, String> acceptable,
     List<String> requiredTools,
     Set<String> forbiddenActions,
     Set<String> mustMail,
     Set<String> neverMail,
-    Map<String, String> replies) {
+    Map<String, String> replies,
+    boolean singleProposal,
+    Twist twist) {
+
+  /** What goes wrong around the agent during a run. */
+  public enum Twist {
+    NONE,
+    /** Some ERP reads fail with 503 or 429 while the case is worked. */
+    FLAKY_ERP,
+    /** The ERP publishes the exception's event a second time, a few seconds in. */
+    REDELIVERED
+  }
 
   public Scenario {
+    acceptable = Map.copyOf(acceptable);
     requiredTools = List.copyOf(requiredTools);
     forbiddenActions = Set.copyOf(forbiddenActions);
     mustMail = Set.copyOf(mustMail);
     neverMail = Set.copyOf(neverMail);
     replies = Map.copyOf(replies);
+  }
+
+  /** A scenario with one right resolution, nobody to write to, no replies and no trouble. */
+  public static Scenario of(
+      String name, String action, String role, List<String> requiredTools, Set<String> forbidden) {
+    return new Scenario(
+        name,
+        name,
+        Map.of(action, role),
+        requiredTools,
+        forbidden,
+        Set.of(),
+        Set.of(),
+        Map.of(),
+        false,
+        Twist.NONE);
+  }
+
+  public Scenario named(String newName) {
+    return new Scenario(
+        newName,
+        erpScenario,
+        acceptable,
+        requiredTools,
+        forbiddenActions,
+        mustMail,
+        neverMail,
+        replies,
+        singleProposal,
+        twist);
+  }
+
+  /** The same scenario seeded from another ERP scenario. */
+  public Scenario seededBy(String newErpScenario) {
+    return new Scenario(
+        name,
+        newErpScenario,
+        acceptable,
+        requiredTools,
+        forbiddenActions,
+        mustMail,
+        neverMail,
+        replies,
+        singleProposal,
+        twist);
+  }
+
+  public Scenario withAcceptable(Map<String, String> newAcceptable) {
+    return new Scenario(
+        name,
+        erpScenario,
+        newAcceptable,
+        requiredTools,
+        forbiddenActions,
+        mustMail,
+        neverMail,
+        replies,
+        singleProposal,
+        twist);
+  }
+
+  public Scenario withReplies(Map<String, String> newReplies) {
+    return new Scenario(
+        name,
+        erpScenario,
+        acceptable,
+        requiredTools,
+        forbiddenActions,
+        mustMail,
+        neverMail,
+        newReplies,
+        singleProposal,
+        twist);
+  }
+
+  public Scenario mustMail(Set<String> kinds) {
+    return new Scenario(
+        name,
+        erpScenario,
+        acceptable,
+        requiredTools,
+        forbiddenActions,
+        kinds,
+        neverMail,
+        replies,
+        singleProposal,
+        twist);
+  }
+
+  public Scenario neverMail(Set<String> kinds) {
+    return new Scenario(
+        name,
+        erpScenario,
+        acceptable,
+        requiredTools,
+        forbiddenActions,
+        mustMail,
+        kinds,
+        replies,
+        singleProposal,
+        twist);
+  }
+
+  /** Fails the run if the agent proposes more than once. */
+  public Scenario once() {
+    return new Scenario(
+        name,
+        erpScenario,
+        acceptable,
+        requiredTools,
+        forbiddenActions,
+        mustMail,
+        neverMail,
+        replies,
+        true,
+        twist);
+  }
+
+  public Scenario withTwist(Twist newTwist) {
+    return new Scenario(
+        name,
+        erpScenario,
+        acceptable,
+        requiredTools,
+        forbiddenActions,
+        mustMail,
+        neverMail,
+        replies,
+        singleProposal,
+        newTwist);
   }
 }

@@ -136,6 +136,51 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void a_repeated_invoice_is_not_paid_through_its_price_variance() {
+    UUID vendor = UUID.randomUUID();
+    UUID invoice = UUID.randomUUID();
+    erp.on("GET", "/api/purchase-orders/PO-1", 200, "{\"poNumber\":\"PO-1\",\"buyer\":\"bob\"}");
+    erp.on(
+        "GET",
+        "/api/invoices/" + invoice,
+        200,
+        """
+        {"invoice": {"total": 1040.00},
+         "exceptions": [{"reasonCode": "DUPLICATE", "status": "OPEN"},
+                        {"reasonCode": "PRICE_VARIANCE", "status": "OPEN"}]}
+        """);
+    model.script(
+        steps(
+            call(
+                "c1",
+                "propose_resolution",
+                "{\"action\":\"approve-variance\",\"rationale\":\"r\"}")));
+    exceptionId = UUID.randomUUID();
+    MatchExceptionRaised raised =
+        new MatchExceptionRaised(
+            UUID.randomUUID(),
+            Instant.now(),
+            exceptionId,
+            invoice,
+            "INV-1",
+            vendor,
+            "PO-1",
+            ReasonCode.PRICE_VARIANCE,
+            "s",
+            new BigDecimal("40.00"));
+    cases.open(raised);
+    agentId = cases.agentFor(exceptionId);
+    agent.tell(agentId, new CaseInput.ExceptionRaised(raised));
+
+    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+    assertThat(decisions.forCase(exceptionId)).isEmpty();
+    assertThat(model.outcomesSeen())
+        .filteredOn(ToolOutcome.Denied.class::isInstance)
+        .singleElement()
+        .satisfies(o -> assertThat(((ToolOutcome.Denied) o).reason()).contains("same number"));
+  }
+
+  @Test
   void an_action_that_is_not_a_resolution_is_denied_without_asking_anyone() {
     propose(ReasonCode.PRICE_VARIANCE, "40.00", "{\"action\":\"pay-twice\",\"rationale\":\"r\"}");
 
@@ -165,7 +210,7 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
   }
 
   @Test
-  void a_vendor_that_cannot_be_read_counts_as_unverified() {
+  void a_vendor_that_cannot_be_read_is_refused_until_it_can_be() {
     erp.onPrefix("GET", "/api/vendors/", 503, "{\"code\":\"DOWN\"}");
     propose(
         ReasonCode.PRICE_VARIANCE,
@@ -174,5 +219,10 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
 
     await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
     assertThat(decisions.forCase(exceptionId)).isEmpty();
+    // Refused, but not as fraud: a read that failed says nothing about the bank details.
+    assertThat(model.outcomesSeen())
+        .filteredOn(ToolOutcome.Denied.class::isInstance)
+        .singleElement()
+        .satisfies(o -> assertThat(((ToolOutcome.Denied) o).reason()).contains("could not read"));
   }
 }

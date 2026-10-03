@@ -37,6 +37,12 @@ public class FaultInjectionFilter extends OncePerRequestFilter {
       "{\"status\":503,\"title\":\"Service Unavailable\",\"detail\":\"Injected fault\","
           + "\"code\":\"INJECTED_FAULT\"}";
 
+  private static final String RETRY_AFTER_SECONDS = "2";
+
+  private static final String RATE_LIMITED =
+      "{\"status\":429,\"title\":\"Too Many Requests\",\"detail\":\"Injected rate limit\","
+          + "\"code\":\"RATE_LIMITED\"}";
+
   private final FaultRules rules;
 
   public FaultInjectionFilter(FaultRules rules) {
@@ -56,13 +62,22 @@ public class FaultInjectionFilter extends OncePerRequestFilter {
     if (rule.isPresent()) {
       stall(rule.get().latencyMillis());
       if (ThreadLocalRandom.current().nextDouble() < rule.get().errorRate()) {
-        response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
-        response.setContentType("application/problem+json");
-        response.getWriter().write(INJECTED);
+        fail(response, rule.get().status());
         return;
       }
     }
     chain.doFilter(request, response);
+  }
+
+  private static void fail(HttpServletResponse response, int status) throws IOException {
+    response.setStatus(status);
+    response.setContentType("application/problem+json");
+    if (status == FaultRule.RATE_LIMITED) {
+      response.setHeader("Retry-After", RETRY_AFTER_SECONDS);
+      response.getWriter().write(RATE_LIMITED);
+    } else {
+      response.getWriter().write(INJECTED);
+    }
   }
 
   private static void stall(long millis) {

@@ -18,10 +18,12 @@ package org.jwcarman.nessyap.erp.resolution;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import org.jwcarman.nessyap.contracts.ReasonCode;
 import org.jwcarman.nessyap.erp.audit.Actor;
 import org.jwcarman.nessyap.erp.invoice.Invoice;
 import org.jwcarman.nessyap.erp.invoice.InvoiceRepository;
 import org.jwcarman.nessyap.erp.invoice.InvoiceStatus;
+import org.jwcarman.nessyap.erp.matching.ExceptionStatus;
 import org.jwcarman.nessyap.erp.matching.MatchExceptionRepository;
 import org.jwcarman.nessyap.erp.support.Fingerprints;
 import org.jwcarman.nessyap.erp.support.InvalidRequestException;
@@ -101,6 +103,10 @@ public class Resolutions {
         && vendors.get(invoice.vendorId()).hasUnverifiedBankChange()) {
       throw new BankChangeUnverifiedException(invoice.vendorId());
     }
+    // A repeated number is never paid, through whichever of its exceptions the command arrives.
+    if (action.target() == InvoiceStatus.APPROVED && hasOpenDuplicate(invoiceId)) {
+      throw new DuplicateOpenException(invoiceId);
+    }
     BigDecimal approved = approvedAmount(invoice, action, command);
     if (!invoices.updateStatus(invoiceId, action.target(), approved, expected)) {
       throw new StaleVersionException(invoiceId, expected);
@@ -111,6 +117,12 @@ public class Resolutions {
     }
     recorder.record(actor, invoiceId, action, command, now);
     return invoices.find(invoiceId).orElseThrow();
+  }
+
+  private boolean hasOpenDuplicate(UUID invoiceId) {
+    return exceptions.findByInvoice(invoiceId).stream()
+        .anyMatch(
+            e -> e.reasonCode() == ReasonCode.DUPLICATE && e.status() == ExceptionStatus.OPEN);
   }
 
   /** What a command authorises paying: a short-pay's own amount, otherwise the whole invoice. */

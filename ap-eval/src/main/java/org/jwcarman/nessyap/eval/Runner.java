@@ -48,21 +48,78 @@ final class Runner {
   private final Keycloak keycloak;
   private final String erpUrl;
   private final String agentUrl;
-  private final Duration timeout;
-  private final TokenMeter meter;
+  private static final Duration REDELIVER_AFTER = Duration.ofSeconds(3);
 
-  Runner(Http http, Keycloak keycloak, String erpUrl, String agentUrl, Duration timeout) {
-    this.meter = new TokenMeter(http, agentUrl);
+  private final Duration timeout;
+  private final Duration quiet;
+  private final UsageMeter meter;
+
+  Runner(
+      Http http,
+      Keycloak keycloak,
+      String erpUrl,
+      String agentUrl,
+      Duration timeout,
+      Duration quiet) {
+    this.meter = new UsageMeter(http, agentUrl);
     this.http = http;
     this.keycloak = keycloak;
     this.erpUrl = erpUrl;
     this.agentUrl = agentUrl;
     this.timeout = timeout;
+    this.quiet = quiet;
   }
 
   RunScore run(Scenario scenario, int repetition) {
+    try {
+      if (scenario.twist() == Scenario.Twist.FLAKY_ERP) {
+        breakTheErp();
+      }
+      return attempt(scenario, repetition);
+    } finally {
+      // A fault left in place would poison every later run, even one that failed to set up.
+      clearFaults();
+    }
+  }
+
+  /**
+   * Removes every injected fault; also called before the first run, in case an earlier eval died.
+   */
+  void clearFaults() {
+    try {
+      http.delete(erpUrl + "/admin/faults");
+    } catch (IllegalStateException e) {
+      log.warn("Could not clear the ERP's injected faults: {}", e.getMessage());
+    }
+  }
+
+  /**
+   * Reads the agent leans on fail some of the time: 503s, and a rate limit on the similar search.
+   */
+  private void breakTheErp() {
+    http.put(
+        erpUrl + "/admin/faults",
+        Map.of("pathPattern", "/api/vendors/**", "latencyMillis", 0, "errorRate", 0.3));
+    http.put(
+        erpUrl + "/admin/faults",
+        Map.of("pathPattern", "/api/purchase-orders/**", "latencyMillis", 0, "errorRate", 0.3));
+    http.put(
+        erpUrl + "/admin/faults",
+        Map.of(
+            "pathPattern",
+            "/api/invoices/similar",
+            "latencyMillis",
+            0,
+            "errorRate",
+            0.5,
+            "status",
+            429));
+  }
+
+  private RunScore attempt(Scenario scenario, int repetition) {
     Instant started = Instant.now();
-    long spentBefore = meter.total();
+    boolean redeliveryDone = scenario.twist() != Scenario.Twist.REDELIVERED;
+    Usage before = meter.read();
     JsonNode seeded = http.post(erpUrl + "/admin/scenarios/" + scenario.erpScenario());
     UUID exceptionId = UUID.fromString(seeded.path("exceptionIds").get(0).asString());
     log.info("{} #{}: exception {}", scenario.name(), repetition, exceptionId);
@@ -73,27 +130,34 @@ final class Runner {
           http.get(agentUrl + "/api/cases/" + exceptionId, keycloak.tokenFor(OBSERVER));
       if (view.isPresent()) {
         lastSeen = view.get();
+        if (!redeliveryDone
+            && Duration.between(started, Instant.now()).compareTo(REDELIVER_AFTER) >= 0) {
+          http.post(erpUrl + "/admin/exceptions/" + exceptionId + "/redeliver");
+          log.info("  the ERP published the exception's event again");
+          redeliveryDone = true;
+        }
         decidePending(lastSeen);
         answerMail(lastSeen, scenario, answered);
-        if ("RESOLVED".equals(lastSeen.path("status").asString()) && settled(lastSeen)) {
+        if (Settled.of(lastSeen, Instant.now(), quiet)) {
           break;
         }
       }
       sleep();
     }
-    long spentAfter = meter.total();
-    int tokens = spentBefore < 0 || spentAfter < 0 ? -1 : (int) (spentAfter - spentBefore);
-    Observed observed = observe(lastSeen, tokens, Duration.between(started, Instant.now()));
+    Usage after = meter.read();
+    Usage usage =
+        before == Usage.UNKNOWN || after == Usage.UNKNOWN ? Usage.UNKNOWN : after.since(before);
+    Observed observed = observe(lastSeen, usage, Duration.between(started, Instant.now()));
     RunScore score = Scoring.score(scenario, repetition, observed);
     log.info(
-        "{} #{}: {} actions={} routed={} tools={} tokens={} passed={}",
+        "{} #{}: {} actions={} routed={} tools={} usage={} passed={}",
         scenario.name(),
         repetition,
         observed.caseStatus(),
         observed.proposedActions(),
         observed.routedTo(),
         observed.toolsUsed(),
-        observed.tokens(),
+        observed.usage().byModel(),
         score.passed());
     return score;
   }
@@ -147,18 +211,9 @@ final class Runner {
     }
   }
 
-  private static boolean settled(JsonNode view) {
-    for (JsonNode decision : view.path("decisions")) {
-      if (!"ANSWERED".equals(decision.path("status").asString())) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private static Observed observe(JsonNode view, int tokens, Duration wall) {
+  private static Observed observe(JsonNode view, Usage usage, Duration wall) {
     if (view == null) {
-      return new Observed("NEVER_OPENED", List.of(), List.of(), List.of(), List.of(), tokens, wall);
+      return new Observed("NEVER_OPENED", List.of(), List.of(), List.of(), List.of(), usage, wall);
     }
     List<String> actions = new ArrayList<>();
     List<String> routes = new ArrayList<>();
@@ -178,7 +233,7 @@ final class Runner {
       }
     }
     return new Observed(
-        view.path("status").asString(), actions, tools, routes, mailed, tokens, wall);
+        view.path("status").asString(), actions, tools, routes, mailed, usage, wall);
   }
 
   private static void sleep() {

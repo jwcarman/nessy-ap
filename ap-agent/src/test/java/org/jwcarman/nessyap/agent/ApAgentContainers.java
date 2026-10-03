@@ -34,19 +34,19 @@ public class ApAgentContainers {
   @Bean
   @ServiceConnection
   PostgreSQLContainer postgres() {
-    return new PostgreSQLContainer("postgres:18-alpine");
+    return new PostgreSQLContainer("postgres:18.6-alpine");
   }
 
   @Bean
   @ServiceConnection
   RabbitMQContainer rabbit() {
-    return new RabbitMQContainer("rabbitmq:4-management-alpine");
+    return new RabbitMQContainer("rabbitmq:4.3.6-management-alpine");
   }
 
   /** The real routing policy, from the repo, in a real OPA. */
   @Bean
   GenericContainer<?> opa() {
-    return new GenericContainer<>("openpolicyagent/opa:0.68.0")
+    return new GenericContainer<>("openpolicyagent/opa:1.21.1")
         .withCopyFileToContainer(
             MountableFile.forHostPath(Path.of("../compose/opa/policy").toAbsolutePath()), "/policy")
         .withCommand("run", "--server", "--addr", "0.0.0.0:8181", "/policy")
@@ -83,7 +83,6 @@ public class ApAgentContainers {
       registry.add("ap.mail.imap.host", greenMail::getHost);
       registry.add("ap.mail.imap.port", () -> greenMail.getMappedPort(3143));
       registry.add("ap.mail.imap.password", () -> "ap-desk@nessy-ap.example");
-      registry.add("ap.mail.poll.enabled", () -> "false");
     };
   }
 

@@ -27,11 +27,13 @@ import java.util.concurrent.Future;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.nessyap.contracts.ReasonCode;
 import org.jwcarman.nessyap.erp.ErpIntegrationTest;
 import org.jwcarman.nessyap.erp.audit.Actor;
 import org.jwcarman.nessyap.erp.invoice.Invoice;
 import org.jwcarman.nessyap.erp.invoice.InvoiceStatus;
 import org.jwcarman.nessyap.erp.matching.ExceptionStatus;
+import org.jwcarman.nessyap.erp.matching.MatchException;
 import org.jwcarman.nessyap.erp.matching.MatchExceptionRepository;
 import org.jwcarman.nessyap.erp.support.InvalidRequestException;
 import org.jwcarman.nessyap.erp.vendor.BankChangeProposal;
@@ -74,6 +76,39 @@ class ResolutionsTest extends ErpIntegrationTest {
         .param("action", action)
         .query(Long.class)
         .single();
+  }
+
+  @Nested
+  class A_repeat_of_an_invoice {
+
+    @Test
+    void cannot_be_paid_even_through_its_other_exception() {
+      Invoice again = data().invoice(acme, "INV 1001", "PO-1", "100", "10.40");
+      assertThat(exceptions.findByInvoice(again.id()))
+          .extracting(MatchException::reasonCode)
+          .contains(ReasonCode.DUPLICATE, ReasonCode.PRICE_VARIANCE);
+      ResolutionCommand pay = new ResolutionCommand(again.version(), null, "because");
+
+      assertThatThrownBy(
+              () ->
+                  resolutions.apply(
+                      CONTROLLER, "dup-1", again.id(), ResolutionAction.APPROVE_VARIANCE, pay))
+          .isInstanceOf(DuplicateOpenException.class);
+      assertThat(exceptions.findByInvoice(again.id()))
+          .isNotEmpty()
+          .allMatch(e -> e.status() == ExceptionStatus.OPEN);
+    }
+
+    @Test
+    void can_still_be_rejected() {
+      Invoice again = data().invoice(acme, "INV 1001", "PO-1", "100", "10.40");
+      ResolutionCommand reject = new ResolutionCommand(again.version(), null, "repeat");
+
+      Invoice rejected =
+          resolutions.apply(CONTROLLER, "dup-2", again.id(), ResolutionAction.REJECT, reject);
+
+      assertThat(rejected.status()).isEqualTo(InvoiceStatus.REJECTED);
+    }
   }
 
   @Nested

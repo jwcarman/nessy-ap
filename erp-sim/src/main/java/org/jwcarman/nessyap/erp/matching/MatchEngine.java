@@ -74,24 +74,46 @@ public final class MatchEngine {
     return List.copyOf(findings);
   }
 
+  /**
+   * Two signals of very different strength. The same number, however it is written, is a repeat;
+   * the same purchase order and total a few days apart may be a second shipment billed alike, so it
+   * is raised as only a possible duplicate, and the two are never confused downstream.
+   */
   private Optional<MatchFinding> duplicateOf(MatchInput in) {
     String number = InvoiceNumbers.normalize(in.invoiceNumber());
-    return in.priorInvoices().stream()
-        .filter(prior -> !prior.id().equals(in.invoiceId()))
-        .filter(
-            prior ->
-                InvoiceNumbers.normalize(prior.invoiceNumber()).equals(number)
-                    || samePoAndTotalNearby(prior, in))
+    List<PriorInvoice> others =
+        in.priorInvoices().stream().filter(prior -> !prior.id().equals(in.invoiceId())).toList();
+    Optional<MatchFinding> sameNumber =
+        others.stream()
+            .filter(prior -> InvoiceNumbers.normalize(prior.invoiceNumber()).equals(number))
+            .findFirst()
+            .map(
+                prior ->
+                    new MatchFinding(
+                        ReasonCode.DUPLICATE,
+                        "Same number as invoice "
+                            + prior.invoiceNumber()
+                            + " ("
+                            + prior.id()
+                            + "), received earlier",
+                        money(in.total())));
+    if (sameNumber.isPresent()) {
+      return sameNumber;
+    }
+    return others.stream()
+        .filter(prior -> samePoAndTotalNearby(prior, in))
         .findFirst()
         .map(
             prior ->
                 new MatchFinding(
-                    ReasonCode.DUPLICATE,
-                    "Looks like invoice "
+                    ReasonCode.POSSIBLE_DUPLICATE,
+                    "Same purchase order and total as invoice "
                         + prior.invoiceNumber()
                         + " ("
                         + prior.id()
-                        + "), received earlier",
+                        + "), received "
+                        + Math.abs(ChronoUnit.DAYS.between(prior.invoiceDate(), in.invoiceDate()))
+                        + " days apart: check the receipts for a second shipment",
                     money(in.total())));
   }
 

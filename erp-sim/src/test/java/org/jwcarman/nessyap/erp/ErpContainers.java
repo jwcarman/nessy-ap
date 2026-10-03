@@ -39,13 +39,13 @@ public class ErpContainers {
   @Bean
   @ServiceConnection
   PostgreSQLContainer postgres() {
-    return new PostgreSQLContainer("postgres:18-alpine");
+    return new PostgreSQLContainer("postgres:18.6-alpine");
   }
 
   @Bean
   @ServiceConnection
   RabbitMQContainer rabbit() {
-    return new RabbitMQContainer("rabbitmq:4-management-alpine");
+    return new RabbitMQContainer("rabbitmq:4.3.6-management-alpine");
   }
 
   @Bean

@@ -16,7 +16,10 @@
 package org.jwcarman.nessyap.erp.admin;
 
 import java.util.Set;
+import java.util.UUID;
+import org.jwcarman.nessyap.erp.outbox.Outbox;
 import org.jwcarman.nessyap.erp.support.ErpReset;
+import org.jwcarman.nessyap.erp.support.NotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,10 +35,21 @@ public class AdminController {
 
   private final ScenarioCatalog catalog;
   private final ErpReset reset;
+  private final Outbox outbox;
 
-  public AdminController(ScenarioCatalog catalog, ErpReset reset) {
+  public AdminController(ScenarioCatalog catalog, ErpReset reset, Outbox outbox) {
     this.catalog = catalog;
     this.reset = reset;
+    this.outbox = outbox;
+  }
+
+  /** Publishes the exception's event again, under the same id, as a broker redelivery would. */
+  @PostMapping("/exceptions/{exceptionId}/redeliver")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void redeliver(@PathVariable UUID exceptionId) {
+    if (!outbox.redeliverRaised(exceptionId)) {
+      throw new NotFoundException("match exception", exceptionId);
+    }
   }
 
   @GetMapping("/scenarios")
