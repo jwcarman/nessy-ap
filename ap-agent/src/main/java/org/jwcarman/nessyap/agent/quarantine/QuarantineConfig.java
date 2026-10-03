@@ -15,6 +15,7 @@
  */
 package org.jwcarman.nessyap.agent.quarantine;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -28,12 +29,15 @@ import org.jwcarman.occlude.AccessContext;
 import org.jwcarman.occlude.AccessContextProvider;
 import org.jwcarman.occlude.Charter;
 import org.jwcarman.occlude.lattice.Axes;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The quarantine's authority. The starter builds and binds the charter from the axes; this class
@@ -51,7 +55,20 @@ public class QuarantineConfig {
     return QuarantineAxes.axes();
   }
 
-  /** Until a model reads replies, nothing in one is known and a person must read it. */
+  /** The quarantined reader: a small model, no tools, an answer held to a schema. */
+  @Bean
+  @ConditionalOnProperty(
+      name = "ap.quarantine.reader.enabled",
+      havingValue = "true",
+      matchIfMissing = true)
+  public ReplyReader modelReplyReader(
+      @Value("${ap.quarantine.reader.base-url}") String baseUrl,
+      @Value("${ap.quarantine.reader.model}") String model,
+      @Value("${ap.quarantine.reader.timeout}") Duration timeout) {
+    return new ModelReplyReader(baseUrl, model, timeout, JsonMapper.builder().build());
+  }
+
+  /** With the reader switched off, nothing in a reply is known and a person must read it. */
   @Bean
   @ConditionalOnMissingBean
   public ReplyReader unreadReplies() {

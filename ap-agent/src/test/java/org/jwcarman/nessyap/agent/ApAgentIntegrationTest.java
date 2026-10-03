@@ -40,7 +40,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
       "ap.decisions.auto=false",
       // Tests poll the inbox by hand. Set here, not in a DynamicPropertyRegistrar: those values
       // arrive after @ConditionalOnProperty has already been evaluated.
-      "ap.mail.poll.enabled=false"
+      "ap.mail.poll.enabled=false",
+      // No test calls a model: every reply reads as needing a person, unless a test says otherwise.
+      "ap.quarantine.reader.enabled=false"
     })
 @Import({ApAgentContainers.class, ScriptedModel.class})
 public abstract class ApAgentIntegrationTest {

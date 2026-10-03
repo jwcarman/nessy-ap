@@ -72,6 +72,13 @@ ap:
     timeout: P3D
   decisions:
     auto: false
+  # The quarantined reader of incoming mail: a small model with no tools (see docs/system.md).
+  quarantine:
+    reader:
+      enabled: true
+      base-url: ${AP_MODEL_URL:http://localhost:1234/v1}
+      model: ${AP_READER_MODEL:google/gemma-4-e4b}
+      timeout: PT30S
   # Development only: a page (and API) for answering the desk's mail as its recipient.
   counterparty:
     enabled: true

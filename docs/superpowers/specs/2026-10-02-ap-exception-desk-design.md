@@ -475,6 +475,12 @@ Nessy design conversations, not changes made from this repo.
   policy for each gated tool at startup, or a decision could carry the policy's
   revision into the trail.
 
+- **F13 — No one-shot, tool-less, structured call.** The quarantined reader (slice
+  8) needs one model call with no tools and an answer held to a JSON schema. Nessy's
+  inference SPI is shaped around an agent's turn, so the reader calls the
+  OpenAI-compatible endpoint itself and loses Nessy's provider selection, usage
+  metrics and tracing for that call.
+
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`
 give an idempotent answer path (§3.3); `PolicyApprover` + `Verdict.Delegate`
