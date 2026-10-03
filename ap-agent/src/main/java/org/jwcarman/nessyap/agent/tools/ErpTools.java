@@ -18,7 +18,9 @@ package org.jwcarman.nessyap.agent.tools;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.jwcarman.nessy.api.Awaited;
 import org.jwcarman.nessy.api.block.Block;
@@ -26,6 +28,7 @@ import org.jwcarman.nessy.api.tool.Tool;
 import org.jwcarman.nessy.api.tool.ToolCallRequest;
 import org.jwcarman.nessy.api.tool.ToolName;
 import org.jwcarman.nessy.api.tool.ToolResult;
+import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
@@ -38,21 +41,34 @@ import tools.jackson.databind.node.ObjectNode;
 /**
  * The agent's read-only view of the ERP, plus a notebook line on the case. Every call lands on the
  * case timeline, and no call ever throws: ERP trouble comes back as a failure the model reads.
+ *
+ * <p>The tools read the agent's own case without its ids. The desk knows the case's invoice, PO and
+ * vendor, and fills them in: two models copied a case's UUIDs wrongly, because ids made in the same
+ * millisecond differ in a few characters. The vendor tools reach only the case's vendor. The agent
+ * types an id only to read another invoice, such as the original of a duplicate.
  */
 @Component
 public class ErpTools {
 
   public record InvoiceRef(
-      @JsonPropertyDescription("The invoice id (a UUID), as given in the case") UUID invoiceId) {}
+      @JsonPropertyDescription(
+              "Leave out to read this case's invoice. Give an id only to read another invoice,"
+                  + " such as the original of a duplicate, copied from a tool's result")
+          UUID invoiceId) {}
 
   public record PoRef(
-      @JsonPropertyDescription("The purchase-order number, e.g. PO-3F9A12BC") String poNumber) {}
+      @JsonPropertyDescription(
+              "Leave out to read this case's purchase order. Give a number only to read another"
+                  + " one, e.g. PO-3F9A12BC")
+          String poNumber) {}
 
-  public record VendorRef(@JsonPropertyDescription("The vendor id (a UUID)") UUID vendorId) {}
+  /** The input of a tool that reads only this case's own record. */
+  public record NoInput() {}
 
   public record SimilarQuery(
-      @JsonPropertyDescription("The vendor id (a UUID)") UUID vendorId,
-      @JsonPropertyDescription("An invoice number, written any way; matched ignoring punctuation")
+      @JsonPropertyDescription(
+              "Leave out to search for this case's invoice number. Otherwise an invoice number,"
+                  + " written any way; matched ignoring punctuation")
           String invoiceNumber,
       @JsonPropertyDescription("Optional: also match invoices with exactly this total")
           BigDecimal total) {}
@@ -87,10 +103,10 @@ public class ErpTools {
   public Tool<InvoiceRef> getInvoice() {
     return new Read<>(
         "get_invoice",
-        "Read an invoice: its lines, totals, status, version, and every match exception raised"
-            + " against it.",
+        "Read this case's invoice, or another invoice by id: its lines, totals, status, version,"
+            + " and every match exception raised against it.",
         InvoiceRef.class,
-        in -> erp.invoice(in.invoiceId()),
+        (c, in) -> erp.invoice(in.invoiceId() == null ? c.invoiceId() : in.invoiceId()),
         ErpTools::withholdVendorText,
         VENDOR_TEXT);
   }
@@ -98,50 +114,55 @@ public class ErpTools {
   public Tool<PoRef> getPurchaseOrder() {
     return new Read<>(
         "get_purchase_order",
-        "Read a purchase order: the vendor, the buyer who placed it, and each line's ordered"
-            + " quantity and agreed unit price.",
+        "Read this case's purchase order, or another by number: the vendor, the buyer who"
+            + " placed it, and each line's ordered quantity and agreed unit price.",
         PoRef.class,
-        in -> erp.purchaseOrder(in.poNumber()),
+        (c, in) -> erp.purchaseOrder(poNumber(c, in)),
         Function.identity());
   }
 
   public Tool<PoRef> getReceipts() {
     return new Read<>(
         "get_receipts",
-        "Read every goods receipt posted against a purchase order: what arrived, per PO line,"
-            + " and when.",
+        "Read every goods receipt posted against this case's purchase order, or another by"
+            + " number: what arrived, per PO line, and when.",
         PoRef.class,
-        in -> erp.receipts(in.poNumber()),
+        (c, in) -> erp.receipts(poNumber(c, in)),
         Function.identity());
   }
 
-  public Tool<VendorRef> getVendor() {
+  public Tool<NoInput> getVendor() {
     return new Read<>(
         "get_vendor",
-        "Read a vendor: contact of record, payment terms, and every bank account it has had,"
-            + " including any change still awaiting verification. Account numbers are masked.",
-        VendorRef.class,
-        in -> erp.vendor(in.vendorId()),
+        "Read this case's vendor: contact of record, payment terms, and every bank account it"
+            + " has had, including any change still awaiting verification. Account numbers are"
+            + " masked.",
+        NoInput.class,
+        (c, in) -> erp.vendor(c.vendorId()),
         ErpTools::maskAccounts);
   }
 
   public Tool<SimilarQuery> findSimilarInvoices() {
     return new Read<>(
         "find_similar_invoices",
-        "Find a vendor's invoices that may be the same bill: the same number however it is"
-            + " written, or (when a total is given) the same total.",
+        "Find this case's vendor's invoices that may be the same bill: the same number however"
+            + " it is written, or (when a total is given) the same total.",
         SimilarQuery.class,
-        in -> erp.similarInvoices(in.vendorId(), in.invoiceNumber(), in.total()),
+        (c, in) ->
+            erp.similarInvoices(
+                c.vendorId(),
+                in.invoiceNumber() == null ? c.invoiceNumber() : in.invoiceNumber(),
+                in.total()),
         ErpTools::withholdVendorText,
         VENDOR_TEXT);
   }
 
-  public Tool<VendorRef> vendorInvoiceHistory() {
+  public Tool<NoInput> vendorInvoiceHistory() {
     return new Read<>(
         "get_vendor_invoice_history",
-        "List a vendor's invoices, newest first, with their statuses.",
-        VendorRef.class,
-        in -> erp.vendorInvoices(in.vendorId()),
+        "List this case's vendor's invoices, newest first, with their statuses.",
+        NoInput.class,
+        (c, in) -> erp.vendorInvoices(c.vendorId()),
         ErpTools::withholdVendorText,
         VENDOR_TEXT);
   }
@@ -197,6 +218,10 @@ public class ErpTools {
     return node;
   }
 
+  private static String poNumber(CaseRecord c, PoRef in) {
+    return in.poNumber() == null || in.poNumber().isBlank() ? c.poNumber() : in.poNumber();
+  }
+
   private static JsonNode maskAccounts(JsonNode vendor) {
     for (JsonNode account : vendor.path("bankAccounts")) {
       if (account instanceof ObjectNode editable && account.hasNonNull("accountNumber")) {
@@ -223,7 +248,7 @@ public class ErpTools {
     private final ToolName name;
     private final String description;
     private final Class<I> inputType;
-    private final Function<I, ErpOutcome<JsonNode>> fetch;
+    private final BiFunction<CaseRecord, I, ErpOutcome<JsonNode>> fetch;
     private final Function<JsonNode, JsonNode> shown;
     private final String preface;
 
@@ -231,7 +256,7 @@ public class ErpTools {
         String name,
         String description,
         Class<I> inputType,
-        Function<I, ErpOutcome<JsonNode>> fetch,
+        BiFunction<CaseRecord, I, ErpOutcome<JsonNode>> fetch,
         Function<JsonNode, JsonNode> shown) {
       this(name, description, inputType, fetch, shown, null);
     }
@@ -240,7 +265,7 @@ public class ErpTools {
         String name,
         String description,
         Class<I> inputType,
-        Function<I, ErpOutcome<JsonNode>> fetch,
+        BiFunction<CaseRecord, I, ErpOutcome<JsonNode>> fetch,
         Function<JsonNode, JsonNode> shown,
         String preface) {
       this.name = new ToolName(name);
@@ -268,7 +293,11 @@ public class ErpTools {
 
     @Override
     public Awaited<ToolResult> call(ToolCallRequest<I> request) {
-      ErpOutcome<JsonNode> outcome = fetch.apply(request.input());
+      Optional<CaseRecord> theCase = cases.forAgent(request.agentId());
+      if (theCase.isEmpty()) {
+        return Awaited.ready(new ToolResult.Failure("This agent has no case to read."));
+      }
+      ErpOutcome<JsonNode> outcome = fetch.apply(theCase.get(), request.input());
       ToolResult result =
           switch (outcome) {
             case ErpOutcome.Ok<JsonNode>(JsonNode value) ->
@@ -283,18 +312,10 @@ public class ErpTools {
                 new ToolResult.Failure(
                     "The ERP is unavailable (" + reason + "). Try again shortly.");
           };
-      cases
-          .forAgent(request.agentId())
-          .ifPresent(
-              c ->
-                  timeline.record(
-                      c.exceptionId(),
-                      "tool",
-                      name.value()
-                          + " "
-                          + json.writeValueAsString(request.input())
-                          + " -> "
-                          + summary(result)));
+      timeline.record(
+          theCase.get().exceptionId(),
+          "tool",
+          name.value() + " " + json.writeValueAsString(request.input()) + " -> " + summary(result));
       return Awaited.ready(result);
     }
 

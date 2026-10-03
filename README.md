@@ -2,11 +2,14 @@
 
 A proving ground for building enterprise agentic applications on
 [Nessy](https://github.com/jwcarman/nessy): an accounts-payable exception desk
-working against a simulated ERP.
+working against a simulated ERP. Mail from vendors is held in quarantine by
+[Occlude](https://github.com/jwcarman/occlude), so the agent never reads untrusted text.
 
 Documentation: <https://jwcarman.github.io/nessy-ap/> (sources in `docs/`; build with
 `python3 -m mkdocs serve`). How it works, with diagrams and every control:
-[`docs/system.md`](docs/system.md).
+[`docs/system.md`](docs/system.md). How it was evaluated, and what the runs found:
+[`docs/evaluation/`](docs/evaluation/index.md). What each library was like to use:
+[Assessing Nessy](docs/nessy-assessment.md) and [Assessing Occlude](docs/occlude-assessment.md).
 Design of record: `docs/superpowers/specs/2026-10-02-ap-exception-desk-design.md`.
 
 ## Run

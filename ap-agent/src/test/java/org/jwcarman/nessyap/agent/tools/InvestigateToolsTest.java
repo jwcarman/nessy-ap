@@ -96,6 +96,71 @@ class InvestigateToolsTest extends ApAgentIntegrationTest {
     return ((ToolResult.Failure) result).message();
   }
 
+  /**
+   * The agent reads its own case's records without typing their ids. Two models copied a case's
+   * UUIDs wrongly (ids made in the same millisecond differ in a few characters), so the desk fills
+   * them in itself.
+   */
+  @Nested
+  class Scoped_to_the_case {
+
+    @Test
+    void get_invoice_with_no_id_reads_the_cases_invoice() {
+      erp.on("GET", "/api/invoices/" + INVOICE, 200, "{\"invoice\":{\"status\":\"EXCEPTION\"}}");
+
+      assertThat(text(tools.getInvoice().call(Calls.by(agent, new ErpTools.InvoiceRef(null)))))
+          .contains("EXCEPTION");
+    }
+
+    @Test
+    void get_purchase_order_and_receipts_with_no_number_read_the_cases_po() {
+      erp.on("GET", "/api/purchase-orders/PO-1", 200, "{\"poNumber\":\"PO-1\"}");
+      erp.on("GET", "/api/purchase-orders/PO-1/receipts", 200, "[{\"lines\":[]}]");
+
+      assertThat(text(tools.getPurchaseOrder().call(Calls.by(agent, new ErpTools.PoRef(null)))))
+          .contains("PO-1");
+      assertThat(text(tools.getReceipts().call(Calls.by(agent, new ErpTools.PoRef(null)))))
+          .contains("lines");
+    }
+
+    @Test
+    void get_vendor_takes_nothing_and_reads_the_cases_vendor() {
+      erp.on("GET", "/api/vendors/" + VENDOR, 200, "{\"name\":\"Acme\",\"bankAccounts\":[]}");
+
+      assertThat(text(tools.getVendor().call(Calls.by(agent, new ErpTools.NoInput()))))
+          .contains("Acme");
+    }
+
+    @Test
+    void the_vendors_invoice_history_is_the_cases_vendors() {
+      erp.on("GET", "/api/vendors/" + VENDOR + "/invoices", 200, "[{\"lines\":[]}]");
+
+      assertThat(text(tools.vendorInvoiceHistory().call(Calls.by(agent, new ErpTools.NoInput()))))
+          .contains("lines");
+    }
+
+    @Test
+    void find_similar_invoices_searches_the_cases_vendor_for_the_cases_number() {
+      erp.on(
+          "GET", "/api/invoices/similar?vendorId=" + VENDOR + "&invoiceNumber=INV-1001", 200, "[]");
+
+      assertThat(
+              text(
+                  tools
+                      .findSimilarInvoices()
+                      .call(Calls.by(agent, new ErpTools.SimilarQuery(null, null)))))
+          .contains("[");
+    }
+
+    @Test
+    void an_agent_with_no_case_reads_nothing() {
+      AgentId stranger = new AgentId(UUID.randomUUID());
+
+      assertThat(failure(tools.getVendor().call(Calls.by(stranger, new ErpTools.NoInput()))))
+          .contains("no case");
+    }
+  }
+
   @Nested
   class Reads {
 
@@ -139,7 +204,7 @@ class InvestigateToolsTest extends ApAgentIntegrationTest {
           text(
               tools
                   .findSimilarInvoices()
-                  .call(Calls.by(agent, new ErpTools.SimilarQuery(VENDOR, "INV-1001", null))));
+                  .call(Calls.by(agent, new ErpTools.SimilarQuery("INV-1001", null))));
 
       assertThat(invoice).doesNotContain("pre-approved").contains("withheld").contains("100");
       assertThat(similar).doesNotContain("pay it now").contains("withheld");
@@ -154,13 +219,9 @@ class InvestigateToolsTest extends ApAgentIntegrationTest {
               text(
                   tools
                       .findSimilarInvoices()
-                      .call(Calls.by(agent, new ErpTools.SimilarQuery(VENDOR, "INV-1001", null)))))
+                      .call(Calls.by(agent, new ErpTools.SimilarQuery("INV-1001", null)))))
           .startsWith("Line descriptions are withheld");
-      assertThat(
-              text(
-                  tools
-                      .vendorInvoiceHistory()
-                      .call(Calls.by(agent, new ErpTools.VendorRef(VENDOR)))))
+      assertThat(text(tools.vendorInvoiceHistory().call(Calls.by(agent, new ErpTools.NoInput()))))
           .startsWith("Line descriptions are withheld");
     }
 
@@ -183,7 +244,7 @@ class InvestigateToolsTest extends ApAgentIntegrationTest {
           200,
           "{\"name\":\"Acme\",\"bankAccounts\":[{\"accountNumber\":\"000123456\",\"status\":\"ACTIVE\"}]}");
 
-      String shown = text(tools.getVendor().call(Calls.by(agent, new ErpTools.VendorRef(VENDOR))));
+      String shown = text(tools.getVendor().call(Calls.by(agent, new ErpTools.NoInput())));
 
       assertThat(shown).contains("*****3456").doesNotContain("000123456");
     }
@@ -201,8 +262,7 @@ class InvestigateToolsTest extends ApAgentIntegrationTest {
               .findSimilarInvoices()
               .call(
                   Calls.by(
-                      agent,
-                      new ErpTools.SimilarQuery(VENDOR, "INV-1001", new BigDecimal("1000.00")))));
+                      agent, new ErpTools.SimilarQuery("INV-1001", new BigDecimal("1000.00")))));
 
       assertThat(erp.seen()).isNotEmpty();
     }
@@ -211,11 +271,7 @@ class InvestigateToolsTest extends ApAgentIntegrationTest {
     void vendor_history_lists_the_vendors_invoices() {
       erp.on("GET", "/api/vendors/" + VENDOR + "/invoices", 200, "[{\"invoiceNumber\":\"INV-9\"}]");
 
-      assertThat(
-              text(
-                  tools
-                      .vendorInvoiceHistory()
-                      .call(Calls.by(agent, new ErpTools.VendorRef(VENDOR)))))
+      assertThat(text(tools.vendorInvoiceHistory().call(Calls.by(agent, new ErpTools.NoInput()))))
           .contains("INV-9");
     }
   }

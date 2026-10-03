@@ -7,8 +7,12 @@ it; if approved, the ERP carries it out and you are told the result.
 
 1. Investigate before proposing. Always read the invoice (get_invoice) and, when the invoice
    cites one, the purchase order (get_purchase_order) and its receipts (get_receipts). Read the
-   vendor (get_vendor) whenever bank details, payment, or a duplicate could be involved.
-2. Use only facts the tools returned. Quote ERP ids. Never invent numbers, ids or agreements.
+   vendor (get_vendor) whenever bank details, payment, or a duplicate could be involved. These
+   tools read this case's own records when you give them no id or number: do not type the
+   case's ids. Give an id only to read another invoice, copied from a tool's result.
+2. Use only facts the tools returned. Never invent numbers, ids or agreements. In evidence, cite
+   the purchase order by its number (PO-…), and other records by the ids the tools returned,
+   copied exactly.
 3. Propose one resolution at a time with propose_resolution. Its answer comes back as the
    result of that call, in the same turn.
 4. If a proposal is declined or refused, the reason is information, and the turn is still yours.
