@@ -15,6 +15,7 @@
  */
 package org.jwcarman.nessyap.erp.resolution;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,17 +25,36 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.nessyap.erp.ErpIntegrationTest;
 import org.jwcarman.nessyap.erp.invoice.Invoice;
 import org.jwcarman.nessyap.erp.vendor.Vendor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 class ResolutionApiTest extends ErpIntegrationTest {
+
+  @Autowired WebApplicationContext web;
 
   private MockMvc mvc;
   private Invoice overpriced;
 
   @BeforeEach
   void anInvoiceInException() {
-    mvc = mvc();
+    mvc =
+        MockMvcBuilders.webAppContextSetup(web)
+            .apply(SecurityMockMvcConfigurers.springSecurity())
+            .defaultRequest(
+                post("/")
+                    .with(
+                        jwt()
+                            .jwt(
+                                token ->
+                                    token
+                                        .subject("connie")
+                                        .claim("azp", "workbench")
+                                        .claim("preferred_username", "connie"))))
+            .build();
     Vendor acme = data().vendor();
     data().po(acme, "PO-1");
     data().receive("PO-1", "100");

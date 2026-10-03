@@ -41,6 +41,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 class ResolutionsTest extends ErpIntegrationTest {
 
+  /** Who decides here: the controller, who may do anything; the matrix has its own test. */
+  private static final Actor CONTROLLER = new Actor("workbench", "connie");
+
   @Autowired Resolutions resolutions;
   @Autowired MatchExceptionRepository exceptions;
   @Autowired VendorMaster vendors;
@@ -58,7 +61,7 @@ class ResolutionsTest extends ErpIntegrationTest {
 
   private Invoice apply(String key, ResolutionAction action, long version, String amount) {
     return resolutions.apply(
-        Actor.anonymous(),
+        CONTROLLER,
         key,
         overpriced.id(),
         action,
@@ -138,8 +141,7 @@ class ResolutionsTest extends ErpIntegrationTest {
 
       assertThatThrownBy(
               () ->
-                  resolutions.apply(
-                      Actor.anonymous(), "k1", matched.id(), ResolutionAction.HOLD, command))
+                  resolutions.apply(CONTROLLER, "k1", matched.id(), ResolutionAction.HOLD, command))
           .isInstanceOf(InvalidTransitionException.class);
     }
 
@@ -156,7 +158,7 @@ class ResolutionsTest extends ErpIntegrationTest {
       assertThatThrownBy(
               () ->
                   resolutions.apply(
-                      Actor.anonymous(), "k1", overpriced.id(), ResolutionAction.HOLD, command))
+                      CONTROLLER, "k1", overpriced.id(), ResolutionAction.HOLD, command))
           .isInstanceOf(InvalidRequestException.class);
     }
   }
