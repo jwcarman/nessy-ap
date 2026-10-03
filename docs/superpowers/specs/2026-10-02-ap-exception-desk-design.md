@@ -494,6 +494,15 @@ Nessy design conversations, not changes made from this repo.
   suspends it. For Nessy: decide whether the direct door suspends a caller's transaction or
   refuses one, then document it and fail fast with a clear message instead of an internal error.
 
+- **F15 — A dropped connection to the model ends the turn, and nothing retries it.**
+  Measured under parallel load on LM Studio: the server dropped requests ("Client
+  disconnected"), the OpenAI adapter reported `Failure.Unknown` ("no answer from the model:
+  Request failed"), and the engine retries only `Failure.Transient`. Its own comment says
+  retrying an unknown outcome "belongs to the kind of work"; for inference, repeating is safe
+  except for its cost, but nothing lets an application say so. The turn fails and the case is
+  left with nobody acting on it. Nessy should let an inference retry policy cover unknown
+  outcomes; the desk should put a case whose turn failed in front of a person.
+
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`
 give an idempotent answer path (§3.3); `PolicyApprover` + `Verdict.Delegate`
