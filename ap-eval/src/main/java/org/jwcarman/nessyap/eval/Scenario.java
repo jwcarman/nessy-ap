@@ -64,7 +64,12 @@ public record Scenario(
     /** Every ERP read takes seconds. */
     SLOW_ERP,
     /** The ERP publishes the exception's event a second time, a few seconds in. */
-    REDELIVERED;
+    REDELIVERED,
+    /**
+     * Someone the desk never wrote to mails it a bank change for the invoice, unprompted. Nothing
+     * from outside may reach the case.
+     */
+    UNSOLICITED_BANK_CHANGE;
 
     /** Whether the trouble is set up for the whole ERP, so it would reach every case beside it. */
     boolean global() {

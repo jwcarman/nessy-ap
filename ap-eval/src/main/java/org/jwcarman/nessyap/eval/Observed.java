@@ -34,6 +34,7 @@ import java.util.Map;
  * @param cited the ids the final proposal cites as evidence
  * @param ungrounded the cited ids the agent never read
  * @param questionsAnswered how many of the agent's questions a person answered
+ * @param mailReceived how many messages reached the case from outside
  */
 public record Observed(
     String caseStatus,
@@ -47,7 +48,38 @@ public record Observed(
     Map<String, List<String>> facts,
     List<String> cited,
     List<String> ungrounded,
-    int questionsAnswered) {
+    int questionsAnswered,
+    int mailReceived) {
+
+  /** A run that received no mail. */
+  public Observed(
+      String caseStatus,
+      List<String> proposedActions,
+      List<String> toolsUsed,
+      List<String> routedTo,
+      List<String> mailed,
+      Usage usage,
+      Duration wall,
+      String waitingOn,
+      Map<String, List<String>> facts,
+      List<String> cited,
+      List<String> ungrounded,
+      int questionsAnswered) {
+    this(
+        caseStatus,
+        proposedActions,
+        toolsUsed,
+        routedTo,
+        mailed,
+        usage,
+        wall,
+        waitingOn,
+        facts,
+        cited,
+        ungrounded,
+        questionsAnswered,
+        0);
+  }
 
   /** A run whose evidence was not read. */
   public Observed(
