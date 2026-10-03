@@ -89,6 +89,17 @@ class SettledTest {
   }
 
   @Test
+  void a_case_the_agent_has_not_touched_yet_is_not_stalled() {
+    JsonNode fresh =
+        JSON.readTree(
+            """
+            {"status": "INVESTIGATING", "decisions": [], "questions": [], "timeline": []}
+            """);
+
+    assertThat(Settled.of(fresh, NOW, QUIET)).isFalse();
+  }
+
+  @Test
   void a_case_still_investigating_is_not() {
     assertThat(Settled.of(view("INVESTIGATING", "ANSWERED", NOW.minusSeconds(60)), NOW, QUIET))
         .isFalse();

@@ -61,6 +61,8 @@ class CaseInputRendererTest {
                     new BigDecimal("40.00"))));
 
     assertThat(text)
+        .contains(
+            "end this turn with a proposal, a question to the buyer or a letter to the vendor")
         .contains(EXCEPTION.toString())
         .contains(INVOICE.toString())
         .contains(VENDOR.toString())

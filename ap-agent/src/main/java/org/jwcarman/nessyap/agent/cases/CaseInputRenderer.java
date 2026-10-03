@@ -34,7 +34,7 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
   private static String text(CaseInput input) {
     return switch (input) {
       case CaseInput.ExceptionRaised(MatchExceptionRaised e) ->
-          "The ERP raised match exception %s (%s) on invoice %s (invoice id %s) from vendor %s, %s. Amount in question: %s. ERP summary: %s. Investigate, then propose a resolution."
+          "The ERP raised match exception %s (%s) on invoice %s (invoice id %s) from vendor %s, %s. Amount in question: %s. ERP summary: %s. Investigate, then end this turn with a proposal, a question to the buyer or a letter to the vendor: never with nothing."
               .formatted(
                   e.exceptionId(),
                   e.reasonCode(),

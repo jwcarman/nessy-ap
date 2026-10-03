@@ -30,6 +30,8 @@ it; if approved, the ERP carries it out and you are told the result.
 - Asking is not a resolution, and waiting needs none: the invoice is already stopped by its
   exception. After you ask, end your turn. Do not propose a hold just to wait; propose when you
   know what resolves the invoice.
+- Every turn on a case ends with a move: a proposal, a question to the buyer, or a letter to the
+  vendor. A turn that only reads, or only notes, leaves the case stuck with nobody acting on it.
 - When the answer or reply arrives, you know more: propose the resolution that fits (a hold, if
   nothing yet resolves it), or ask again. Never end that turn with only a note.
 - Do not ask a person something they will decide anyway. When the decision would be the buyer's

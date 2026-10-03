@@ -92,6 +92,10 @@ final class Settled {
         return false;
       }
     }
+    // A case its agent has not touched yet has no line at all: it is starting, not stalled.
+    if (view.path("timeline").isEmpty()) {
+      return false;
+    }
     Instant last = Instant.EPOCH;
     for (JsonNode event : view.path("timeline")) {
       Instant at = Instant.parse(event.path("at").asString());
