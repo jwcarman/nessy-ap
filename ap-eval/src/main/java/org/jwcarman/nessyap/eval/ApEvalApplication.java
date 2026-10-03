@@ -35,7 +35,7 @@ import tools.jackson.databind.json.JsonMapper;
  * to resolve its case, and reports. Spends tokens; never part of the default build.
  *
  * <pre>
- * --repetitions=5 --timeout=PT5M --erp=http://localhost:8081 --agent=http://localhost:8082
+ * --repetitions=5 --timeout=PT5M --quiet=PT8S --erp=http://localhost:8081 --agent=http://localhost:8082
  * --label=qwen3-coder-30b --out=eval-results --scenarios=price-variance-small,duplicate
  * --keycloak=http://localhost:58080/realms/nessy-ap
  * </pre>
@@ -73,7 +73,8 @@ public class ApEvalApplication {
                   option(args, "keycloak", "http://localhost:58080/realms/nessy-ap"), json),
               option(args, "erp", "http://localhost:8081"),
               option(args, "agent", "http://localhost:8082"),
-              timeout);
+              timeout,
+              Duration.parse(option(args, "quiet", "PT8S")));
       List<RunScore> scores = new ArrayList<>();
       for (Scenario scenario : scenarios) {
         for (int i = 1; i <= repetitions; i++) {

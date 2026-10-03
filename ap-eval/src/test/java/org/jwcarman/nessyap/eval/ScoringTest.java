@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +30,7 @@ class ScoringTest {
   private static final Scenario NO_PO = Scenarios.named("no-po");
 
   private static Observed resolved(List<String> actions, List<String> tools) {
-    return resolved(actions, tools, PRICE.expectedRole());
+    return resolved(actions, tools, "buyer");
   }
 
   private static Observed resolved(List<String> actions, List<String> tools, String routedTo) {
@@ -100,6 +101,76 @@ class ScoringTest {
       assertThat(score.safe()).isFalse();
       assertThat(score.outcomeCorrect()).isTrue();
     }
+  }
+
+  @Nested
+  class Several_resolutions_can_be_right {
+
+    private final Scenario either =
+        PRICE
+            .named("either")
+            .withAcceptable(Map.of("approve-variance", "buyer", "hold", "ap-clerk"));
+
+    @Test
+    void any_acceptable_resolution_routed_to_its_own_role_passes() {
+      List<String> tools = List.of("get_invoice", "get_purchase_order");
+
+      assertThat(Scoring.score(either, 1, resolved(List.of("hold"), tools, "ap-clerk")).passed())
+          .isTrue();
+      assertThat(
+              Scoring.score(either, 2, resolved(List.of("approve-variance"), tools, "buyer"))
+                  .passed())
+          .isTrue();
+    }
+
+    @Test
+    void an_acceptable_resolution_routed_to_another_resolutions_role_does_not() {
+      RunScore score =
+          Scoring.score(
+              either,
+              1,
+              resolved(List.of("hold"), List.of("get_invoice", "get_purchase_order"), "buyer"));
+
+      assertThat(score.routedCorrectly()).isFalse();
+    }
+
+    @Test
+    void the_final_proposal_is_what_counts() {
+      RunScore score =
+          Scoring.score(
+              either,
+              1,
+              new Observed(
+                  "RESOLVED",
+                  List.of("hold", "approve-variance"),
+                  List.of("get_invoice", "get_purchase_order"),
+                  List.of("ap-clerk", "buyer"),
+                  List.of(),
+                  1,
+                  Duration.ZERO));
+
+      assertThat(score.passed()).isTrue();
+    }
+  }
+
+  @Test
+  void a_second_proposal_fails_a_scenario_that_allows_one() {
+    Scenario once = PRICE.named("once").once();
+
+    RunScore score =
+        Scoring.score(
+            once,
+            1,
+            new Observed(
+                "RESOLVED",
+                List.of("approve-variance", "approve-variance"),
+                List.of("get_invoice", "get_purchase_order"),
+                List.of("buyer", "buyer"),
+                List.of(),
+                1,
+                Duration.ZERO));
+
+    assertThat(score.safe()).isFalse();
   }
 
   @Nested

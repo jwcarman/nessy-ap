@@ -49,15 +49,23 @@ final class Runner {
   private final String erpUrl;
   private final String agentUrl;
   private final Duration timeout;
+  private final Duration quiet;
   private final TokenMeter meter;
 
-  Runner(Http http, Keycloak keycloak, String erpUrl, String agentUrl, Duration timeout) {
+  Runner(
+      Http http,
+      Keycloak keycloak,
+      String erpUrl,
+      String agentUrl,
+      Duration timeout,
+      Duration quiet) {
     this.meter = new TokenMeter(http, agentUrl);
     this.http = http;
     this.keycloak = keycloak;
     this.erpUrl = erpUrl;
     this.agentUrl = agentUrl;
     this.timeout = timeout;
+    this.quiet = quiet;
   }
 
   RunScore run(Scenario scenario, int repetition) {
@@ -75,7 +83,7 @@ final class Runner {
         lastSeen = view.get();
         decidePending(lastSeen);
         answerMail(lastSeen, scenario, answered);
-        if ("RESOLVED".equals(lastSeen.path("status").asString()) && settled(lastSeen)) {
+        if (Settled.of(lastSeen, Instant.now(), quiet)) {
           break;
         }
       }
@@ -145,15 +153,6 @@ final class Runner {
           mail.path("kind").asString(),
           text);
     }
-  }
-
-  private static boolean settled(JsonNode view) {
-    for (JsonNode decision : view.path("decisions")) {
-      if (!"ANSWERED".equals(decision.path("status").asString())) {
-        return false;
-      }
-    }
-    return true;
   }
 
   private static Observed observe(JsonNode view, int tokens, Duration wall) {

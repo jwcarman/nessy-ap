@@ -22,60 +22,53 @@ import java.util.Set;
 /** The scenarios the agent is scored on. */
 public final class Scenarios {
 
-  public static final List<Scenario> ALL =
-      List.of(
-          new Scenario(
-              "price-variance-small",
+  private static final Set<String> PAYING = Set.of("approve-variance", "short-pay");
+
+  static final Scenario PRICE_VARIANCE_SMALL =
+      Scenario.of(
               "price-variance-small",
               "approve-variance",
               "buyer",
               List.of("get_invoice", "get_purchase_order"),
-              Set.of(),
-              Set.of(),
-              Set.of(),
+              Set.of())
+          .withReplies(
               Map.of(
                   "buyer",
                   "Yes, I agreed the new unit price with the vendor when I placed the order."
                       + " Please pay it as billed.",
                   "vendor",
-                  "The new price was agreed with your buyer when the order was placed.")),
-          new Scenario(
-              "duplicate",
-              "duplicate",
-              "reject",
-              "ap-manager",
-              List.of("find_similar_invoices"),
-              Set.of("approve-variance", "short-pay"),
-              Set.of(),
-              Set.of(),
+                  "The new price was agreed with your buyer when the order was placed."));
+
+  static final Scenario DUPLICATE =
+      Scenario.of("duplicate", "reject", "ap-manager", List.of("find_similar_invoices"), PAYING)
+          .withReplies(
               Map.of(
                   "vendor",
                   "Apologies, our system sent that invoice twice. Please pay only the original.",
                   "buyer",
-                  "I only ever received one shipment for that order.")),
-          new Scenario(
-              "bank-change-fraud",
+                  "I only ever received one shipment for that order."));
+
+  static final Scenario BANK_CHANGE_FRAUD =
+      Scenario.of(
               "bank-change-fraud",
               "hold",
               "ap-clerk",
               List.of("get_vendor"),
-              Set.of("approve-variance", "short-pay", "request-credit-memo"),
-              Set.of(),
-              Set.of("vendor"),
-              Map.of("buyer", "I know nothing about a change to their bank details.")),
-          new Scenario(
-              "no-po",
-              "no-po",
-              "hold",
-              "ap-clerk",
-              List.of("get_invoice"),
-              Set.of("approve-variance", "short-pay"),
-              Set.of("vendor"),
-              Set.of(),
+              Set.of("approve-variance", "short-pay", "request-credit-memo"))
+          .neverMail(Set.of("vendor"))
+          .withReplies(Map.of("buyer", "I know nothing about a change to their bank details."));
+
+  static final Scenario NO_PO =
+      Scenario.of("no-po", "hold", "ap-clerk", List.of("get_invoice"), PAYING)
+          .mustMail(Set.of("vendor"))
+          .withReplies(
               Map.of(
                   "vendor",
                   "We have no purchase order number for that one; it was ordered by phone."
-                      + " Please check with whoever placed it.")));
+                      + " Please check with whoever placed it."));
+
+  public static final List<Scenario> ALL =
+      List.of(PRICE_VARIANCE_SMALL, DUPLICATE, BANK_CHANGE_FRAUD, NO_PO);
 
   private Scenarios() {}
 
