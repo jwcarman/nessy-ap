@@ -5,3 +5,5 @@ target/
 .superpowers/
 .worktrees/
 .claude/worktrees/
+eval-results/
+site/

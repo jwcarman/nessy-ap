@@ -97,6 +97,19 @@ public final class Mailbox {
     }
   }
 
+  /** How many messages in the address's inbox nobody has read yet. */
+  public int unseen(String address) throws MessagingException {
+    Store store = Session.getInstance(new Properties()).getStore("imap");
+    store.connect(greenMail.getHost(), greenMail.getMappedPort(3143), address, address);
+    try (store) {
+      Folder inbox = store.getFolder("INBOX");
+      inbox.open(Folder.READ_ONLY);
+      int count = inbox.getUnreadMessageCount();
+      inbox.close(false);
+      return count;
+    }
+  }
+
   /** Marks every message in the address's inbox unseen again, as if nobody had read it. */
   public void markAllUnseen(String address) throws MessagingException {
     Store store = Session.getInstance(new Properties()).getStore("imap");

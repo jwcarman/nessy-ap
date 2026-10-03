@@ -78,7 +78,7 @@ ap:
     max-per-case: 3
     poll:
       enabled: true
-      interval: PT2S
+      delay-ms: 2000
     imap:
       host: localhost
       port: 53143
