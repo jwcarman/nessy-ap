@@ -37,6 +37,7 @@ public abstract class ApAgentIntegrationTest {
 
   @Autowired protected JdbcClient jdbc;
   @Autowired protected ScriptedProvider model;
+  @Autowired protected NarrationTap narration;
 
   @BeforeEach
   void freshModel() {

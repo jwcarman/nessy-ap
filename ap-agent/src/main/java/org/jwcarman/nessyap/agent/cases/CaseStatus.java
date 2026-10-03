@@ -13,24 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.nessyap.agent;
+package org.jwcarman.nessyap.agent.cases;
 
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-
-/**
- * Registers {@link ScriptedProvider} as the provider named {@code scripted}, and a narration tap.
- */
-@TestConfiguration(proxyBeanMethods = false)
-public class ScriptedModel {
-
-  @Bean
-  NarrationTap narrationTap() {
-    return new NarrationTap();
-  }
-
-  @Bean(name = "scripted")
-  ScriptedProvider scripted() {
-    return new ScriptedProvider();
-  }
+public enum CaseStatus {
+  INVESTIGATING,
+  AWAITING_DECISION,
+  RESOLVED
 }

@@ -13,24 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.nessyap.agent;
+package org.jwcarman.nessyap.agent.cases;
 
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+import org.jwcarman.nessy.api.AgentId;
+import org.jwcarman.nessyap.contracts.ReasonCode;
 
-/**
- * Registers {@link ScriptedProvider} as the provider named {@code scripted}, and a narration tap.
- */
-@TestConfiguration(proxyBeanMethods = false)
-public class ScriptedModel {
-
-  @Bean
-  NarrationTap narrationTap() {
-    return new NarrationTap();
-  }
-
-  @Bean(name = "scripted")
-  ScriptedProvider scripted() {
-    return new ScriptedProvider();
-  }
-}
+/** One ERP match exception being worked, and the agent working it. */
+public record CaseRecord(
+    UUID exceptionId,
+    AgentId agentId,
+    UUID invoiceId,
+    String invoiceNumber,
+    UUID vendorId,
+    String poNumber,
+    ReasonCode reasonCode,
+    BigDecimal amount,
+    CaseStatus status,
+    Instant openedAt,
+    Instant updatedAt) {}
