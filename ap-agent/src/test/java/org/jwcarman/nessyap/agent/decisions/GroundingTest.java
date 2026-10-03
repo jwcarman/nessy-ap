@@ -17,37 +17,24 @@ package org.jwcarman.nessyap.agent.decisions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import static org.hamcrest.Matchers.containsString;
 import static org.jwcarman.nessyap.agent.ScriptedProvider.call;
 import static org.jwcarman.nessyap.agent.ScriptedProvider.steps;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.QueuedHarness;
+import org.jwcarman.nessy.api.turn.ToolOutcome;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
-import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReasonCode;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor;
-import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 
 /** A citation counts only when the agent read it: from the ERP, or in what it was told. */
 class GroundingTest extends ApAgentIntegrationTest {
@@ -59,10 +46,9 @@ class GroundingTest extends ApAgentIntegrationTest {
   @Autowired QueuedHarness<CaseInput> agent;
   @Autowired Decisions decisions;
   @Autowired Grounding grounding;
-  @Autowired WebApplicationContext web;
 
   @Test
-  void a_cited_id_the_agent_never_read_is_ungrounded() throws Exception {
+  void a_cited_id_the_agent_never_read_is_ungrounded() {
     erp.on(
         "GET",
         "/api/invoices/" + ORIGINAL,
@@ -100,45 +86,24 @@ class GroundingTest extends ApAgentIntegrationTest {
     AgentId agentId = caseIndex.agentFor(exceptionId);
 
     agent.tell(agentId, new CaseInput.ExceptionRaised(raised));
-    PendingDecision proposed =
-        await()
-            .atMost(Duration.ofSeconds(20))
-            .until(() -> decisions.forCase(exceptionId), list -> !list.isEmpty())
-            .getFirst();
 
     // Only what a tool returned counts: not the opening message, not the agent's own words, and
-    // never a fragment of a longer id.
-    assertThat(proposed.evidence()).hasSize(4);
-    assertThat(grounding.ungrounded(agentId, proposed.evidence()))
-        .containsExactly(INVOICE.toString(), NEVER_READ.toString(), "PO-1");
-    MockMvc mvc =
-        MockMvcBuilders.webAppContextSetup(web)
-            .apply(SecurityMockMvcConfigurers.springSecurity())
-            .build();
-    mvc.perform(get("/api/cases/{id}", exceptionId).with(bearer("connie", "controller")))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.decisions[0].evidence.length()").value(4))
-        .andExpect(jsonPath("$.decisions[0].ungrounded[1]").value(NEVER_READ.toString()));
-    mvc.perform(
-            get("/workbench/cases/{id}", exceptionId)
-                .with(
-                    oidcLogin()
-                        .idToken(t -> t.claim("preferred_username", "connie").subject("connie"))
-                        .authorities(new SimpleGrantedAuthority("ROLE_controller"))))
-        .andExpect(status().isOk())
-        .andExpect(content().string(containsString("never read")))
-        .andExpect(content().string(containsString(NEVER_READ.toString())));
-  }
-
-  private static JwtRequestPostProcessor bearer(String username, String role) {
-    return jwt()
-        .jwt(
-            token ->
-                token
-                    .tokenValue("token-of-" + username)
-                    .subject(username)
-                    .claim("preferred_username", username)
-                    .claim("realm_access", Map.of("roles", List.of(role))))
-        .authorities(RealmRoles::authorities);
+    // never a fragment of a longer id. The policy refuses the proposal and names each one.
+    String reason =
+        await()
+            .atMost(Duration.ofSeconds(20))
+            .until(
+                () ->
+                    model.outcomesSeen().stream()
+                        .filter(ToolOutcome.Denied.class::isInstance)
+                        .map(o -> ((ToolOutcome.Denied) o).reason())
+                        .findFirst(),
+                Optional::isPresent)
+            .orElseThrow();
+    assertThat(reason)
+        .contains(INVOICE.toString() + ", " + NEVER_READ + ", PO-1")
+        .doesNotContain(ORIGINAL.toString());
+    assertThat(decisions.forCase(exceptionId)).isEmpty();
+    assertThat(grounding.ungrounded(agentId, List.of(ORIGINAL.toString()))).isEmpty();
   }
 }

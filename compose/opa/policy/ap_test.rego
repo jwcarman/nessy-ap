@@ -234,3 +234,11 @@ test_a_proposal_in_the_turn_that_asked_a_question_waits_for_the_answer if {
 	ap.decision.effect == "deny" with input as proposal("hold", asked)
 	ap.decision.to == "buyer" with input as proposal("approve-variance", price_variance)
 }
+
+test_a_proposal_citing_an_id_no_tool_returned_is_refused_and_says_which if {
+	ungrounded := object.union(price_variance, {"ungroundedCitations": ["01a103e-18ad-74d4"]})
+	ap.decision.effect == "deny" with input as proposal("approve-variance", ungrounded)
+	contains(ap.decision.reason, "01a103e-18ad-74d4") with input as proposal("approve-variance", ungrounded)
+	grounded := object.union(price_variance, {"ungroundedCitations": []})
+	ap.decision.to == "buyer" with input as proposal("approve-variance", grounded)
+}

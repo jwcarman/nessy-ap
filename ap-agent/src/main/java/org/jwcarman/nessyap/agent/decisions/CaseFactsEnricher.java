@@ -15,15 +15,19 @@
  */
 package org.jwcarman.nessyap.agent.decisions;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.jwcarman.nessy.api.tool.ApprovalEnricher;
 import org.jwcarman.nessy.api.tool.ApprovalRequest;
+import org.jwcarman.nessy.api.tool.ToolName;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
 import org.jwcarman.nessyap.agent.erp.ErpOutcome;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 
@@ -36,12 +40,18 @@ import tools.jackson.databind.node.JsonNodeFactory;
 @Component
 public class CaseFactsEnricher implements ApprovalEnricher {
 
+  private static final ToolName PROPOSE = new ToolName("propose_resolution");
+
   private final Cases cases;
   private final ErpClient erp;
+  private final Grounding grounding;
+  private final JsonMapper json;
 
-  public CaseFactsEnricher(Cases cases, ErpClient erp) {
+  public CaseFactsEnricher(Cases cases, ErpClient erp, Grounding grounding, JsonMapper json) {
     this.cases = cases;
     this.erp = erp;
+    this.grounding = grounding;
+    this.json = json;
   }
 
   @Override
@@ -57,6 +67,13 @@ public class CaseFactsEnricher implements ApprovalEnricher {
     request.fact("influencedByUnendorsed", nodes.booleanNode(integrity.influencedByUnendorsed()));
     request.fact("instructionsSeen", nodes.booleanNode(integrity.instructionsSeen()));
     request.fact("amountAtIssue", nodes.numberNode(c.amount()));
+    // A citation counts only if a tool returned it; the policy refuses a proposal that cites
+    // anything else, naming it, so the agent corrects it before a person sees it.
+    if (PROPOSE.equals(request.toolName())) {
+      ArrayNode ungrounded = nodes.arrayNode();
+      grounding.ungrounded(request.agentId(), cited(request)).forEach(ungrounded::add);
+      request.fact("ungroundedCitations", ungrounded);
+    }
     // An agent that asked someone in this turn has not seen the answer: it proposes nothing yet.
     request.fact(
         "askedThisTurn",
@@ -86,6 +103,15 @@ public class CaseFactsEnricher implements ApprovalEnricher {
     bankChangeUnverified(c)
         .ifPresent(
             unverified -> request.fact("bankChangeUnverified", nodes.booleanNode(unverified)));
+  }
+
+  /** The ids a proposal cites as its evidence. */
+  private List<String> cited(ApprovalRequest request) {
+    List<String> cited = new ArrayList<>();
+    for (JsonNode id : json.readTree(request.arguments()).path("evidence")) {
+      cited.add(id.asString());
+    }
+    return cited;
   }
 
   /** Empty when the vendor could not be read. */

@@ -81,6 +81,19 @@ resolution := {"effect": "deny", "reason": sprintf("%v is not a resolution", [ac
 	not action in actions
 }
 
+# An approver relies on each citation meaning "the agent read this". Measured: three times in about
+# 1,600 runs a model copied an id wrongly (a digit changed, a character dropped, an id abandoned
+# halfway) and the proposal reached a person. Refused here, the agent corrects it in the same turn.
+else := {
+	"effect": "deny",
+	"reason": sprintf(
+		"your evidence cites %v, which no tool returned to you: cite only ids a tool returned, copied exactly, then propose again",
+		[concat(", ", input.facts.ungroundedCitations)],
+	),
+} if {
+	count(object.get(input.facts, "ungroundedCitations", [])) > 0
+}
+
 # An agent that asked someone in this turn has not seen the answer. Measured: an agent asked the
 # buyer, then proposed approval on an answer it made up, and the overcharge was paid.
 else := {
