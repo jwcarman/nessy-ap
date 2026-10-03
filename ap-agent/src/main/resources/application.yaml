@@ -64,6 +64,9 @@ ap:
     timeout: P3D
   decisions:
     auto: false
+  # Development only: a page (and API) for answering the desk's mail as its recipient.
+  counterparty:
+    enabled: true
   mail:
     desk-address: ap-desk@nessy-ap.example
     people-domain: nessy-ap.example
