@@ -4,7 +4,8 @@ A proving ground for building enterprise agentic applications on
 [Nessy](https://github.com/jwcarman/nessy): an accounts-payable exception desk
 working against a simulated ERP.
 
-Design: `docs/superpowers/specs/2026-10-02-ap-exception-desk-design.md`.
+How it works, with diagrams and every control: [`docs/system.md`](docs/system.md).
+Design of record: `docs/superpowers/specs/2026-10-02-ap-exception-desk-design.md`.
 
 ## Run
 
