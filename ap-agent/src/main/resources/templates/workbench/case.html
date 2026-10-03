@@ -17,7 +17,7 @@
     <h2>The agent proposes: <span th:text="${d.action}">approve-variance</span>
       <span th:if="${d.amount != null}" th:text="${d.amount}">950.00</span></h2>
     <p class="rationale" th:text="${d.rationale}">Why.</p>
-    <p class="muted" th:unless="${d.evidence.isEmpty()}">Evidence:
+    <p class="muted evidence" th:unless="${d.evidence.isEmpty()}">Evidence:
       <code th:each="e : ${d.evidence}" th:text="${e}">id</code></p>
     <form th:action="@{/workbench/decisions/{id}(id=${d.id})}" method="post" class="verdict">
       <input type="text" name="comment" placeholder="Comment (required to deny)" aria-label="Comment">
@@ -38,7 +38,7 @@
           <td th:text="${l.path('lineNo').asString()}">1</td>
           <td th:text="${l.path('description').asString()}">bolts</td>
           <td th:text="${l.path('poLineNo').asString()}">1</td>
-          <td class="num" th:text="${l.path('quantity').asString()}">100</td>
+          <td class="num" th:text="${l.path('quantity').decimalValue().stripTrailingZeros().toPlainString()}">100</td>
           <td class="num" th:text="${l.path('unitPrice').asString()}">10.40</td>
         </tr></tbody>
       </table>
@@ -54,7 +54,7 @@
         <tbody><tr th:each="l : ${purchaseOrder.path('lines')}">
           <td th:text="${l.path('lineNo').asString()}">1</td>
           <td th:text="${l.path('item').asString()}">bolts</td>
-          <td class="num" th:text="${l.path('quantity').asString()}">100</td>
+          <td class="num" th:text="${l.path('quantity').decimalValue().stripTrailingZeros().toPlainString()}">100</td>
           <td class="num" th:text="${l.path('unitPrice').asString()}">10.00</td>
         </tr></tbody>
       </table>
@@ -68,7 +68,7 @@
         <th:block th:each="r : ${receipts}"><tr th:each="l : ${r.path('lines')}">
           <td th:text="${#strings.substring(r.path('receivedAt').asString(), 0, 10)}">2026-10-03</td>
           <td th:text="${l.path('poLineNo').asString()}">1</td>
-          <td class="num" th:text="${l.path('quantity').asString()}">60</td>
+          <td class="num" th:text="${l.path('quantity').decimalValue().stripTrailingZeros().toPlainString()}">60</td>
         </tr></th:block>
         </tbody>
       </table>
@@ -78,7 +78,7 @@
   <section>
     <h2>Timeline</h2>
     <ol class="timeline" th:fragment="timeline"
-        th:attr="hx-get=@{/workbench/cases/{id}/timeline(id=${kase != null ? kase.exceptionId : ''})}"
+        th:attr="hx-get=@{/workbench/cases/{id}/timeline(id=${exceptionId})}"
         hx-trigger="every 5s" hx-swap="outerHTML">
       <li th:each="e : ${timeline}" th:classappend="${e.kind}">
         <span class="when" th:text="${#temporals.format(e.at, 'HH:mm:ss')}">12:00:00</span>

@@ -53,3 +53,4 @@ form.inline { display: inline; }
 .timeline li.proposal .kind { color: var(--warn); }
 .exceptions { padding-left: 1rem; }
 @media (max-width: 40rem) { .timeline li { grid-template-columns: 4.5rem 1fr; } .timeline .kind { display: none; } }
+.evidence code { display: inline-block; margin: .15rem .35rem .15rem 0; word-break: break-all; }

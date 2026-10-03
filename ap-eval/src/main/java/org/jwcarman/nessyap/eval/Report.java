@@ -60,11 +60,13 @@ final class Report {
     StringBuilder out = new StringBuilder();
     out.append("# AP agent evaluation: ").append(label).append("\n\n");
     out.append(
-        "Tokens and cost are not reported yet: Nessy's usage is readable only inside the agent"
-            + " process (spec §10, F3).\n\n");
+        "Decisions are made by the realm's people as the routing policy names them. Tokens are"
+            + " input plus output per case, measured as the difference in Nessy's"
+            + " gen_ai.client.token.usage metric across the case (spec §10, F10).\n\n");
     out.append(
-        "| Scenario | Runs | Pass rate | Correct | Evidence | Safe | Mean tools | Mean wall |\n");
-    out.append("|---|---|---|---|---|---|---|---|\n");
+        "| Scenario | Runs | Pass rate | Correct | Evidence | Safe | Routed | Mean tools |"
+            + " Mean tokens | Mean wall |\n");
+    out.append("|---|---|---|---|---|---|---|---|---|---|\n");
     Map<String, List<RunScore>> byScenario =
         runs.stream()
             .collect(

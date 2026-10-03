@@ -111,6 +111,7 @@ public class WorkbenchController {
     model.addAttribute("me", me.getName());
     model.addAttribute("roles", roles);
     model.addAttribute("kase", c);
+    model.addAttribute("exceptionId", exceptionId);
     model.addAttribute("invoice", read(erp.invoice(c.invoiceId())));
     model.addAttribute(
         "purchaseOrder", c.poNumber() == null ? null : read(erp.purchaseOrder(c.poNumber())));
@@ -130,6 +131,7 @@ public class WorkbenchController {
   @GetMapping("/cases/{exceptionId}/timeline")
   public String timeline(@PathVariable UUID exceptionId, Model model) {
     model.addAttribute("timeline", timeline.of(exceptionId));
+    model.addAttribute("exceptionId", exceptionId);
     return "workbench/case :: timeline";
   }
 

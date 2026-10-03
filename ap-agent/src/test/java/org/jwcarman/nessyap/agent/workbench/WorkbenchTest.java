@@ -138,6 +138,16 @@ class WorkbenchTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void the_refreshed_timeline_keeps_refreshing_the_same_case() throws Exception {
+    awaitProposal();
+
+    mvc.perform(get("/workbench/cases/{id}/timeline", exceptionId).with(as("connie", "controller")))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().string(containsString("/workbench/cases/" + exceptionId + "/timeline")));
+  }
+
+  @Test
   void a_clerk_cannot_decide_what_the_policy_gave_the_controller() throws Exception {
     PendingDecision proposal = awaitProposal();
 
