@@ -2,7 +2,9 @@
 
 Nessy AP is the first enterprise application built on Nessy. This page is a critique: how easy
 Nessy was to use, how far it reached into the application, how much code it needed, and where it
-failed us. The measurements are from the `main` branch on 2026-10-03.
+failed us. The measurements are from the `main` branch on 2026-10-03. Each finding was checked against Nessy's
+source, and two were corrected: a claimed gap that Nessy does not have was removed, and F3 was
+narrowed.
 
 ## The verdict
 
@@ -13,8 +15,8 @@ write. The gaps are in three areas:
 - reading an agent's history and usage from outside the engine;
 - trust in the input.
 
-Each gap cost us application code. The dispatcher stall (F8) is a release blocker, and Nessy
-must ship its fix before anyone builds on the queued door.
+Each gap cost us application code. The dispatcher stall (F8) was a release blocker. Its fix is on
+Nessy `main` and must ship in the next release.
 
 ## How much code, and whose
 
@@ -53,8 +55,9 @@ decisions and audit.
   RabbitMQ message, the case index and the `tell` to the agent commit together. It is also a
   coupling: Nessy's tables live in the application's schema, and an engine upgrade is a schema
   change.
-- **Nessy is a snapshot dependency today.** Nessy AP builds against `0.4.0-SNAPSHOT` with an
-  unmerged fix. That is the biggest practical barrier for anyone else who wants to run this.
+- **Nessy is a snapshot dependency today.** Nessy AP builds against `0.4.0-SNAPSHOT`. The fixes it
+  needs are on Nessy `main`, but not in a release. That is the biggest practical barrier for anyone
+  else who wants to run this.
 
 ## What was easy
 
@@ -76,14 +79,14 @@ decisions and audit.
 | Finding | What it cost us |
 |---|---|
 | **F1.** A tool cannot see its own approval. | A table of decisions, keyed by turn and call id, so that `propose_resolution` can find the decision that let it run. |
-| **F3.** No read API for an agent's story. | The audit trail uses an internal engine type, and it cannot show usage. |
+| **F3.** No read API for an agent's story. | The audit trail uses an internal engine type. The direct door returns a turn's token total; the queued door returns nothing, and no door gives usage by model and kind. |
 | **F4.** A late decision has no channel. | A separate path that tells the agent after its approval expired. |
 | **F5.** No scripted model for tests. | About 90 lines of test support that every Nessy application will write again. |
-| **F6.** Narration cannot be joined to a tool call. | The application writes its own timeline for people to read. |
+| **F6.** Narration cannot be joined to a tool call. | The application writes its own timeline for people to read. Fixed on Nessy `main` since. |
 | **F7.** A call key is unique only within one agent. | A composite key in our own table. A silent collision if we had not read the code. |
-| **F8.** The queued dispatcher could stop for good. | Found under load in the first live run. Every later case was told but never ran. Fixed on a Nessy branch. |
+| **F8.** The queued dispatcher could stop for good. | Found under load in the first live run. Every later case was told but never ran. Fixed on Nessy `main`. |
 | **F9.** A person cannot reach an agent while its proposal waits. | A note from the workbench waits until the decision is made, which is the wrong order for AP. |
-| **F10.** `Turn.tokens` was always 0. | The evaluation reads the metric before and after each case, which works only while cases run one at a time. |
+| **F10.** `Turn.tokens` was always 0. | The evaluation reads the metric before and after each case, which works only while cases run one at a time. The field is removed on Nessy `main`. |
 | **F11.** Inputs carry no provenance. | The application frames untrusted text itself. A prompt injection still persuaded the agent in 4 of 5 runs. |
 | **F12.** Nothing checks that the policy knows a gated tool. | A new tool met an old policy, and a fraudulent vendor received mail. The policy now denies any tool it does not name. |
 
@@ -98,7 +101,7 @@ Two smaller points:
 ## What would make Nessy a better fit
 
 In order of value to this application:
-1. **Release the dispatcher fix (F8).** Nobody can build on the queued door without it.
+1. **Release the fixes on `main` (F6, F8, F10).** Nobody can build on the queued door without F8.
 2. **Make approvals complete:** a tool sees its approval (F1), a late decision has a channel (F4),
    and call keys are unique (F7). Together these would remove about 100 lines and a class of bug.
 3. **A read API for an agent's story, with usage as a whole (F3, F10).** Audit and cost are the
