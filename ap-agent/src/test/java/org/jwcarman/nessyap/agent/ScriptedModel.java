@@ -15,14 +15,27 @@
  */
 package org.jwcarman.nessyap.agent;
 
+import org.jwcarman.nessyap.agent.erp.ErpStub;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.test.context.DynamicPropertyRegistrar;
 
 /**
  * Registers {@link ScriptedProvider} as the provider named {@code scripted}, and a narration tap.
  */
 @TestConfiguration(proxyBeanMethods = false)
 public class ScriptedModel {
+
+  /** One stand-in ERP for the whole context; the app's ErpClient points at it. */
+  @Bean(destroyMethod = "close")
+  ErpStub erpStub() {
+    return new ErpStub();
+  }
+
+  @Bean
+  DynamicPropertyRegistrar erpUrl(ErpStub erpStub) {
+    return registry -> registry.add("ap.erp.base-url", erpStub::baseUrl);
+  }
 
   @Bean
   NarrationTap narrationTap() {

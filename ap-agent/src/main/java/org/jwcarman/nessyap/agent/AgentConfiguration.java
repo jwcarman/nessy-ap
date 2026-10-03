@@ -23,6 +23,11 @@ import org.jwcarman.nessy.api.QueuedHarness;
 import org.jwcarman.nessy.api.QueuedHarnessFactory;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseInputRenderer;
+import org.jwcarman.nessyap.agent.decisions.DecisionDesk;
+import org.jwcarman.nessyap.agent.decisions.ProposeResolution;
+import org.jwcarman.nessyap.agent.tools.ErpTools;
+import org.jwcarman.nessyap.agent.tools.ProposeResolutionTool;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -39,14 +44,35 @@ public class AgentConfiguration {
   }
 
   @Bean
-  public QueuedHarness<CaseInput> apAgent(QueuedHarnessFactory factory) {
+  public QueuedHarness<CaseInput> apAgent(
+      QueuedHarnessFactory factory,
+      ErpTools erpTools,
+      ProposeResolutionTool propose,
+      DecisionDesk desk,
+      @Value("${ap.approval.timeout}") Duration approvalTimeout) {
     return factory.create(
         AGENT_TYPE,
         CaseInput.class,
-        config ->
-            config
-                .systemPrompt("You resolve accounts-payable match exceptions.")
-                .inputRenderer(new CaseInputRenderer())
-                .backlogPolicy(BacklogPolicy.keepAll()));
+        config -> {
+          config
+              .systemPrompt("You resolve accounts-payable match exceptions.")
+              .inputRenderer(new CaseInputRenderer())
+              .backlogPolicy(BacklogPolicy.keepAll());
+          erpTools.all().forEach(config::tool);
+          config.tool(
+              propose,
+              binding ->
+                  binding
+                      .approver(desk, approval -> approval.timeout(approvalTimeout))
+                      .action(AgentConfiguration::describe));
+        });
+  }
+
+  /** The sentence a decider is shown, and agrees to. */
+  static String describe(ProposeResolution proposal) {
+    return proposal.action()
+        + (proposal.amount() == null ? "" : " " + proposal.amount().toPlainString())
+        + ": "
+        + proposal.rationale();
   }
 }

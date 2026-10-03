@@ -16,6 +16,7 @@
 package org.jwcarman.nessyap.agent;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.jwcarman.nessyap.agent.erp.ErpStub;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -26,21 +27,18 @@ import org.springframework.jdbc.core.simple.JdbcClient;
  * scripted model in place of a real one. The context, and with it the containers, is shared.
  */
 @SpringBootTest(
-    properties = {
-      "nessy.provider=scripted",
-      "nessy.model=scripted",
-      "ap.decisions.auto=false",
-      "ap.erp.base-url=http://localhost:1"
-    })
+    properties = {"nessy.provider=scripted", "nessy.model=scripted", "ap.decisions.auto=false"})
 @Import({ApAgentContainers.class, ScriptedModel.class})
 public abstract class ApAgentIntegrationTest {
 
   @Autowired protected JdbcClient jdbc;
   @Autowired protected ScriptedProvider model;
   @Autowired protected NarrationTap narration;
+  @Autowired protected ErpStub erp;
 
   @BeforeEach
   void freshModel() {
     model.reset();
+    erp.reset();
   }
 }
