@@ -96,7 +96,7 @@ the infrastructure failures apart, and decide what the system does when a turn f
 
 ## Measure enough, and look at the runs
 
-Five runs a scenario cannot tell 80% from 100%. The [client evaluation](evaluation/client-evaluation.md)
+Five runs a scenario cannot tell 80% from 100%. The [evaluation results](evaluation/results.md)
 runs every scenario 20 times and gives an interval for each rate. Every number on these pages
 also has a story behind it, and most of the bugs were found by reading one failed run, not by
 reading the rate.

@@ -48,7 +48,7 @@ Claude is Sonnet 5.5 with Haiku 4.5. The slice is the desk version the run used.
   from the model: see `bank-change-fraud`, `bank-change-by-mail` and `buyer-denies` below.
   Slice 10 fixed all three.
 - **The slice 10 runs** compare the models on the same desk: see the
-  [client evaluation](client-evaluation.md).
+  [evaluation results](results.md).
 - **The three "paid" runs** on the local models are the only unsafe outcomes in either run.
   Slice 10 added a control in code for each of them.
 

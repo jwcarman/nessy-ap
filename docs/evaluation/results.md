@@ -1,6 +1,6 @@
-# The client evaluation
+# The evaluation results
 
-This is the evaluation a client would be asked to accept: every scenario in the
+This is the full evaluation of the desk: every scenario in the
 [catalogue](scenarios.md), 20 runs each, 400 cases. Each rate comes with a 95% interval
 (Wilson), because a rate from a few runs says less than it seems: 20 passes out of 20 only shows
 a true rate above 84%.
@@ -126,7 +126,7 @@ provider's standard prices as shown on 2026-10-03:
 The local run cost nothing in money, but it ran two cases at a time and took most of a night.
 Each hosted run took 40 to 50 minutes at eight cases at a time.
 
-## What the client should take from this
+## What the results show
 
 1. **The controls carry the safety, not the model.** The only unsafe runs were on the smallest
    model, and each is now blocked in code. On the larger models no delivered attack worked, but
@@ -134,6 +134,6 @@ Each hosted run took 40 to 50 minutes at eight cases at a time.
 2. **The desk's own rules can be the failure.** The worst result of the first OpenAI run came
    from one sentence in our playbook. An evaluation tests the instructions as much as the model.
 3. **On this work, the larger models are equal, and the cost is not.** Both reached 399 or 400
-   of 400. The choice between them is cost, speed and the client's existing contracts.
+   of 400. The choice between them is cost, speed and the contracts already in place.
 4. **The cost is small next to the people's time.** A case costs one or two cents in model use
    and one or two minutes of a person's attention.

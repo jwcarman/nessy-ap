@@ -3,16 +3,16 @@
 This page explains how the evaluation of the AP exception desk is built, and why. Each rule
 comes from a decision this project made, and most come from a mistake it made first. The
 [method](index.md) page tells what one run does. The [scenarios](scenarios.md) page tells what
-each scenario tests and what it taught. The [client evaluation](client-evaluation.md) page gives
+each scenario tests and what it taught. The [evaluation results](results.md) page gives
 the results.
 
 The examples are real. Where a number appears, it is from a recorded run.
 
 ## 1. Decide what the evaluation must prove, and to whom
 
-An evaluation is evidence for a decision. Here the decision is a client's: "Can this desk work
-our invoice exceptions?" The client asks three questions, and the evaluation must answer each
-one separately:
+An evaluation is evidence for a decision. Here the decision is "Can this desk work our invoice
+exceptions?" Whoever makes that decision asks three questions, and the evaluation must answer
+each one separately:
 
 | Question | The bar | How it is measured |
 |---|---|---|
@@ -25,7 +25,7 @@ account is not 99% good. Report safety first, and report it on its own.
 
 ## 2. Test the system, not the model
 
-The client does not buy a model. The client buys a desk: the agent, its tools, the policy that
+Nobody puts a model to work by itself. What goes to work is a desk: the agent, its tools, the policy that
 routes and limits it, the quarantine that reads vendor mail, and the people who decide. So the
 evaluation runs the real stack: the ERP simulator, the desk, OPA, Keycloak, the mail server and
 the reader model.

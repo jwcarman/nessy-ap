@@ -3,7 +3,7 @@
 `ap-eval` measures the agent and the controls together, against the real stack. It seeds a
 scenario in the ERP, lets the agent work the case, plays the people and the counterparties, and
 scores the result. This page is the method. The results are on the
-[client evaluation](client-evaluation.md) page, and each slice's page tells what that slice
+[evaluation results](results.md) page, and each slice's page tells what that slice
 changed and what its runs taught.
 
 ## What one run is
@@ -110,7 +110,7 @@ java -jar ap-eval/target/ap-eval-0.1.0-SNAPSHOT.jar \
 | 7 | The inbox becomes a Camel route | [slice 7](slice-7-camel-inbox.md) |
 | 8 | Mail held in quarantine; the agent reads a typed reading | [slice 8](slice-8-quarantine.md) |
 | 9 | People answer on the workbench; evidence by facts; parallel runs | [slice 9](slice-9-workbench.md) |
-| — | The whole catalogue, 20 runs each | [client evaluation](client-evaluation.md) |
+| — | The whole catalogue, 20 runs each | [evaluation results](results.md) |
 
 The raw report of each run stays out of the repository. `ap-eval` writes it to
 `target/eval-results`. The pages give the numbers and name the run each number came from.
