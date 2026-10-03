@@ -205,7 +205,7 @@ class WorkbenchTest extends ApAgentIntegrationTest {
         .andExpect(status().is3xxRedirection());
 
     assertThat(erp.seen())
-        .filteredOn(seen -> seen.method().equals("POST"))
+        .filteredOn(seen -> seen.method().equals("POST") && seen.target().startsWith("/api/"))
         .singleElement()
         .satisfies(post -> assertThat(post.header("Authorization")).startsWith("Bearer "));
     assertThat(decisions.find(proposal.id()).orElseThrow().decidedBy()).isEqualTo("connie");

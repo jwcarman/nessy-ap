@@ -87,7 +87,8 @@ class LateDecisionTest extends ApAgentIntegrationTest {
     await()
         .atMost(DecisionFlowTest.PATIENCE)
         .until(() -> narration.count(agentId, Narration.TurnEnded.class) == 2);
-    assertThat(erp.seen()).anyMatch(seen -> seen.method().equals("POST"));
+    assertThat(erp.seen())
+        .anyMatch(seen -> seen.method().equals("POST") && seen.target().startsWith("/api/"));
     assertThat(decisions.find(proposal.id()).orElseThrow().status())
         .isEqualTo(DecisionStatus.ANSWERED);
   }

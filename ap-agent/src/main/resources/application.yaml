@@ -52,6 +52,9 @@ nessy:
 ap:
   erp:
     base-url: http://localhost:8081
+    token-uri: http://localhost:58080/realms/nessy-ap/protocol/openid-connect/token
+    client-id: ap-agent-service
+    client-secret: ap-agent-secret
   opa:
     url: http://localhost:58181
   approval:

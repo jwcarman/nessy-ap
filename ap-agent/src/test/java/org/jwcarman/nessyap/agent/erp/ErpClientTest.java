@@ -18,6 +18,7 @@ package org.jwcarman.nessyap.agent.erp;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -136,6 +137,37 @@ class ErpClientTest {
 
       assertThat(nowhere.invoice(ID)).isInstanceOf(ErpOutcome.Unavailable.class);
     }
+  }
+
+  @Test
+  void reads_carry_the_agents_own_token_and_commands_only_the_deciders() {
+    erp.on("POST", "/token", 200, "{\"access_token\":\"svc-1\",\"expires_in\":300}");
+    erp.on("GET", "/api/invoices/" + ID, 200, "{}");
+    erp.on("POST", "/api/invoices/" + ID + "/hold", 200, "{}");
+    ServiceToken service =
+        new ServiceToken(
+            erp.baseUrl() + "/token",
+            "ap-agent-service",
+            "s",
+            Clock.systemUTC(),
+            Duration.ofSeconds(1),
+            JsonMapper.builder().build());
+    ErpClient signed =
+        new ErpClient(
+            erp.baseUrl(),
+            Duration.ofSeconds(1),
+            Duration.ofSeconds(1),
+            JsonMapper.builder().build(),
+            service);
+
+    signed.invoice(ID);
+    signed.resolve(ID, "hold", "k", 1, null, null, null);
+    signed.resolve(ID, "hold", "k2", 1, null, null, "person");
+
+    assertThat(erp.seen())
+        .filteredOn(seen -> seen.target().startsWith("/api/"))
+        .extracting(seen -> seen.method() + " " + seen.header("Authorization"))
+        .containsExactly("GET Bearer svc-1", "POST null", "POST Bearer person");
   }
 
   @Test

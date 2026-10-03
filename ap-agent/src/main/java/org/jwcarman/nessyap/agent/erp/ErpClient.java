@@ -38,8 +38,22 @@ public class ErpClient {
   private final Duration readTimeout;
   private final JsonMapper json;
   private final HttpClient http;
+  private final ServiceToken serviceToken;
 
   public ErpClient(String baseUrl, Duration connectTimeout, Duration readTimeout, JsonMapper json) {
+    this(baseUrl, connectTimeout, readTimeout, json, null);
+  }
+
+  /**
+   * @param serviceToken the agent's own credential, sent on reads; null to read unauthenticated
+   */
+  public ErpClient(
+      String baseUrl,
+      Duration connectTimeout,
+      Duration readTimeout,
+      JsonMapper json,
+      ServiceToken serviceToken) {
+    this.serviceToken = serviceToken;
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     this.readTimeout = readTimeout;
     this.json = json;
@@ -125,7 +139,15 @@ public class ErpClient {
   }
 
   private ErpOutcome<JsonNode> get(String path) {
-    return send(HttpRequest.newBuilder(uri(path)).GET());
+    HttpRequest.Builder request = HttpRequest.newBuilder(uri(path)).GET();
+    if (serviceToken != null) {
+      var token = serviceToken.current();
+      if (token.isEmpty()) {
+        return new ErpOutcome.Unavailable<>("no service token for the ERP");
+      }
+      request.header("Authorization", "Bearer " + token.get());
+    }
+    return send(request);
   }
 
   private ErpOutcome<JsonNode> send(HttpRequest.Builder request) {

@@ -113,7 +113,9 @@ class DecisionFlowTest extends ApAgentIntegrationTest {
   }
 
   private List<ErpStub.Seen> posts() {
-    return erp.seen().stream().filter(seen -> seen.method().equals("POST")).toList();
+    return erp.seen().stream()
+        .filter(seen -> seen.method().equals("POST") && seen.target().startsWith("/api/"))
+        .toList();
   }
 
   @Test
