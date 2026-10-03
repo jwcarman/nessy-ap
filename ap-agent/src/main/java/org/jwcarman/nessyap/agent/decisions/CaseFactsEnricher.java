@@ -24,6 +24,7 @@ import org.jwcarman.nessyap.agent.erp.ErpClient;
 import org.jwcarman.nessyap.agent.erp.ErpOutcome;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 
 /**
@@ -54,9 +55,18 @@ public class CaseFactsEnricher implements ApprovalEnricher {
     request.fact("amountAtIssue", nodes.numberNode(c.amount()));
     // The ERP measures authority against the invoice total, so routing must see it too.
     // The ERP's invoice view is {"invoice": {...}, "exceptions": [...]}.
-    if (erp.invoice(c.invoiceId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode view)
-        && view.path("invoice").path("total").isNumber()) {
-      request.fact("invoiceTotal", view.path("invoice").get("total"));
+    if (erp.invoice(c.invoiceId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode view)) {
+      if (view.path("invoice").path("total").isNumber()) {
+        request.fact("invoiceTotal", view.path("invoice").get("total"));
+      }
+      // Every exception still open on the invoice, so the policy sees a repeat through any case.
+      ArrayNode open = nodes.arrayNode();
+      for (JsonNode exception : view.path("exceptions")) {
+        if ("OPEN".equals(exception.path("status").asString())) {
+          open.add(exception.path("reasonCode").asString());
+        }
+      }
+      request.fact("openReasonCodes", open);
     }
     if (c.poNumber() != null
         && erp.purchaseOrder(c.poNumber()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode po)

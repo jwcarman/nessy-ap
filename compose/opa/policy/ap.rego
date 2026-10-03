@@ -52,6 +52,12 @@ bank_unverified := object.get(input.facts, "bankChangeUnverified", true)
 # bank details, and telling the agent "fraud" would make it hold a good invoice.
 bank_known if is_boolean(input.facts.bankChangeUnverified)
 
+# A repeat is a repeat through any of its exceptions: a re-sent overpriced invoice raises both a
+# duplicate and a price variance, and approving the variance would pay it all the same.
+repeats_a_number if input.facts.reasonCode == "DUPLICATE"
+
+repeats_a_number if "DUPLICATE" in object.get(input.facts, "openReasonCodes", [])
+
 bank_unknown_reason := "could not read the vendor's bank details just now; try again shortly"
 
 at_issue := input.facts.amountAtIssue if is_number(input.facts.amountAtIssue)
@@ -105,7 +111,7 @@ else := {
 	"effect": "deny",
 	"reason": "an invoice with the same number as one already received is never paid from the desk: reject it",
 } if {
-	input.facts.reasonCode == "DUPLICATE"
+	repeats_a_number
 	action in moves_money
 }
 
