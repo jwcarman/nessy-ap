@@ -61,6 +61,10 @@ nessy:
   reply-token-encryption-keys:
     - ${AP_REPLY_KEY}
 ap:
+  # Nessy's stored history, encrypted under a key of its own (NessyStorageEncryption).
+  nessy-storage:
+    key-id: dev
+    kek: ${AP_NESSY_KEK}
   erp:
     base-url: http://localhost:8081
     token-uri: http://localhost:58080/realms/nessy-ap/protocol/openid-connect/token

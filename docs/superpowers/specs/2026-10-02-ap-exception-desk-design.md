@@ -479,7 +479,7 @@ Nessy design conversations, not changes made from this repo.
   (slice 8) is a direct harness with no tools and a typed answer, which Nessy supports
   directly. Each read is stored like any agent's history, which is right for audit.
   But nothing expires or deletes an agent's stored history, so a one-shot reader's
-  transcripts, which hold untrusted plaintext, grow without limit, and that copy sits
+  transcripts, which hold untrusted text, grow without limit, and that copy sits
   outside the application's own controls (here, Occlude's labels and record).
 
 - **F14 — The direct door fails inside a caller's transaction.** `DirectHarness.ask` writes

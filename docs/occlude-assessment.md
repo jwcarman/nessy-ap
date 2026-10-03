@@ -79,10 +79,13 @@ import nothing from Occlude.
 Occlude's [limits page](https://jwcarman.github.io/occlude/limits/) says that a function handed
 plaintext to compute with has leaked it if it also writes it somewhere. The quarantined reader is
 such a function. It is a Nessy direct harness, and Nessy stores each turn's input, so the text of
-every reply is also in Nessy's `nessy_payload` table, in plaintext. Occlude's erasure cannot reach
-that copy, and nothing expires it (Nessy finding F13). We store the reader's history on purpose,
-because an auditor must be able to see what the reader was shown. The open question is how that
-history is protected, not whether it is kept.
+every reply is also in Nessy's history. We keep that history on purpose, because an auditor must
+be able to see what the reader was shown.
+
+The desk encrypts all of Nessy's storage with the same envelope encryption that Occlude uses
+(codec-crypto, AES-256-GCM), through Nessy's `StorageCodecConfigurer`. It uses a key of its own,
+so each store can be rotated or revoked alone. Two gaps stay: Occlude's erasure cannot reach the
+copy in Nessy's history, and nothing expires it (Nessy finding F13).
 
 ## What would make Occlude a better fit
 

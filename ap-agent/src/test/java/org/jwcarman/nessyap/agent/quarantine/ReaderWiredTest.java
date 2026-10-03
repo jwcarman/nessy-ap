@@ -17,6 +17,7 @@ package org.jwcarman.nessyap.agent.quarantine;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -70,6 +71,33 @@ class ReaderWiredTest extends ApAgentIntegrationTest {
 
     assertThat(reading.claim().intent()).isEqualTo(Intent.GIVES_PO_NUMBER);
     assertThat(reading.claim().poNumber()).isEqualTo(new PoNumber("PO-7"));
+  }
+
+  @Test
+  void nessy_stores_what_the_reader_was_shown_encrypted() {
+    modelAnswers("{\"intent\":\"OTHER\",\"poNumber\":null,\"containsInstructions\":false}");
+    Reply reply = reply();
+
+    quarantine.receive(reply);
+
+    UUID reader = ModelReplyReader.agentFor(reply).value();
+    List<byte[]> stored =
+        jdbc.sql(
+                """
+                select content from nessy_payload where agent_id = :agent
+                union all
+                select payload from nessy_agent_event where agent_id = :agent
+                """)
+            .param("agent", reader)
+            .query(byte[].class)
+            .list();
+    assertThat(stored).isNotEmpty();
+    assertThat(stored)
+        .noneSatisfy(
+            bytes -> assertThat(new String(bytes, StandardCharsets.UTF_8)).contains("It is PO-7"))
+        .allSatisfy(
+            bytes ->
+                assertThat(new String(bytes, 0, 2, StandardCharsets.US_ASCII)).isEqualTo("JC"));
   }
 
   @Test

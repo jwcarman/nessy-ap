@@ -34,6 +34,7 @@ cat > .env <<SECRETS
 # Never commit this file. Each value is random; production supplies its own.
 AP_REPLY_KEY=$(key 32)
 OCCLUDE_KEK=$(key 32)
+AP_NESSY_KEK=$(key 32)
 OCCLUDE_ROOT=$(key 48)
 SECRETS
 echo "Wrote .env with new development secrets."

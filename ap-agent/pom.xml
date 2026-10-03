@@ -44,6 +44,10 @@
       <artifactId>nessy-backend-jdbc</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.jwcarman.codec</groupId>
+      <artifactId>codec-crypto</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.jwcarman.nessy</groupId>
       <artifactId>nessy-approval-policy-opa</artifactId>
     </dependency>
