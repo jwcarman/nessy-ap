@@ -26,6 +26,12 @@ import tools.jackson.databind.JsonNode;
  */
 final class Settled {
 
+  /**
+   * After a reply arrives the agent's next turn writes nothing until its first move, and a local
+   * model can think for a long time first: wait at least this long after the last reply.
+   */
+  static final Duration AFTER_REPLY = Duration.ofSeconds(60);
+
   private Settled() {}
 
   static boolean of(JsonNode view, Instant now, Duration quiet) {
@@ -38,12 +44,16 @@ final class Settled {
       }
     }
     Instant last = Instant.EPOCH;
+    String lastKind = "";
     for (JsonNode event : view.path("timeline")) {
       Instant at = Instant.parse(event.path("at").asString());
-      if (at.isAfter(last)) {
+      if (!at.isBefore(last)) {
         last = at;
+        lastKind = event.path("kind").asString();
       }
     }
-    return !last.plus(quiet).isAfter(now);
+    Duration wait =
+        "mail-received".equals(lastKind) && AFTER_REPLY.compareTo(quiet) > 0 ? AFTER_REPLY : quiet;
+    return !last.plus(wait).isAfter(now);
   }
 }

@@ -165,7 +165,7 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
   }
 
   @Test
-  void a_vendor_that_cannot_be_read_counts_as_unverified() {
+  void a_vendor_that_cannot_be_read_is_refused_until_it_can_be() {
     erp.onPrefix("GET", "/api/vendors/", 503, "{\"code\":\"DOWN\"}");
     propose(
         ReasonCode.PRICE_VARIANCE,
@@ -174,5 +174,10 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
 
     await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
     assertThat(decisions.forCase(exceptionId)).isEmpty();
+    // Refused, but not as fraud: a read that failed says nothing about the bank details.
+    assertThat(model.outcomesSeen())
+        .filteredOn(ToolOutcome.Denied.class::isInstance)
+        .singleElement()
+        .satisfies(o -> assertThat(((ToolOutcome.Denied) o).reason()).contains("could not read"));
   }
 }

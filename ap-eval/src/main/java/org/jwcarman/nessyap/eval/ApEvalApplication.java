@@ -75,6 +75,7 @@ public class ApEvalApplication {
               option(args, "agent", "http://localhost:8082"),
               timeout,
               Duration.parse(option(args, "quiet", "PT8S")));
+      runner.clearFaults();
       List<RunScore> scores = new ArrayList<>();
       for (Scenario scenario : scenarios) {
         for (int i = 1; i <= repetitions; i++) {

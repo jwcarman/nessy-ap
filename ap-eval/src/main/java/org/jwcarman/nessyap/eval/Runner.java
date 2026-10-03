@@ -71,14 +71,25 @@ final class Runner {
   }
 
   RunScore run(Scenario scenario, int repetition) {
-    if (scenario.twist() == Scenario.Twist.FLAKY_ERP) {
-      breakTheErp();
-    }
     try {
+      if (scenario.twist() == Scenario.Twist.FLAKY_ERP) {
+        breakTheErp();
+      }
       return attempt(scenario, repetition);
     } finally {
-      // A fault left in place would poison every later run.
+      // A fault left in place would poison every later run, even one that failed to set up.
+      clearFaults();
+    }
+  }
+
+  /**
+   * Removes every injected fault; also called before the first run, in case an earlier eval died.
+   */
+  void clearFaults() {
+    try {
       http.delete(erpUrl + "/admin/faults");
+    } catch (IllegalStateException e) {
+      log.warn("Could not clear the ERP's injected faults: {}", e.getMessage());
     }
   }
 

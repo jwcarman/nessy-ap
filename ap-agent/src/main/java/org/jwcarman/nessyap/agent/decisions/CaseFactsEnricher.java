@@ -15,6 +15,7 @@
  */
 package org.jwcarman.nessyap.agent.decisions;
 
+import java.util.Optional;
 import org.jwcarman.nessy.api.tool.ApprovalEnricher;
 import org.jwcarman.nessy.api.tool.ApprovalRequest;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
@@ -28,8 +29,8 @@ import tools.jackson.databind.node.JsonNodeFactory;
 /**
  * Tells the routing policy what it needs to know about the case behind a proposal: the reason code,
  * the money in question, the PO's buyer, and whether the vendor's bank details have an unverified
- * change. A vendor that cannot be read counts as having one: a fact the policy cannot see must
- * never read as safe.
+ * change. A vendor that cannot be read leaves that fact out: the policy refuses what it cannot see,
+ * but says the read failed, never that the vendor is a fraud risk.
  */
 @Component
 public class CaseFactsEnricher implements ApprovalEnricher {
@@ -62,18 +63,21 @@ public class CaseFactsEnricher implements ApprovalEnricher {
         && po.hasNonNull("buyer")) {
       request.fact("buyer", po.get("buyer").asString());
     }
-    request.fact("bankChangeUnverified", nodes.booleanNode(bankChangeUnverified(c)));
+    bankChangeUnverified(c)
+        .ifPresent(
+            unverified -> request.fact("bankChangeUnverified", nodes.booleanNode(unverified)));
   }
 
-  private boolean bankChangeUnverified(CaseRecord c) {
+  /** Empty when the vendor could not be read. */
+  private Optional<Boolean> bankChangeUnverified(CaseRecord c) {
     if (!(erp.vendor(c.vendorId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode vendor))) {
-      return true;
+      return Optional.empty();
     }
     for (JsonNode account : vendor.path("bankAccounts")) {
       if ("PENDING_VERIFICATION".equals(account.path("status").asString())) {
-        return true;
+        return Optional.of(true);
       }
     }
-    return false;
+    return Optional.of(false);
   }
 }

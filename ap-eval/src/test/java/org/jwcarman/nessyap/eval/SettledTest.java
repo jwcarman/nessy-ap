@@ -30,14 +30,19 @@ class SettledTest {
   private static final JsonMapper JSON = JsonMapper.builder().build();
 
   private static JsonNode view(String status, String decisionStatus, Instant lastEvent) {
+    return view(status, decisionStatus, lastEvent, "resolved");
+  }
+
+  private static JsonNode view(
+      String status, String decisionStatus, Instant lastEvent, String lastKind) {
     return JSON.readTree(
         """
         {"status": "%s",
          "decisions": [{"status": "%s"}],
          "timeline": [{"at": "2026-10-03T07:00:00Z", "kind": "tool"},
-                      {"at": "%s", "kind": "resolved"}]}
+                      {"at": "%s", "kind": "%s"}]}
         """
-            .formatted(status, decisionStatus, lastEvent));
+            .formatted(status, decisionStatus, lastEvent, lastKind));
   }
 
   @Test
@@ -59,5 +64,18 @@ class SettledTest {
   void a_case_still_investigating_is_not() {
     assertThat(Settled.of(view("INVESTIGATING", "ANSWERED", NOW.minusSeconds(60)), NOW, QUIET))
         .isFalse();
+  }
+
+  @Test
+  void a_reply_the_agent_has_not_acted_on_yet_keeps_the_case_open_longer() {
+    // A slow model may take well past the usual quiet period to make its first move on a reply.
+    assertThat(
+            Settled.of(
+                view("RESOLVED", "ANSWERED", NOW.minusSeconds(20), "mail-received"), NOW, QUIET))
+        .isFalse();
+    assertThat(
+            Settled.of(
+                view("RESOLVED", "ANSWERED", NOW.minusSeconds(61), "mail-received"), NOW, QUIET))
+        .isTrue();
   }
 }

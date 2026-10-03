@@ -23,7 +23,11 @@ decision := vendor_mail if input.toolName == "email_vendor"
 
 # Never write to a vendor whose bank details changed unverified: whoever asked for the change may be
 # the one reading, and a reply on that thread can look like the vendor confirming it.
-vendor_mail := {
+vendor_mail := {"effect": "deny", "reason": bank_unknown_reason} if {
+	not bank_known
+}
+
+else := {
 	"effect": "deny",
 	"reason": "the vendor has an unverified bank-detail change: do not email them; hold the invoice and have the change verified by calling the contact of record",
 } if {
@@ -43,6 +47,12 @@ action := input.arguments.action
 # Facts the policy cannot see never read as safe: no word on the bank details means unverified,
 # and no amount in question means no payment can be routed.
 bank_unverified := object.get(input.facts, "bankChangeUnverified", true)
+
+# Unknown is refused too, but never reported as fraud: a read that failed says nothing about the
+# bank details, and telling the agent "fraud" would make it hold a good invoice.
+bank_known if is_boolean(input.facts.bankChangeUnverified)
+
+bank_unknown_reason := "could not read the vendor's bank details just now; try again shortly"
 
 at_issue := input.facts.amountAtIssue if is_number(input.facts.amountAtIssue)
 
@@ -68,6 +78,11 @@ resolution := {"effect": "deny", "reason": sprintf("%v is not a resolution", [ac
 else := {"effect": "deny", "reason": "a short-pay needs a positive amount"} if {
 	action == "short-pay"
 	not short_pay_amount > 0
+}
+
+else := {"effect": "deny", "reason": bank_unknown_reason} if {
+	action in moves_money
+	not bank_known
 }
 
 # The payment-fraud pattern: nothing that pays the vendor until the bank change is verified.

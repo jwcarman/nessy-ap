@@ -149,3 +149,9 @@ test_the_buyer_and_the_case_notebook_need_no_approval if {
 	ap.decision == {"effect": "allow"} with input as {"toolName": "email_buyer", "arguments": {}, "facts": {}}
 	ap.decision == {"effect": "allow"} with input as {"toolName": "note_case", "arguments": {}, "facts": {}}
 }
+
+test_an_unreadable_vendor_is_refused_as_unknown_not_as_fraud if {
+	ap.decision.effect == "deny" with input as vendor_mail({})
+	contains(ap.decision.reason, "could not read") with input as vendor_mail({})
+	contains(ap.decision.reason, "could not read") with input as proposal("approve-variance", {"reasonCode": "PRICE_VARIANCE", "amountAtIssue": 40, "invoiceTotal": 5000, "buyer": "bob"})
+}
