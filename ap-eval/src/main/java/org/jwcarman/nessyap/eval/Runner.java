@@ -137,6 +137,7 @@ final class Runner {
           redeliveryDone = true;
         }
         decidePending(lastSeen);
+        answerQuestions(lastSeen, scenario, answered);
         answerMail(lastSeen, scenario, answered);
         if (Settled.of(lastSeen, Instant.now(), quiet)) {
           break;
@@ -191,7 +192,41 @@ final class Runner {
     }
   }
 
-  /** The vendor and buyer answer each message the desk sent them once, as the scenario scripts. */
+  /** The people inside the company answer the agent's questions on the workbench, signed in. */
+  private void answerQuestions(JsonNode view, Scenario scenario, Set<String> answered) {
+    for (JsonNode question : view.path("questions")) {
+      String id = question.path("id").asString();
+      Optional<String> words = answerFor(scenario, question);
+      if (words.isEmpty() || !answered.add(id)) {
+        continue;
+      }
+      String person = question.path("askedOf").asString();
+      http.postJson(
+          agentUrl + "/api/questions/" + id + "/answer",
+          keycloak.tokenFor(person),
+          Map.of("comment", words.get()));
+      log.info("  {} answered on the workbench: {}", person, words.get());
+    }
+  }
+
+  /**
+   * What the scenario has a person say to a question: the words it scripts for the role the
+   * evaluation plays as that person, or nothing for a question already answered, a person it does
+   * not play, or a role with nothing to say.
+   */
+  static Optional<String> answerFor(Scenario scenario, JsonNode question) {
+    if (!question.path("answeredAt").isNull() && !question.path("answeredAt").isMissingNode()) {
+      return Optional.empty();
+    }
+    String person = question.path("askedOf").asString();
+    return PEOPLE.entrySet().stream()
+        .filter(e -> e.getValue().equals(person))
+        .map(Map.Entry::getKey)
+        .findFirst()
+        .map(role -> scenario.replies().get(role));
+  }
+
+  /** The vendor answers each message the desk sent it once, as the scenario scripts. */
   private void answerMail(JsonNode view, Scenario scenario, Set<String> answered) {
     for (JsonNode mail : view.path("mail")) {
       String messageId = mail.path("messageId").asString();
