@@ -18,3 +18,4 @@ down here instead of worked around in silence. The full text is in section 10 of
 | **F11.** Inputs carry no provenance. | Open. Nessy AP's quarantine slice explores it with Occlude. |
 | **F12.** Nothing checks that the policy knows a gated tool. | Open. Nessy AP's policy denies any tool it does not name. |
 | **F13.** Stored agent history has no retention or cleanup. | Open. The quarantined reader stores every read, untrusted text included, with no way to expire it. |
+| **F14.** The direct door fails inside a caller's transaction. | Open. The desk runs its reader with the transaction suspended. |

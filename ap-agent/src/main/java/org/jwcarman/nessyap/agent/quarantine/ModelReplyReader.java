@@ -26,12 +26,19 @@ import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ModelReading;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
+import org.springframework.transaction.support.TransactionOperations;
 
 /**
  * The quarantined reader: a Nessy direct harness with no tools and a typed answer. Each reply is
  * read by its own agent, named from the reply's Message-ID, so no reply can reach the reading of
  * another and an auditor can find the exact read of each reply in Nessy's stored history. The
- * answer is checked again here, and anything that does not fit reads as "a person must read this".
+ * answer is typed: a PO number of the wrong shape cannot be read, and any answer that does not read
+ * reads as "a person must read this".
+ *
+ * <p>The read runs outside the caller's transaction. Nessy's direct door cannot run inside one: it
+ * writes the turn on the caller's connection and runs the model call on another, which cannot see
+ * that write (finding F14). Outside it, the record of the read also commits on its own, so it stays
+ * when the mail is rolled back, and a model call does not hold the mail's transaction open.
  */
 public class ModelReplyReader implements ReplyReader {
 
@@ -50,9 +57,16 @@ public class ModelReplyReader implements ReplyReader {
       """;
 
   private final DirectHarness<Reply, ModelReading> reader;
+  private final TransactionOperations outsideTransaction;
 
-  public ModelReplyReader(DirectHarness<Reply, ModelReading> reader) {
+  /**
+   * @param reader the direct harness that reads one reply
+   * @param outsideTransaction runs the read with any caller's transaction suspended
+   */
+  public ModelReplyReader(
+      DirectHarness<Reply, ModelReading> reader, TransactionOperations outsideTransaction) {
     this.reader = reader;
+    this.outsideTransaction = outsideTransaction;
   }
 
   /** What the reader's model sees: the reply as quoted data, never the case or the vendor id. */
@@ -77,7 +91,7 @@ public class ModelReplyReader implements ReplyReader {
 
   @Override
   public ReplyReading read(Reply reply) {
-    if (!(reader.ask(agentFor(reply), reply)
+    if (!(outsideTransaction.execute(status -> reader.ask(agentFor(reply), reply))
             instanceof Outcome.Answered<ModelReading>(ModelReading answer, var stats))
         || answer == null) {
       return ReplyReader.unread(reply);

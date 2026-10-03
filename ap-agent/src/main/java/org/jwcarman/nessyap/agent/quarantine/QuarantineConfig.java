@@ -41,6 +41,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -76,7 +79,8 @@ public class QuarantineConfig {
       DirectHarnessFactory harnesses,
       @Value("${ap.quarantine.reader.provider}") String provider,
       @Value("${ap.quarantine.reader.model}") String model,
-      @Value("${ap.quarantine.reader.timeout}") Duration timeout) {
+      @Value("${ap.quarantine.reader.timeout}") Duration timeout,
+      PlatformTransactionManager transactions) {
     DirectHarness<Reply, ModelReading> reader =
         harnesses.create(
             READER,
@@ -92,7 +96,9 @@ public class QuarantineConfig {
                                 .model(model)
                                 .maxTokens(256)
                                 .timeout(timeout)));
-    return new ModelReplyReader(reader);
+    TransactionTemplate outsideTransaction = new TransactionTemplate(transactions);
+    outsideTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_NOT_SUPPORTED);
+    return new ModelReplyReader(reader, outsideTransaction);
   }
 
   /** With the reader switched off, nothing in a reply is known and a person must read it. */

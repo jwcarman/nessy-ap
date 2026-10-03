@@ -482,6 +482,14 @@ Nessy design conversations, not changes made from this repo.
   transcripts, which hold untrusted plaintext, grow without limit, and that copy sits
   outside the application's own controls (here, Occlude's labels and record).
 
+- **F14 — The direct door fails inside a caller's transaction.** `DirectHarness.ask` writes
+  the turn on the caller's connection, then runs the model call on an effect thread with a
+  connection of its own. That thread cannot see the uncommitted turn and fails ("no event at
+  1 for agent ..."). The mail route reads replies inside its transaction, so every live read
+  failed and fell back to "a person must read this". No test saw it: the tests switched the
+  reader off. The desk now runs the read with the transaction suspended. Nessy should either
+  run the direct door in a transaction of its own or refuse an ambient one with a clear error.
+
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`
 give an idempotent answer path (§3.3); `PolicyApprover` + `Verdict.Delegate`

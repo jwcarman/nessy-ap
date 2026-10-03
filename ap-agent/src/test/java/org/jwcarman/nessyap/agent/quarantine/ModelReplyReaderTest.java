@@ -33,6 +33,7 @@ import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ModelReading;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
+import org.springframework.transaction.support.TransactionOperations;
 
 /** The quarantined reader over a fake direct harness: what it asks, and how it checks answers. */
 class ModelReplyReaderTest {
@@ -77,7 +78,7 @@ class ModelReplyReaderTest {
                     new ModelReading(Intent.GIVES_PO_NUMBER, new PoNumber("PO-7"), false),
                     stats()));
 
-    assertThat(new ModelReplyReader(fake).read(REPLY))
+    assertThat(new ModelReplyReader(fake, TransactionOperations.withoutTransaction()).read(REPLY))
         .isEqualTo(new ReplyReading(VENDOR, Intent.GIVES_PO_NUMBER, new PoNumber("PO-7"), false));
   }
 
@@ -86,7 +87,8 @@ class ModelReplyReaderTest {
     FakeReader fake =
         new FakeReader(
             r -> new Outcome.Answered<>(new ModelReading(Intent.OTHER, null, false), stats()));
-    ModelReplyReader reader = new ModelReplyReader(fake);
+    ModelReplyReader reader =
+        new ModelReplyReader(fake, TransactionOperations.withoutTransaction());
     Reply another = new Reply(VENDOR, "<m2@acme.example>", "ann@acme.example", "Re", "Hi");
 
     reader.read(REPLY);
@@ -111,6 +113,7 @@ class ModelReplyReaderTest {
     FakeReader fake =
         new FakeReader(r -> new Outcome.Failed<>("the answer did not fit: not a PO", stats()));
 
-    assertThat(new ModelReplyReader(fake).read(REPLY)).isEqualTo(ReplyReader.unread(REPLY));
+    assertThat(new ModelReplyReader(fake, TransactionOperations.withoutTransaction()).read(REPLY))
+        .isEqualTo(ReplyReader.unread(REPLY));
   }
 }
