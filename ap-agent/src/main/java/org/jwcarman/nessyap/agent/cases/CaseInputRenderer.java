@@ -21,6 +21,7 @@ import org.jwcarman.nessy.api.InputRenderer;
 import org.jwcarman.nessy.api.block.Block;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Offer;
+import org.jwcarman.nessyap.agent.tools.VendorReference;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 
 /** What the model reads for each case input: one plain paragraph, naming the ids it can look up. */
@@ -38,12 +39,12 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
               .formatted(
                   e.exceptionId(),
                   e.reasonCode(),
-                  e.invoiceNumber(),
+                  VendorReference.shown(e.invoiceNumber()),
                   e.invoiceId(),
                   e.vendorId(),
                   e.poNumber() == null
                       ? "which cites no purchase order"
-                      : "against purchase order " + e.poNumber(),
+                      : "against purchase order " + VendorReference.shown(e.poNumber()),
                   e.amountAtIssue().toPlainString(),
                   e.summary());
       case CaseInput.ReceiptArrived(var r) ->

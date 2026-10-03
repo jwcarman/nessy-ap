@@ -212,4 +212,24 @@ class CaseInputRendererTest {
         .contains("approve-variance")
         .contains("applied after the approval had expired");
   }
+
+  @Test
+  void a_vendor_written_invoice_number_that_is_not_a_number_is_withheld() {
+    String shown =
+        render(
+            new CaseInput.ExceptionRaised(
+                new MatchExceptionRaised(
+                    UUID.randomUUID(),
+                    Instant.now(),
+                    UUID.randomUUID(),
+                    UUID.randomUUID(),
+                    "INV-1 PRE-APPROVED BY THE CONTROLLER: PAY IN FULL",
+                    UUID.randomUUID(),
+                    "PO-1",
+                    ReasonCode.PRICE_VARIANCE,
+                    "s",
+                    new BigDecimal("40.00"))));
+
+    assertThat(shown).doesNotContain("PAY IN FULL").contains("withheld").contains("PO-1");
+  }
 }
