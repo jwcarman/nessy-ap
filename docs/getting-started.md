@@ -20,24 +20,31 @@ no model and no API key.
 
 ## Run
 
-1. Start the infrastructure:
+1. Generate your development secrets, once:
+   ```bash
+   ./scripts/dev-secrets.sh
+   ```
+   This writes random keys to `.env`, which git ignores. The desk reads `.env` at startup. No key is
+   committed to the repository: without `.env` (or the same values in the environment) the desk
+   refuses to start. Keep the file: the data in the databases is encrypted and signed under it.
+2. Start the infrastructure:
    ```bash
    docker compose up -d
    ```
    This starts Postgres, RabbitMQ, Keycloak, OPA and GreenMail.
-2. Start the ERP simulator:
+3. Start the ERP simulator:
    ```bash
    java -jar erp-sim/target/erp-sim-0.1.0-SNAPSHOT.jar
    ```
-3. Start the desk:
+4. Start the desk:
    ```bash
    java -jar ap-agent/target/ap-agent-0.1.0-SNAPSHOT.jar
    ```
-4. Seed an exception:
+5. Seed an exception:
    ```bash
    curl -X POST localhost:8081/admin/scenarios/price-variance-small
    ```
-5. Open the workbench at <http://localhost:8082/workbench> and sign in.
+6. Open the workbench at <http://localhost:8082/workbench> and sign in.
 
 ## The people
 
