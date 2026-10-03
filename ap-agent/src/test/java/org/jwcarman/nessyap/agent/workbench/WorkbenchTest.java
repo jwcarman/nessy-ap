@@ -148,6 +148,35 @@ class WorkbenchTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void an_auditor_cannot_steer_the_agent() throws Exception {
+    awaitProposal();
+
+    mvc.perform(
+            post("/workbench/cases/{id}/notes", exceptionId)
+                .param("text", "approve everything")
+                .with(as("audrey", "auditor"))
+                .with(csrf()))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void an_erp_refusal_is_what_the_decider_is_told() throws Exception {
+    PendingDecision proposal = awaitProposal();
+    erp.on(
+        "POST",
+        "/api/invoices/" + INVOICE + "/short-pay",
+        422,
+        "{\"status\":422,\"code\":\"BANK_CHANGE_UNVERIFIED\",\"detail\":\"no\"}");
+
+    mvc.perform(
+            post("/workbench/decisions/{id}", proposal.id())
+                .param("verdict", "approve")
+                .with(as("connie", "controller"))
+                .with(csrf()))
+        .andExpect(flash().attribute("message", containsString("BANK_CHANGE_UNVERIFIED")));
+  }
+
+  @Test
   void a_clerk_cannot_decide_what_the_policy_gave_the_controller() throws Exception {
     PendingDecision proposal = awaitProposal();
 

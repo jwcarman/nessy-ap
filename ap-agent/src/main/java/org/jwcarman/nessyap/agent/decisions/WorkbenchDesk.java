@@ -72,6 +72,15 @@ public class WorkbenchDesk implements Approver {
       return Awaited.ready(
           ApprovalResult.denied("The proposal could not be read: " + e.getOriginalMessage()));
     }
+    String requiredUser =
+        "buyer".equals(role)
+            ? request.fact("policy.buyer").map(JsonNode::asString).orElse(null)
+            : null;
+    if ("buyer".equals(role) && requiredUser == null) {
+      // A buyer's decision belongs to one buyer. With none named, any buyer could take it.
+      return Awaited.ready(
+          ApprovalResult.denied("The policy sent this to a buyer but named none; it cannot wait."));
+    }
     CaseRecord c = found.get();
     decisions.insert(
         new PendingDecision(
@@ -95,9 +104,7 @@ public class WorkbenchDesk implements Approver {
             null,
             clock.instant(),
             role,
-            "buyer".equals(role)
-                ? request.fact("policy.buyer").map(JsonNode::asString).orElse(null)
-                : null));
+            requiredUser));
     cases.setStatus(c.exceptionId(), CaseStatus.AWAITING_DECISION);
     timeline.record(c.exceptionId(), "proposal", request.action() + " (for " + role + ")");
     return Awaited.deferred();

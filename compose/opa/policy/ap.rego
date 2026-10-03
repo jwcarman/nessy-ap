@@ -20,14 +20,27 @@ limit := 10000
 
 action := input.arguments.action
 
-# What a decision puts at stake: a short-pay authorises what it pays; anything else, what the
-# exception questioned.
-amount := to_number(input.arguments.amount) if action == "short-pay"
+# Facts the policy cannot see never read as safe: no word on the bank details means unverified,
+# and no amount in question means no payment can be routed.
+bank_unverified := object.get(input.facts, "bankChangeUnverified", true)
 
-else := to_number(object.get(input.facts, "amountAtIssue", 0))
+at_issue := input.facts.amountAtIssue if is_number(input.facts.amountAtIssue)
+
+short_pay_amount := input.arguments.amount if is_number(input.arguments.amount)
+
+# What a decision puts at stake. A short-pay is judged by the larger of what it pays and what the
+# exception questioned, so the model cannot choose a small amount to choose a junior reviewer.
+amount := max({short_pay_amount, at_issue}) if action == "short-pay"
+
+else := at_issue
 
 resolution := {"effect": "deny", "reason": sprintf("%v is not a resolution", [action])} if {
 	not action in actions
+}
+
+else := {"effect": "deny", "reason": "a short-pay needs a positive amount"} if {
+	action == "short-pay"
+	not short_pay_amount > 0
 }
 
 # The payment-fraud pattern: nothing that pays the vendor until the bank change is verified.
@@ -35,8 +48,13 @@ else := {
 	"effect": "deny",
 	"reason": "the vendor has an unverified bank-detail change: only hold or reject",
 } if {
-	object.get(input.facts, "bankChangeUnverified", false) == true
 	action in moves_money
+	bank_unverified != false
+}
+
+else := {"effect": "deny", "reason": "the amount in question is unknown"} if {
+	action in moves_money
+	not at_issue
 }
 
 else := {"effect": "delegate", "to": "ap-clerk"} if {

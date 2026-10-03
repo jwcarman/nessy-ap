@@ -15,24 +15,39 @@
  */
 package org.jwcarman.nessyap.agent.web;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
+import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReasonCode;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 class CaseControllerTest extends ApAgentIntegrationTest {
+
+  private static final RequestPostProcessor MANAGER =
+      jwt()
+          .jwt(
+              token ->
+                  token
+                      .subject("mark")
+                      .claim("realm_access", Map.of("roles", List.of("ap-manager"))))
+          .authorities(RealmRoles::authorities);
 
   @Autowired WebApplicationContext web;
   @Autowired Cases cases;
@@ -56,8 +71,9 @@ class CaseControllerTest extends ApAgentIntegrationTest {
     timeline.record(exceptionId, "tool", "get_invoice {} -> ok");
 
     MockMvcBuilders.webAppContextSetup(web)
+        .apply(SecurityMockMvcConfigurers.springSecurity())
         .build()
-        .perform(get("/cases/{id}", exceptionId))
+        .perform(get("/api/cases/{id}", exceptionId).with(MANAGER))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("INVESTIGATING"))
         .andExpect(jsonPath("$.reasonCode").value("DUPLICATE"))
@@ -68,8 +84,9 @@ class CaseControllerTest extends ApAgentIntegrationTest {
   @Test
   void an_unknown_case_is_a_404() throws Exception {
     MockMvcBuilders.webAppContextSetup(web)
+        .apply(SecurityMockMvcConfigurers.springSecurity())
         .build()
-        .perform(get("/cases/{id}", UUID.randomUUID()))
+        .perform(get("/api/cases/{id}", UUID.randomUUID()).with(MANAGER))
         .andExpect(status().isNotFound());
   }
 }

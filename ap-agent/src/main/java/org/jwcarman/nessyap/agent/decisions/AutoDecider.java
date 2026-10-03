@@ -23,8 +23,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Stands in for the people until the workbench arrives (slice 3): approves every proposal. It
- * decides on its own thread, after the proposal has committed, exactly as a person would.
+ * Approves every proposal, as anyone, with no role check: a stand-in for people when a stack runs
+ * without them (off by default; {@code ap.decisions.auto=true}). It decides on its own thread,
+ * after the proposal has committed, exactly as a person would.
  */
 @Component
 @ConditionalOnProperty(name = "ap.decisions.auto", havingValue = "true")

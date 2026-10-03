@@ -397,8 +397,8 @@ Nessy design conversations, not changes made from this repo.
   in-process. Measured in slice 3: the one door the starter does hand an app,
   the `TurnHistories` bean, lives in `org.jwcarman.nessy.engine.store` (not the
   api package) and gives a turn's total tokens only; input, output, cached and
-  reasoning counts and the model are not reachable. `ap-agent`'s
-  `/api/cases/{id}/trail` reports per-turn totals and nothing finer.
+  reasoning counts and the model are not reachable (and the total is always 0,
+  F10). `ap-agent`'s `/api/cases/{id}/trail` therefore reports no token spend.
 - **F4 — No channel for a decision that arrives after expiry.** A late answer
   gets `NotAwaiting`; the only way to inform the agent is a fresh `tell`.
 - **F5 — No published scripted model for tests.**

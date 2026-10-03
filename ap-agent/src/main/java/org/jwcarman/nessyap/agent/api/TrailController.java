@@ -35,8 +35,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Everything a case left behind, for an auditor: the app's timeline, every decision with who made
- * it and what the ERP said, and each of the agent's turns with what it spent. Nessy reports a
- * turn's total tokens; the breakdown by kind stays inside the engine (spec §10, F3).
+ * it and what the ERP said, and the agent's turns. Token spend is not here: Nessy's turn view
+ * carries no usage (spec §10, F3 and F10); it is published as a metric instead.
  */
 @RestController
 public class TrailController {

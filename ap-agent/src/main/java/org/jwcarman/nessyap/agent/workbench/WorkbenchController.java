@@ -27,8 +27,10 @@ import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.Deciders;
 import org.jwcarman.nessyap.agent.decisions.DecisionExecutor;
 import org.jwcarman.nessyap.agent.decisions.DecisionResult;
+import org.jwcarman.nessyap.agent.decisions.DecisionStatus;
 import org.jwcarman.nessyap.agent.decisions.Decisions;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
+import org.jwcarman.nessyap.agent.decisions.PolicyConfig;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
 import org.jwcarman.nessyap.agent.erp.ErpOutcome;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
@@ -168,7 +170,7 @@ public class WorkbenchController {
     redirect.addFlashAttribute(
         "message",
         switch (result) {
-          case DecisionResult.Decided _ -> approve ? "Approved." : "Denied.";
+          case DecisionResult.Decided _ -> outcomeOf(decisionId, approve);
           case DecisionResult.AlreadyDecided(String by) ->
               "That was already decided by " + by + ".";
           case DecisionResult.NoSuchDecision _ -> "That decision no longer exists.";
@@ -182,6 +184,10 @@ public class WorkbenchController {
       @RequestParam String text,
       Authentication me,
       RedirectAttributes redirect) {
+    if (RealmRoles.of(me).stream().noneMatch(PolicyConfig.DECIDING_ROLES::contains)) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, "Only the people who decide cases may steer the agent");
+    }
     CaseRecord c =
         cases
             .find(exceptionId)
@@ -192,6 +198,21 @@ public class WorkbenchController {
       redirect.addFlashAttribute("message", "Sent to the agent.");
     }
     return "redirect:/workbench/cases/" + exceptionId;
+  }
+
+  /** What the person is told: what the ERP actually did, not what they clicked. */
+  private String outcomeOf(UUID decisionId, boolean approve) {
+    PendingDecision after = decisions.find(decisionId).orElseThrow();
+    if (!approve) {
+      return "Denied. The agent has been told why.";
+    }
+    if (after.status() == DecisionStatus.DECIDED) {
+      return "Approved, but the ERP could not be reached yet; it will be retried.";
+    }
+    String erpResult = after.erpResult() == null ? "" : after.erpResult();
+    return erpResult.startsWith("ERP refused")
+        ? "Approved, but the " + erpResult + ". The agent has been told."
+        : "Approved and carried out in the ERP.";
   }
 
   private static JsonNode read(ErpOutcome<JsonNode> outcome) {

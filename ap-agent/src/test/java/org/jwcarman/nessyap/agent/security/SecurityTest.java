@@ -80,8 +80,38 @@ class SecurityTest extends ApAgentIntegrationTest {
   }
 
   @Test
-  void health_and_case_reads_stay_open_for_the_evaluation() throws Exception {
+  void health_stays_open() throws Exception {
     mvc.perform(get("/actuator/health")).andExpect(status().isOk());
-    mvc.perform(get("/cases/{id}", UUID.randomUUID())).andExpect(status().isNotFound());
+  }
+
+  @Test
+  void a_case_is_not_readable_without_a_token() throws Exception {
+    mvc.perform(get("/api/cases/{id}", UUID.randomUUID())).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void a_case_is_readable_by_anyone_who_works_cases() throws Exception {
+    mvc.perform(
+            get("/api/cases/{id}", UUID.randomUUID())
+                .with(
+                    jwt()
+                        .jwt(
+                            token ->
+                                token
+                                    .subject("mark")
+                                    .claim("realm_access", Map.of("roles", List.of("ap-manager"))))
+                        .authorities(RealmRoles::authorities)))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void a_case_is_not_readable_by_someone_with_no_ap_role() throws Exception {
+    mvc.perform(
+            get("/api/cases/{id}", UUID.randomUUID())
+                .with(
+                    jwt()
+                        .jwt(token -> token.subject("nobody"))
+                        .authorities(RealmRoles::authorities)))
+        .andExpect(status().isForbidden());
   }
 }

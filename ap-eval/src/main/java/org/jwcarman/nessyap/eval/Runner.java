@@ -39,6 +39,9 @@ final class Runner {
   static final Map<String, String> PEOPLE =
       Map.of("ap-clerk", "clara", "buyer", "bob", "ap-manager", "mark", "controller", "connie");
 
+  /** Who the evaluation reads cases as: the controller sees every case. */
+  private static final String OBSERVER = "connie";
+
   private final Http http;
   private final Keycloak keycloak;
   private final String erpUrl;
@@ -63,7 +66,8 @@ final class Runner {
     log.info("{} #{}: exception {}", scenario.name(), repetition, exceptionId);
     JsonNode lastSeen = null;
     while (Duration.between(started, Instant.now()).compareTo(timeout) < 0) {
-      Optional<JsonNode> view = http.get(agentUrl + "/cases/" + exceptionId);
+      Optional<JsonNode> view =
+          http.get(agentUrl + "/api/cases/" + exceptionId, keycloak.tokenFor(OBSERVER));
       if (view.isPresent()) {
         lastSeen = view.get();
         decidePending(lastSeen);

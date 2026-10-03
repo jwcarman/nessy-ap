@@ -81,12 +81,15 @@ public class DecisionExecutor {
     if (result instanceof DecisionResult.NoSuchDecision) {
       return result;
     }
+    // Only the person who made the decision lends it their authority. Someone arriving after it
+    // was decided finds it still owed and carries it through, but not as themselves.
+    String authority = result instanceof DecisionResult.Decided ? accessToken : null;
     tx.executeWithoutResult(
         status ->
             decisions
                 .lock(decisionId)
                 .filter(d -> d.status() == DecisionStatus.DECIDED)
-                .ifPresent(d -> carryThrough(d, accessToken)));
+                .ifPresent(d -> carryThrough(d, authority)));
     return result;
   }
 

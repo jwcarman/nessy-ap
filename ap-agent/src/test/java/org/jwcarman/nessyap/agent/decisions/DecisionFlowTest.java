@@ -286,6 +286,20 @@ class DecisionFlowTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void a_second_deciders_token_never_carries_out_the_first_deciders_decision() {
+    PendingDecision proposal = awaitProposal();
+    erp.on("POST", "/api/invoices/" + INVOICE + "/approve-variance", 503, "{\"code\":\"DOWN\"}");
+    executor.decide(proposal.id(), "connie", true, "fine", "token-of-connie");
+    erp.on("POST", "/api/invoices/" + INVOICE + "/approve-variance", 200, APPROVED_JSON);
+
+    executor.decide(proposal.id(), "mark", true, "me too", "token-of-mark");
+
+    assertThat(posts())
+        .extracting(post -> String.valueOf(post.header("Authorization")))
+        .containsExactly("Bearer token-of-connie", "null");
+  }
+
+  @Test
   void deciding_twice_changes_nothing_the_second_time() {
     PendingDecision proposal = awaitProposal();
     erp.on("POST", "/api/invoices/" + INVOICE + "/approve-variance", 200, APPROVED_JSON);

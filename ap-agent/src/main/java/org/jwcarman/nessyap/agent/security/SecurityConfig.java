@@ -29,8 +29,8 @@ import org.springframework.security.web.SecurityFilterChain;
 /**
  * Two doors, two kinds of credential. People use the workbench through a browser and log in with
  * Keycloak; programs (the evaluation, later the agent's own tools) call {@code /api/**} with a
- * bearer token. Case reads, health and metrics stay open for the evaluation (a dev-stack choice:
- * metrics are read-only telemetry, but in production they would sit behind their own credential).
+ * bearer token. Health and metrics stay open (a dev-stack choice for the evaluation: read-only
+ * telemetry, which production would put behind its own credential).
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
@@ -66,7 +66,6 @@ public class SecurityConfig {
                         "/actuator/health",
                         "/actuator/health/**",
                         "/actuator/metrics/**",
-                        "/cases/**",
                         "/error",
                         "/workbench.css")
                     .permitAll()
