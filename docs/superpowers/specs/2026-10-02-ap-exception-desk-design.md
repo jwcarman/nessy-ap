@@ -452,6 +452,13 @@ Nessy design conversations, not changes made from this repo.
   difference before and after it, which works only because cases run one at a
   time.
 
+- **F11 — Inputs carry no provenance.** A `tell` from a signed-in person and one
+  built from mail anyone could have sent reach the model the same way; only the
+  app's own `InputRenderer` can say "these are a stranger's words". Slice 5 adds
+  `knownSender` to its reply input and quotes the text as claims. Nessy has no
+  notion of how far an input should be trusted, for the renderer, the policy or
+  the trail to use.
+
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`
 give an idempotent answer path (§3.3); `PolicyApprover` + `Verdict.Delegate`
