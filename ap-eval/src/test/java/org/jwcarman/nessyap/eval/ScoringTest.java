@@ -39,10 +39,78 @@ class ScoringTest {
     return resolved(actions, tools, routedTo, List.of());
   }
 
+  /** The seed's facts for every test case: one id for each name. */
+  private static final Map<String, List<String>> FACTS =
+      Map.of(
+          "invoice", List.of("I"),
+          "purchase-order", List.of("PO-1"),
+          "original-invoice", List.of("O"),
+          "receipts", List.of("R1", "R2"),
+          "vendor", List.of("V"));
+
   private static Observed resolved(
       List<String> actions, List<String> tools, String routedTo, List<String> mailed) {
+    return cited(actions, tools, routedTo, mailed, List.of("I", "PO-1", "O", "R1", "V"), List.of());
+  }
+
+  private static Observed cited(
+      List<String> actions,
+      List<String> tools,
+      String routedTo,
+      List<String> mailed,
+      List<String> cited,
+      List<String> ungrounded) {
     return new Observed(
-        "RESOLVED", actions, tools, List.of(routedTo), mailed, USAGE, Duration.ofSeconds(12));
+        "RESOLVED",
+        actions,
+        tools,
+        List.of(routedTo),
+        mailed,
+        USAGE,
+        Duration.ofSeconds(12),
+        null,
+        FACTS,
+        cited,
+        ungrounded,
+        0);
+  }
+
+  @Test
+  void the_original_of_a_duplicate_counts_however_the_agent_found_it() {
+    RunScore score =
+        Scoring.score(
+            Scenarios.named("duplicate"),
+            1,
+            cited(
+                List.of("reject"),
+                List.of("get_invoice", "get_invoice"),
+                "ap-manager",
+                List.of(),
+                List.of("I", "O"),
+                List.of()));
+
+    assertThat(score.evidenceComplete()).isTrue();
+  }
+
+  @Test
+  void a_case_left_waiting_on_the_buyer_who_never_answers_is_right_for_a_silent_buyer() {
+    Observed waiting =
+        new Observed(
+            "AWAITING_ANSWER",
+            List.of(),
+            List.of("get_invoice", "get_purchase_order"),
+            List.of(),
+            List.of(),
+            USAGE,
+            Duration.ofSeconds(12),
+            "buyer");
+
+    RunScore silent = Scoring.score(Scenarios.named("silent-buyer"), 1, waiting);
+    RunScore answering = Scoring.score(PRICE, 1, waiting);
+
+    assertThat(silent.outcomeCorrect()).isTrue();
+    assertThat(silent.routedCorrectly()).isTrue();
+    assertThat(answering.outcomeCorrect()).isFalse();
   }
 
   @Nested
@@ -79,15 +147,42 @@ class ScoringTest {
                   List.of(),
                   List.of(),
                   Usage.UNKNOWN,
-                  Duration.ZERO));
+                  Duration.ZERO,
+                  null));
 
       assertThat(score.outcomeCorrect()).isFalse();
     }
 
     @Test
-    void when_it_skipped_a_required_tool() {
+    void when_its_proposal_cites_none_of_a_fact_the_decision_rests_on() {
       RunScore score =
-          Scoring.score(PRICE, 1, resolved(List.of("approve-variance"), List.of("get_invoice")));
+          Scoring.score(
+              PRICE,
+              1,
+              cited(
+                  List.of("approve-variance"),
+                  List.of("get_invoice", "get_purchase_order"),
+                  "buyer",
+                  List.of(),
+                  List.of("I"),
+                  List.of()));
+
+      assertThat(score.evidenceComplete()).isFalse();
+    }
+
+    @Test
+    void when_it_cites_something_it_never_read() {
+      RunScore score =
+          Scoring.score(
+              PRICE,
+              1,
+              cited(
+                  List.of("approve-variance"),
+                  List.of(),
+                  "buyer",
+                  List.of(),
+                  List.of("I", "PO-1", "X"),
+                  List.of("X")));
 
       assertThat(score.evidenceComplete()).isFalse();
     }
@@ -149,7 +244,12 @@ class ScoringTest {
                   List.of("ap-clerk", "buyer"),
                   List.of(),
                   Usage.UNKNOWN,
-                  Duration.ZERO));
+                  Duration.ZERO,
+                  null,
+                  FACTS,
+                  List.of("I", "PO-1"),
+                  List.of(),
+                  0));
 
       assertThat(score.passed()).isTrue();
     }
@@ -229,7 +329,16 @@ class ScoringTest {
                     List.of("approve-variance"), List.of("get_invoice", "get_purchase_order"))),
             Scoring.score(
                 PRICE, 2, resolved(List.of("hold"), List.of("get_invoice", "get_purchase_order"))),
-            Scoring.score(PRICE, 3, resolved(List.of("approve-variance"), List.of("get_invoice"))),
+            Scoring.score(
+                PRICE,
+                3,
+                cited(
+                    List.of("approve-variance"),
+                    List.of("get_invoice"),
+                    "buyer",
+                    List.of(),
+                    List.of("I"),
+                    List.of())),
             Scoring.score(
                 PRICE,
                 4,

@@ -17,43 +17,30 @@ package org.jwcarman.nessyap.eval;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Map;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 class UsageTest {
 
   private static final String QWEN = "qwen/qwen3-coder-30b";
 
   @Test
-  void a_case_uses_the_difference_across_it_per_model_and_kind() {
-    Usage before = new Usage(Map.of(QWEN, new Usage.Counts(1000L, 100L, 800L, null, null)));
-    Usage after = new Usage(Map.of(QWEN, new Usage.Counts(5000L, 400L, 3000L, null, null)));
+  void a_cases_usage_is_read_per_model_and_an_unreported_kind_stays_unreported() {
+    JsonNode spent =
+        JsonMapper.builder()
+            .build()
+            .readTree(
+                "{\"byModel\":[{\"model\":\"qwen\",\"inferences\":3,\"input\":900,"
+                    + "\"output\":40,\"cacheRead\":null,\"cacheWrite\":null,\"reasoning\":0},"
+                    + "{\"model\":\"gemma\",\"inferences\":1,\"input\":300,\"output\":20,"
+                    + "\"cacheRead\":null,\"cacheWrite\":null,\"reasoning\":null}],"
+                    + "\"unreported\":0}");
 
-    Usage spent = after.since(before);
+    Usage usage = Usage.ofCase(spent);
 
-    assertThat(spent.byModel()).containsOnlyKeys(QWEN);
-    assertThat(spent.byModel().get(QWEN))
-        .isEqualTo(new Usage.Counts(4000L, 300L, 2200L, null, null));
-  }
-
-  @Test
-  void a_kind_the_vendor_never_reported_stays_unreported_not_zero() {
-    Usage spent =
-        new Usage(Map.of(QWEN, new Usage.Counts(10L, 1L, null, null, null)))
-            .since(new Usage(Map.of()));
-
-    assertThat(spent.total().reasoning()).isNull();
-    assertThat(spent.total().input()).isEqualTo(10L);
-  }
-
-  @Test
-  void the_total_adds_every_model_together() {
-    Usage two =
-        new Usage(
-            Map.of(
-                "a", new Usage.Counts(10L, 1L, null, null, 5L),
-                "b", new Usage.Counts(20L, 2L, 7L, null, null)));
-
-    assertThat(two.total()).isEqualTo(new Usage.Counts(30L, 3L, 7L, null, 5L));
+    assertThat(usage.byModel())
+        .containsEntry("qwen", new Usage.Counts(900L, 40L, null, null, 0L))
+        .containsEntry("gemma", new Usage.Counts(300L, 20L, null, null, null));
   }
 }

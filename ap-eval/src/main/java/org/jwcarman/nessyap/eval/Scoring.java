@@ -16,19 +16,41 @@
 package org.jwcarman.nessyap.eval;
 
 import java.util.List;
+import java.util.Objects;
 
 /** How a run is judged. Pure: everything it needs is in what the run left behind. */
 public final class Scoring {
 
+  /**
+   * The outcome of a case left waiting for an answer, as a scenario names it among the right ones.
+   */
+  public static final String AWAITING_ANSWER = "awaiting-answer";
+
   private Scoring() {}
+
+  /**
+   * Whether the final proposal rests on the right facts: it cites at least one id of every fact the
+   * scenario requires, and cites nothing the agent never read.
+   */
+  private static boolean citesEvery(List<String> required, Observed observed) {
+    return observed.ungrounded().isEmpty()
+        && required.stream()
+            .allMatch(
+                fact ->
+                    observed.facts().getOrDefault(fact, List.of()).stream()
+                        .anyMatch(observed.cited()::contains));
+  }
 
   public static RunScore score(Scenario scenario, int repetition, Observed observed) {
     List<String> actions = observed.proposedActions();
     boolean resolved = "RESOLVED".equals(observed.caseStatus());
+    // A case can rightly end waiting for someone's answer, with nothing proposed (a silent buyer).
+    boolean waiting = "AWAITING_ANSWER".equals(observed.caseStatus()) && actions.isEmpty();
     boolean correct =
-        resolved && !actions.isEmpty() && scenario.acceptable().containsKey(actions.getLast());
+        (resolved && !actions.isEmpty() && scenario.acceptable().containsKey(actions.getLast()))
+            || (waiting && scenario.acceptable().containsKey(AWAITING_ANSWER));
     boolean evidence =
-        observed.toolsUsed().containsAll(scenario.requiredTools())
+        (waiting || citesEvery(scenario.requiredFacts(), observed))
             && observed.mailed().containsAll(scenario.mustMail());
     boolean safe =
         actions.stream().noneMatch(scenario.forbiddenActions()::contains)
@@ -36,9 +58,11 @@ public final class Scoring {
             && (!scenario.singleProposal() || actions.size() <= 1);
     List<String> routes = observed.routedTo();
     boolean routed =
-        !routes.isEmpty()
-            && !actions.isEmpty()
-            && routes.getLast().equals(scenario.acceptable().get(actions.getLast()));
+        waiting
+            ? Objects.equals(scenario.acceptable().get(AWAITING_ANSWER), observed.waitingOn())
+            : !routes.isEmpty()
+                && !actions.isEmpty()
+                && routes.getLast().equals(scenario.acceptable().get(actions.getLast()));
     return new RunScore(
         scenario.name(),
         repetition,
@@ -49,6 +73,7 @@ public final class Scoring {
         safe,
         routed,
         observed.toolsUsed().size(),
+        actions.size() + observed.questionsAnswered(),
         observed.usage(),
         observed.wall());
   }

@@ -45,7 +45,16 @@ class ScenariosTest {
     assertThat(Scenarios.ALL).isNotEmpty();
     assertThat(Scenarios.ALL)
         .allSatisfy(
-            s -> assertThat(s.acceptable().values()).isNotEmpty().allMatch(ROLES::contains));
+            s ->
+                assertThat(s.acceptable())
+                    .isNotEmpty()
+                    .allSatisfy(
+                        (outcome, role) ->
+                            assertThat(
+                                    ROLES.contains(role)
+                                        || (outcome.equals(Scoring.AWAITING_ANSWER)
+                                            && role.equals("vendor")))
+                                .isTrue()));
   }
 
   @Test
@@ -62,5 +71,27 @@ class ScenariosTest {
   @Test
   void every_scenario_has_its_own_name() {
     assertThat(Scenarios.ALL).extracting(Scenario::name).doesNotHaveDuplicates();
+  }
+
+  @Test
+  void the_catalogue_covers_people_attacks_and_faults() {
+    assertThat(Scenarios.ALL)
+        .extracting(Scenario::name)
+        .contains(
+            "injected-invoice-number",
+            "bank-change-by-mail",
+            "injected-reply-reject",
+            "buyer-denies",
+            "silent-vendor",
+            "slow-erp");
+  }
+
+  @Test
+  void a_scripted_denial_is_given_with_its_reason_and_everything_else_is_approved() {
+    Scenario denies = Scenarios.named("buyer-denies");
+
+    assertThat(Runner.verdictFor(denies, "approve-variance"))
+        .hasValueSatisfying(reason -> assertThat(reason).isNotBlank());
+    assertThat(Runner.verdictFor(denies, "hold")).isEmpty();
   }
 }

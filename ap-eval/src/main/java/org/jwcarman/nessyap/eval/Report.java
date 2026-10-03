@@ -22,11 +22,13 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import tools.jackson.databind.json.JsonMapper;
@@ -61,15 +63,11 @@ final class Report {
   static String markdown(String label, List<RunScore> runs) {
     StringBuilder out = new StringBuilder();
     out.append("# AP agent evaluation: ").append(label).append("\n\n");
-    out.append(
-        "Decisions are made by the realm's people as the routing policy names them. Usage is"
-            + " the mean per case of each kind Nessy reports (input, output, cache read, cache"
-            + " write, reasoning), the difference in its gen_ai.client.token.usage metric across the"
-            + " case; — means the model never reported that kind (spec §10, F10).\n\n");
+    out.append("Decisions are made by the realm's people as the routing policy names them.\n\n");
     out.append(
         "| Scenario | Runs | Pass rate | Correct | Evidence | Safe | Routed | Mean tools |"
-            + " Input | Output | Cache read | Cache write | Reasoning | Mean wall |\n");
-    out.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
+            + " Mean touches | Mean wall |\n");
+    out.append("|---|---|---|---|---|---|---|---|---|---|\n");
     Map<String, List<RunScore>> byScenario =
         runs.stream()
             .collect(
@@ -79,7 +77,7 @@ final class Report {
             out.append(
                 String.format(
                     Locale.ROOT,
-                    "| %s | %d | %.0f%% | %d | %d | %d | %d | %.1f | %s | %.0fs |%n",
+                    "| %s | %d | %.0f%% | %d | %d | %d | %d | %.1f | %.1f | %.0fs |%n",
                     scenario,
                     scores.size(),
                     Scoring.passRate(scores) * 100,
@@ -88,12 +86,20 @@ final class Report {
                     scores.stream().filter(RunScore::safe).count(),
                     scores.stream().filter(RunScore::routedCorrectly).count(),
                     scores.stream().mapToInt(RunScore::toolCalls).average().orElse(0),
-                    usageColumns(scores),
+                    scores.stream().mapToInt(RunScore::touches).average().orElse(0),
                     scores.stream().mapToLong(s -> s.wall().toSeconds()).average().orElse(0))));
     out.append(
         String.format(
             Locale.ROOT, "%n**Overall pass rate: %.0f%%**%n%n", Scoring.passRate(runs) * 100));
-    out.append("## Runs\n\n| Scenario | # | Case | Proposed | Passed |\n|---|---|---|---|---|\n");
+    out.append(
+        "## Usage\n\nFor each model, the mean per case of each kind Nessy reports, read from the"
+            + " desk's projection of every agent on the case over Nessy's stored history. A model's counts are never"
+            + " added to another's. Cases counts the cases in which the model reported usage; —"
+            + " means it never reported that kind.\n\n"
+            + "| Scenario | Model | Cases | Input | Output | Cache read | Cache write | Reasoning |\n"
+            + "|---|---|---|---|---|---|---|---|\n");
+    byScenario.forEach((scenario, scores) -> out.append(usageRows(scenario, scores)));
+    out.append("\n## Runs\n\n| Scenario | # | Case | Proposed | Passed |\n|---|---|---|---|---|\n");
     runs.forEach(
         r ->
             out.append(
@@ -108,14 +114,32 @@ final class Report {
     return out.toString();
   }
 
-  /** The mean of each kind over the runs that reported it, as table cells; — where none did. */
-  private static String usageColumns(List<RunScore> scores) {
-    List<Usage.Counts> totals =
-        scores.stream()
-            .map(RunScore::usage)
-            .filter(u -> u != Usage.UNKNOWN)
-            .map(Usage::total)
-            .toList();
+  /** One row for each model that reported usage in this scenario, models in name order. */
+  private static String usageRows(String scenario, List<RunScore> scores) {
+    Map<String, List<Usage.Counts>> byModel = new TreeMap<>();
+    scores.forEach(
+        s ->
+            s.usage()
+                .byModel()
+                .forEach(
+                    (model, counts) ->
+                        byModel.computeIfAbsent(model, m -> new ArrayList<>()).add(counts)));
+    StringBuilder rows = new StringBuilder();
+    byModel.forEach(
+        (model, counts) ->
+            rows.append(
+                String.format(
+                    Locale.ROOT,
+                    "| %s | %s | %d | %s |%n",
+                    scenario,
+                    model,
+                    counts.size(),
+                    usageCells(counts))));
+    return rows.toString();
+  }
+
+  /** The mean of each kind over the cases that reported it, as table cells; — where none did. */
+  private static String usageCells(List<Usage.Counts> totals) {
     return String.join(
         " | ",
         mean(totals, Usage.Counts::input),

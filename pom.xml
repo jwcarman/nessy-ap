@@ -54,6 +54,11 @@
     <jug.version>5.2.0</jug.version>
     <testcontainers.version>2.0.5</testcontainers.version>
     <camel.version>4.22.1</camel.version>
+    <occlude.version>0.1.0</occlude.version>
+    <!-- Boot 4.1.1 manages Jackson 3.1.5; 3.1.7 is the newest patch of that line and carries the
+         jackson-databind fix that Occlude pins it for. 3.2 is a minor beyond Boot's line. -->
+    <jackson-bom.version>3.1.7</jackson-bom.version>
+    <codec.version>0.10.0</codec.version>
     <!-- Boot 4.1.1 manages JUnit 6.0.3; 6.1.3 is the latest GA. -->
     <junit-jupiter.version>6.1.3</junit-jupiter.version>
     <spotless.version>3.10.3</spotless.version>
@@ -64,9 +69,23 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
+        <groupId>org.jwcarman.occlude</groupId>
+        <artifactId>occlude-bom</artifactId>
+        <version>${occlude.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
         <groupId>org.apache.camel.springboot</groupId>
         <artifactId>camel-spring-boot-bom</artifactId>
         <version>${camel.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.jwcarman.codec</groupId>
+        <artifactId>codec-bom</artifactId>
+        <version>${codec.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

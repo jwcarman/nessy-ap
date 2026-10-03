@@ -84,3 +84,5 @@ nav:
   - Nessy:
       - Assessing Nessy for this use case: nessy-assessment.md
       - Findings: findings.md
+  - Occlude:
+      - Assessing Occlude for this use case: occlude-assessment.md

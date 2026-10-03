@@ -16,13 +16,26 @@
 package org.jwcarman.nessyap.erp.admin;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
-/** What a loaded scenario created, so a caller can find it again. */
+/**
+ * What a loaded scenario created, so a caller can find it again.
+ *
+ * @param facts the ids a right decision rests on, by name: {@code vendor}, {@code purchase-order},
+ *     {@code invoice}, and where the scenario has them {@code original-invoice} and {@code
+ *     receipts}. An evaluation checks that a proposal cites them.
+ */
 public record ScenarioResult(
-    String scenario, UUID vendorId, String poNumber, UUID invoiceId, List<UUID> exceptionIds) {
+    String scenario,
+    UUID vendorId,
+    String poNumber,
+    UUID invoiceId,
+    List<UUID> exceptionIds,
+    Map<String, List<String>> facts) {
 
   public ScenarioResult {
     exceptionIds = List.copyOf(exceptionIds);
+    facts = Map.copyOf(facts);
   }
 }

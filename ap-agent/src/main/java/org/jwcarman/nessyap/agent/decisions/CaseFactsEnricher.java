@@ -52,10 +52,16 @@ public class CaseFactsEnricher implements ApprovalEnricher {
   private void enrich(ApprovalRequest request, CaseRecord c) {
     JsonNodeFactory nodes = JsonNodeFactory.instance;
     request.fact("reasonCode", c.reasonCode().name());
+    // The case's integrity label: what its agent has read, so the policy can see the influence.
+    Cases.Integrity integrity = cases.integrity(c.exceptionId());
+    request.fact("influencedByUnendorsed", nodes.booleanNode(integrity.influencedByUnendorsed()));
+    request.fact("instructionsSeen", nodes.booleanNode(integrity.instructionsSeen()));
     request.fact("amountAtIssue", nodes.numberNode(c.amount()));
     // The ERP measures authority against the invoice total, so routing must see it too.
     // The ERP's invoice view is {"invoice": {...}, "exceptions": [...]}.
     if (erp.invoice(c.invoiceId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode view)) {
+      // A proposal that would change nothing (a hold on a held invoice) goes to nobody.
+      request.fact("invoiceStatus", view.path("invoice").path("status").asString());
       if (view.path("invoice").path("total").isNumber()) {
         request.fact("invoiceTotal", view.path("invoice").get("total"));
       }

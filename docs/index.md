@@ -37,3 +37,4 @@ untrusted input and a measured evaluation.
 - [Evaluation](evaluation/index.md): how runs are scored, and the results slice by slice.
 - [Assessing Nessy](nessy-assessment.md): a critique of Nessy for this use case, with numbers.
 - [Findings for Nessy](findings.md): what this application taught us about Nessy.
+- [Assessing Occlude](occlude-assessment.md): the same critique, of Occlude.

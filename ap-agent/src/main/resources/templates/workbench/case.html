@@ -13,12 +13,38 @@
   <p class="muted">Amount in question <strong th:text="${kase.amount}">40.00</strong>
     · purchase order <span th:text="${kase.poNumber != null ? kase.poNumber : 'none cited'}">PO-1</span></p>
 
+  <p class="flash warn" th:if="${integrity.influencedByUnendorsed()}">
+    This case read mail from outside. The agent saw only a typed reading of it, but what it
+    proposes may rest on what a vendor or a stranger said.
+    <span th:if="${integrity.instructionsSeen()}">A reply tried to give instructions or claim an
+      approval, or could not be read. The desk will not move money on this case; settle it in
+      the ERP.</span>
+  </p>
+
+  <section class="questions" th:unless="${questions.isEmpty()}">
+    <h2>Questions</h2>
+    <div class="question" th:each="q : ${questions}">
+      <p>To <span th:text="${q.askedOf}">bob</span>: <strong th:text="${q.text}">Did you agree the price?</strong></p>
+      <p th:if="${q.answered()}" class="muted">Answered by <span th:text="${q.answeredBy}">bob</span>:
+        <span th:text="${q.choice}">Agreed</span> <span th:text="${q.comment}">By phone.</span></p>
+      <form th:if="${!q.answered() and q.askedOf == me}"
+            th:action="@{/workbench/questions/{id}/answer(id=${q.id})}" method="post" class="verdict">
+        <button th:each="c : ${q.choices}" name="choice" th:value="${c}" th:text="${c}">Agreed</button>
+        <input type="text" name="comment" placeholder="Your answer, or a note" aria-label="Your answer">
+        <button th:if="${q.choices.isEmpty()}">Answer</button>
+      </form>
+      <p th:if="${!q.answered() and q.askedOf != me}" class="muted">Waiting for an answer.</p>
+    </div>
+  </section>
+
   <section class="decide" th:each="d : ${decidable}">
     <h2>The agent proposes: <span th:text="${d.action}">approve-variance</span>
       <span th:if="${d.amount != null}" th:text="${d.amount}">950.00</span></h2>
     <p class="rationale" th:text="${d.rationale}">Why.</p>
     <p class="muted evidence" th:unless="${d.evidence.isEmpty()}">Evidence:
       <code th:each="e : ${d.evidence}" th:text="${e}">id</code></p>
+    <p class="flash warn" th:unless="${ungrounded.get(d.id).isEmpty()}">The agent cites, but never read:
+      <code th:each="e : ${ungrounded.get(d.id)}" th:text="${e}">id</code>. Check these before you decide.</p>
     <form th:action="@{/workbench/decisions/{id}(id=${d.id})}" method="post" class="verdict">
       <input type="text" name="comment" placeholder="Comment (required to deny)" aria-label="Comment">
       <button name="verdict" value="approve" class="approve">Approve</button>
@@ -84,6 +110,7 @@
         <span class="when" th:text="${#temporals.format(e.at, 'HH:mm:ss')}">12:00:00</span>
         <span class="kind" th:text="${e.kind}">tool</span>
         <span th:text="${e.text}">get_invoice</span>
+        <a th:if="${e.mailHandle != null}" th:href="@{/workbench/mail/{h}(h=${e.mailHandle})}">read the mail</a>
       </li>
     </ol>
   </section>

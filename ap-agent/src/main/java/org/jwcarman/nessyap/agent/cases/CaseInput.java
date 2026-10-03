@@ -17,7 +17,11 @@ package org.jwcarman.nessyap.agent.cases;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.Offer;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReceiptPosted;
 
@@ -31,7 +35,8 @@ import org.jwcarman.nessyap.contracts.ReceiptPosted;
   @JsonSubTypes.Type(value = CaseInput.ReceiptArrived.class, name = "receipt-arrived"),
   @JsonSubTypes.Type(value = CaseInput.PersonNote.class, name = "person-note"),
   @JsonSubTypes.Type(value = CaseInput.CounterpartyReply.class, name = "counterparty-reply"),
-  @JsonSubTypes.Type(value = CaseInput.DecisionApplied.class, name = "decision-applied")
+  @JsonSubTypes.Type(value = CaseInput.DecisionApplied.class, name = "decision-applied"),
+  @JsonSubTypes.Type(value = CaseInput.PersonAnswered.class, name = "person-answered")
 })
 public sealed interface CaseInput {
 
@@ -45,10 +50,27 @@ public sealed interface CaseInput {
   record PersonNote(String author, String text) implements CaseInput {}
 
   /**
-   * Mail arrived on the case. {@code knownSender} says whether the desk wrote to that address on
-   * this case; anyone can put a case's reference in a subject line.
+   * Mail arrived on the case, read in quarantine. The agent never receives the mail's text: only
+   * who it came from, as the desk knows them, and a typed reading. Each field but {@code
+   * confirmedPo} is a claim; {@code confirmedPo} is a PO number the ERP holds for the case's
+   * vendor.
    */
-  record CounterpartyReply(String from, String text, boolean knownSender) implements CaseInput {}
+  record CounterpartyReply(
+      String from,
+      Intent intent,
+      List<Offer> offers,
+      BigDecimal statedUnitPrice,
+      String claimedPo,
+      String confirmedPo,
+      boolean containsInstructions)
+      implements CaseInput {}
+
+  /**
+   * A person inside the company answered the agent's question on the workbench, signed in. The
+   * answer is that person's own word, not a claim to check.
+   */
+  record PersonAnswered(String person, String question, String choice, String comment)
+      implements CaseInput {}
 
   /** A decision reached the ERP after the agent had stopped waiting for it. */
   record DecisionApplied(UUID decisionId, String action, String outcome) implements CaseInput {}

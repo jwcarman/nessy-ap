@@ -29,10 +29,17 @@ import org.junit.jupiter.api.Test;
 import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.Narration;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
+import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
+import org.jwcarman.nessyap.agent.quarantine.Quarantine;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
+import org.jwcarman.nessyap.agent.questions.QuestionNotice;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /** The desk's inbox, read by its Camel route against a real GreenMail. */
 class DeskInboxRouteTest extends ApAgentIntegrationTest {
@@ -43,6 +50,9 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
   @Autowired Mailer mailer;
   @Autowired JavaMailSender smtp;
   @Autowired CaseTimeline timeline;
+  @Autowired Quarantine quarantine;
+  @Autowired UnmatchedMail unmatchedMail;
+  @Autowired QuestionNotice notice;
 
   private UUID exceptionId;
   private AgentId agentId;
@@ -56,6 +66,7 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
   @AfterEach
   void stopReading() throws Exception {
     camel.getRouteController().stopRoute(DeskInboxRoute.ROUTE_ID);
+    SecurityContextHolder.clearContext();
   }
 
   /** Lets the route read until nothing in the desk's inbox is unseen: each message handled. */
@@ -80,27 +91,50 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
     await().until(() -> mailbox.read(DESK).size() >= 1);
   }
 
-  private List<String> received(UUID exceptionId) {
-    return timeline.of(exceptionId).stream()
-        .filter(e -> e.kind().equals("mail-received"))
-        .map(CaseTimeline.CaseEvent::text)
+  /** The case's mail lines: what the desk knows of each reply, and the handle to read it. */
+  private List<CaseTimeline.CaseEvent> received(UUID exceptionId) {
+    return timeline.of(exceptionId).stream().filter(e -> e.kind().equals("mail-received")).toList();
+  }
+
+  /** A reply as a person reads it: signed in, through the quarantine. */
+  private Reply readAsClerk(CaseTimeline.CaseEvent line) {
+    signIn("clara", "ap-clerk");
+    return quarantine.forPerson(line.mailHandle()).orElseThrow();
+  }
+
+  /** The subjects of unmatched mail from strangers, as a manager reads them. */
+  private List<String> unmatched() {
+    signIn("mark", "ap-manager");
+    return unmatchedMail.recent(100).stream()
+        .filter(m -> m.sender().startsWith("stranger@"))
+        .map(UnmatchedMail.Unmatched::subject)
         .toList();
   }
 
-  private List<String> unmatched() {
-    return jdbc.sql(
-            "select subject from unmatched_mail where sender like 'stranger@%' order by received_at")
-        .query(String.class)
-        .list();
+  private static void signIn(String user, String role) {
+    TestingAuthenticationToken auth =
+        new TestingAuthenticationToken(
+            user, "n/a", List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+    auth.setAuthenticated(true);
+    SecurityContextHolder.getContext().setAuthentication(auth);
   }
 
   @Test
   void a_reply_carrying_the_case_token_reaches_the_case() throws Exception {
+    caseIndex.setStatus(exceptionId, CaseStatus.AWAITING_ANSWER);
     reply("bob@nessy-ap.example", "Re: [AP " + exceptionId + "] Which PO?", null, "PO-7", false);
 
     drain();
 
-    assertThat(received(exceptionId)).singleElement().asString().contains("bob@nessy-ap.example");
+    CaseTimeline.CaseEvent line = received(exceptionId).getFirst();
+    assertThat(received(exceptionId)).hasSize(1);
+    assertThat(line.text()).doesNotContain("PO-7").doesNotContain("bob@");
+    assertThat(readAsClerk(line).body()).isEqualTo("PO-7");
+    assertThat(caseIndex.find(exceptionId).orElseThrow().status())
+        .isEqualTo(CaseStatus.INVESTIGATING);
+    assertThat(caseIndex.agents(exceptionId))
+        .extracting(a -> a.getKey().value())
+        .containsExactlyInAnyOrder("ap-exception-resolver", "reply-reader");
     await()
         .atMost(Duration.ofSeconds(20))
         .until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
@@ -118,8 +152,9 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
     drain();
 
     assertThat(received(exceptionId))
-        .anySatisfy(t -> assertThat(t).contains("mallory").contains("never wrote to"))
-        .anySatisfy(t -> assertThat(t).contains("bob").doesNotContain("never wrote to"));
+        .extracting(CaseTimeline.CaseEvent::text)
+        .anySatisfy(t -> assertThat(t).startsWith("someone the desk never wrote to"))
+        .anySatisfy(t -> assertThat(t).startsWith("the buyer the desk wrote to"));
   }
 
   @Test
@@ -155,6 +190,30 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void a_reply_to_a_question_notice_reaches_no_case() throws Exception {
+    notice.send("stranger", "INV-1");
+    String noticeId = mailbox.awaitOne("stranger@nessy-ap.example").getHeader("Message-ID")[0];
+    mailbox.purgeAll();
+
+    reply("stranger@nessy-ap.example", "Re: A question waits for you", noticeId, "Yes", false);
+    drain();
+
+    assertThat(received(exceptionId)).isEmpty();
+    assertThat(unmatched()).containsOnlyOnce("Re: A question waits for you");
+  }
+
+  @Test
+  void a_reply_to_a_resolved_case_leaves_it_resolved() throws Exception {
+    caseIndex.setStatus(exceptionId, CaseStatus.RESOLVED);
+    reply("bob@nessy-ap.example", "Re: [AP " + exceptionId + "] Which PO?", null, "PO-7", false);
+
+    drain();
+
+    assertThat(received(exceptionId)).hasSize(1);
+    assertThat(caseIndex.find(exceptionId).orElseThrow().status()).isEqualTo(CaseStatus.RESOLVED);
+  }
+
+  @Test
   void a_reply_seen_twice_is_told_once() throws Exception {
     reply("bob@nessy-ap.example", "Re: [AP " + exceptionId + "] Which PO?", null, "PO-7", false);
     drain();
@@ -183,9 +242,7 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
 
     drain();
 
-    assertThat(received(exceptionId))
-        .singleElement()
-        .asString()
+    assertThat(readAsClerk(received(exceptionId).getFirst()).body())
         .contains("It is PO-7")
         .doesNotContain("<b>");
   }

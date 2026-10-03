@@ -61,6 +61,45 @@ class SettledTest {
   }
 
   @Test
+  void a_case_waiting_on_an_answer_that_has_been_quiet_long_enough_is_settled() {
+    assertThat(Settled.of(view("AWAITING_ANSWER", "ANSWERED", NOW.minusSeconds(9)), NOW, QUIET))
+        .isTrue();
+  }
+
+  @Test
+  void a_waiting_case_the_evaluation_just_answered_is_not_settled_until_the_answer_lands() {
+    JsonNode waiting = view("AWAITING_ANSWER", "ANSWERED", NOW.minusSeconds(30));
+
+    assertThat(Settled.of(waiting, NOW, QUIET, NOW.minusSeconds(5))).isFalse();
+    assertThat(Settled.of(waiting, NOW, QUIET, NOW.minus(Settled.AFTER_REPLY).minusSeconds(1)))
+        .isTrue();
+  }
+
+  @Test
+  void a_case_the_agent_left_investigating_with_nothing_pending_is_settled_as_stalled() {
+    JsonNode stalled =
+        JSON.readTree(
+            """
+            {"status": "INVESTIGATING", "decisions": [], "questions": [],
+             "timeline": [{"at": "%s", "kind": "note"}]}
+            """
+                .formatted(NOW.minus(Settled.AFTER_REPLY).minusSeconds(1)));
+
+    assertThat(Settled.of(stalled, NOW, QUIET)).isTrue();
+  }
+
+  @Test
+  void a_case_the_agent_has_not_touched_yet_is_not_stalled() {
+    JsonNode fresh =
+        JSON.readTree(
+            """
+            {"status": "INVESTIGATING", "decisions": [], "questions": [], "timeline": []}
+            """);
+
+    assertThat(Settled.of(fresh, NOW, QUIET)).isFalse();
+  }
+
+  @Test
   void a_case_still_investigating_is_not() {
     assertThat(Settled.of(view("INVESTIGATING", "ANSWERED", NOW.minusSeconds(60)), NOW, QUIET))
         .isFalse();
@@ -75,7 +114,13 @@ class SettledTest {
         .isFalse();
     assertThat(
             Settled.of(
-                view("RESOLVED", "ANSWERED", NOW.minusSeconds(61), "mail-received"), NOW, QUIET))
+                view(
+                    "RESOLVED",
+                    "ANSWERED",
+                    NOW.minus(Settled.AFTER_REPLY).minusSeconds(1),
+                    "mail-received"),
+                NOW,
+                QUIET))
         .isTrue();
   }
 }

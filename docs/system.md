@@ -120,6 +120,10 @@ flowchart TB
     R[Mail replies]
     M[The model's output]
   end
+  subgraph Quarantine["Occlude quarantine"]
+    Q[Reply held, labelled unendorsed]
+    QR[Reader model: no tools, typed answer]
+  end
   subgraph Trusted["Trusted: facts and authority"]
     E[ERP numbers, statuses, exceptions]
     N[Notes from signed-in people]
@@ -130,8 +134,8 @@ flowchart TB
     G2[ERP authority matrix]
     G3[ERP duplicate and bank-change checks]
   end
-  V --> M
-  R --> M
+  V -. descriptions withheld .-> M
+  R --> Q --> QR -- "typed reading: intent, PO number, tried to instruct" --> M
   E --> M
   N --> M
   M -- proposal --> G1
@@ -142,9 +146,11 @@ flowchart TB
 | Input | Who controls it | How the desk treats it |
 |---|---|---|
 | ERP numbers, statuses, exceptions | The ERP | Facts. |
-| Invoice text: line descriptions, numbers | The vendor | Claims. Each read that returns invoice lines tells the model that the text is the vendor's words, not instructions. |
-| Mail replies | Anyone who can send mail | Claims. The text is quoted. The agent is told whether the desk wrote to the sender on this case. Mail that answers no case goes to managers, not to the agent. |
+| Invoice line descriptions | The vendor | Withheld from the agent. People read them in the ERP. |
+| Invoice and PO numbers as written on the invoice | The vendor | Claims, shown as text. The ERP checks only that the invoice number is not blank (see §7). |
+| Mail replies | Anyone who can send mail | Held by Occlude, labelled unendorsed. The agent never reads the text. A model with no tools reads each reply into a typed reading: intent, a PO number of the ERP's shape, and whether the mail tried to give instructions. A PO number is trusted only when the ERP holds it for the case's vendor. People who work cases read the mail on the workbench, and each read is in Occlude's record. Mail that answers no case is held the same way, for managers. |
 | Notes from the workbench | Signed-in people with a deciding role | Instructions from the team. |
+| Answers to the agent's questions | The person asked, signed in on the workbench | That person's own word. Only the person asked may answer, once. The question goes to the buyer the ERP names on a PO that belongs to the case's vendor. |
 | The model's output | The model | Proposals only. They have no authority. |
 
 ## 5. The controls
@@ -165,6 +171,8 @@ money safe, because a model can be persuaded.
 | Unknown facts are refused, never read as safe | OPA defaults | A failed read treated as "no fraud" | `ap_test.rego` |
 | A tool the policy does not name is refused | OPA allowlist | An app newer than its policy, failing open | Measured in slice 5; `ap_test.rego` |
 | Mail goes only to addresses of record, at most 3 per case per recipient | `MailTools` | Mail to an attacker's address; mail floods | `MailToolsTest` |
+| A case whose mail tried to give instructions cannot move money | OPA (`instructionsSeen` from the case's integrity label) | A persuasive reply turning into a payment | `injected-reply` 5/5 held; `ap_test.rego` |
+| Untrusted mail is never in the agent's context or in plaintext at rest | Occlude (labels, reveals, record); Nessy's storage codec (AES-256-GCM, a key of its own) | Prompt injection through mail; a database copy of vendor text | `QuarantineDeclarationsTest`, `ReaderWiredTest` |
 | Each inbox message is handled once and never blocks the inbox | Camel route: idempotent consumer, transacted, dead letter channel | Double replies; one bad message stopping all mail | `DeskInboxRouteTest`, `DeskInboxDeadLetterTest` |
 
 ### The desk's inbox route
@@ -203,10 +211,13 @@ flowchart LR
 
 ## 7. Known gaps
 
-- **A reply can still persuade the agent.** In `injected-reply`, a vendor reply that claims the
-  controller's approval made the agent propose payment in 4 of 5 runs. No rule forbids payment of a
-  missing-PO invoice. The planned fix is to quarantine untrusted text with Occlude, so that the
-  agent sees only a narrow, validated reading.
+- **Vendor-written numbers are free text.** The invoice number and the PO number as written on an
+  invoice reach the agent as text. The ERP checks only that the invoice number is not blank.
+- **A flagged case is settled outside the desk.** When a reply tries to give instructions or
+  claim an approval, or cannot be read at all, the desk will not move money on that case again.
+  Nothing in the desk lowers the flag; a person settles the invoice in the ERP.
+- **Stored history is never expired.** Nessy keeps every agent's history, encrypted, with no
+  retention rule (Nessy finding F13).
 - **The eval's approver approves everything.** A real approver sees the evidence. The eval measures
   the agent and the controls, not the people.
 - **Not tested yet:** an approval that expires during a decision, a restart between proposal and

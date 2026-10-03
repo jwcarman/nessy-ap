@@ -16,6 +16,7 @@
 package org.jwcarman.nessyap.agent.cases;
 
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -30,8 +31,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class CaseTimeline {
 
-  /** One line of a case's history. */
-  public record CaseEvent(Instant at, String kind, String text) {}
+  /**
+   * One line of a case's history. A line about mail carries the mail's quarantine handle: the text
+   * itself is never stored here, and a person reads it through the workbench.
+   */
+  public record CaseEvent(Instant at, String kind, String text, String mailHandle) {}
 
   private final JdbcClient jdbc;
   private final Clock clock;
@@ -42,22 +46,35 @@ public class CaseTimeline {
   }
 
   public void record(UUID exceptionId, String kind, String text) {
+    record(exceptionId, kind, text, null);
+  }
+
+  /** A line about quarantined mail: what the desk knows of it, and the handle to read it. */
+  public void record(UUID exceptionId, String kind, String text, String mailHandle) {
     jdbc.sql(
-            "insert into case_event (exception_id, at, kind, text) values (:id, :at, :kind, :text)")
+            """
+            insert into case_event (exception_id, at, kind, text, mail_handle)
+            values (:id, :at, :kind, :text, :handle)
+            """)
         .param("id", exceptionId)
         .param("at", Timestamp.from(clock.instant()))
         .param("kind", kind)
         .param("text", text)
+        .param("handle", mailHandle, Types.VARCHAR)
         .update();
   }
 
   public List<CaseEvent> of(UUID exceptionId) {
-    return jdbc.sql("select at, kind, text from case_event where exception_id = :id order by id")
+    return jdbc.sql(
+            "select at, kind, text, mail_handle from case_event where exception_id = :id order by id")
         .param("id", exceptionId)
         .query(
             (rs, row) ->
                 new CaseEvent(
-                    rs.getTimestamp("at").toInstant(), rs.getString("kind"), rs.getString("text")))
+                    rs.getTimestamp("at").toInstant(),
+                    rs.getString("kind"),
+                    rs.getString("text"),
+                    rs.getString("mail_handle")))
         .list();
   }
 }

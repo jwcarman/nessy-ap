@@ -146,7 +146,7 @@ test_a_tool_the_policy_does_not_know_is_denied if {
 }
 
 test_the_buyer_and_the_case_notebook_need_no_approval if {
-	ap.decision == {"effect": "allow"} with input as {"toolName": "email_buyer", "arguments": {}, "facts": {}}
+	ap.decision == {"effect": "allow"} with input as {"toolName": "ask_buyer", "arguments": {}, "facts": {}}
 	ap.decision == {"effect": "allow"} with input as {"toolName": "note_case", "arguments": {}, "facts": {}}
 }
 
@@ -192,4 +192,37 @@ test_an_invoice_that_repeats_a_number_is_not_paid_through_its_other_exception if
 	}
 	ap.decision.effect == "deny" with input as proposal("approve-variance", facts)
 	ap.decision.to == "ap-clerk" with input as proposal("hold", facts)
+}
+
+tainted(instructions) := {
+	"reasonCode": "NO_PO", "amountAtIssue": 1000, "invoiceTotal": 1000, "bankChangeUnverified": false,
+	"influencedByUnendorsed": true, "instructionsSeen": instructions,
+}
+
+test_no_payment_after_a_reply_tried_to_instruct_the_desk if {
+	every action in {"approve-variance", "short-pay", "request-credit-memo"} {
+		ap.decision.effect == "deny" with input as proposal(action, tainted(true))
+	}
+	contains(ap.decision.reason, "tried to instruct") with input as proposal("approve-variance", tainted(true))
+}
+
+test_a_hold_or_a_reject_still_goes_through_after_instructions if {
+	ap.decision.to == "ap-clerk" with input as proposal("hold", tainted(true))
+	ap.decision.to == "ap-manager" with input as proposal("reject", tainted(true))
+}
+
+test_a_reply_without_instructions_does_not_block_payment if {
+	ap.decision.effect == "delegate" with input as proposal("approve-variance", tainted(false))
+}
+
+# Mail to the buyer is gone: people inside the company answer on the workbench.
+test_email_buyer_is_no_longer_a_tool_and_is_denied if {
+	ap.decision.effect == "deny" with input as {"toolName": "email_buyer", "arguments": {}, "facts": {}}
+}
+
+# A person's time is not spent on a decision that changes nothing.
+test_a_hold_on_an_invoice_already_on_hold_asks_nobody if {
+	held := object.union(price_variance, {"invoiceStatus": "ON_HOLD"})
+	ap.decision.effect == "deny" with input as proposal("hold", held)
+	ap.decision.to == "buyer" with input as proposal("approve-variance", held)
 }

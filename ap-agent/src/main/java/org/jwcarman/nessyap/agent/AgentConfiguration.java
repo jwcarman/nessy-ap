@@ -28,6 +28,7 @@ import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseInputRenderer;
 import org.jwcarman.nessyap.agent.decisions.CaseFactsEnricher;
 import org.jwcarman.nessyap.agent.decisions.ProposeResolution;
+import org.jwcarman.nessyap.agent.questions.QuestionTools;
 import org.jwcarman.nessyap.agent.tools.ErpTools;
 import org.jwcarman.nessyap.agent.tools.MailTools;
 import org.jwcarman.nessyap.agent.tools.ProposeResolutionTool;
@@ -54,6 +55,7 @@ public class AgentConfiguration {
       ErpTools erpTools,
       ProposeResolutionTool propose,
       MailTools mail,
+      QuestionTools questions,
       PolicyApprover routing,
       CaseFactsEnricher caseFacts,
       @Value("${ap.approval.timeout}") Duration approvalTimeout,
@@ -69,7 +71,7 @@ public class AgentConfiguration {
               .inputRenderer(new CaseInputRenderer())
               .backlogPolicy(BacklogPolicy.keepAll());
           erpTools.all().forEach(config::tool);
-          config.tool(mail.emailBuyer());
+          config.tool(questions.askBuyer());
           config.tool(mail.emailVendor(), binding -> binding.enrich(caseFacts).approver(routing));
           config.tool(
               propose,

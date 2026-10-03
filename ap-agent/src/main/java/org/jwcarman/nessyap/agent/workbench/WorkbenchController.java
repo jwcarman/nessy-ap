@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.jwcarman.nessy.api.QueuedHarness;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
@@ -29,11 +30,17 @@ import org.jwcarman.nessyap.agent.decisions.DecisionExecutor;
 import org.jwcarman.nessyap.agent.decisions.DecisionResult;
 import org.jwcarman.nessyap.agent.decisions.DecisionStatus;
 import org.jwcarman.nessyap.agent.decisions.Decisions;
+import org.jwcarman.nessyap.agent.decisions.Grounding;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
 import org.jwcarman.nessyap.agent.decisions.PolicyConfig;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
 import org.jwcarman.nessyap.agent.erp.ErpOutcome;
 import org.jwcarman.nessyap.agent.mail.UnmatchedMail;
+import org.jwcarman.nessyap.agent.quarantine.Quarantine;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
+import org.jwcarman.nessyap.agent.questions.Answers;
+import org.jwcarman.nessyap.agent.questions.Question;
+import org.jwcarman.nessyap.agent.questions.Questions;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -66,6 +73,10 @@ public class WorkbenchController {
   private final ErpClient erp;
   private final QueuedHarness<CaseInput> agent;
   private final UnmatchedMail unmatched;
+  private final Quarantine quarantine;
+  private final Questions questions;
+  private final Answers answers;
+  private final Grounding grounding;
 
   public WorkbenchController(
       Cases cases,
@@ -74,7 +85,11 @@ public class WorkbenchController {
       DecisionExecutor executor,
       ErpClient erp,
       QueuedHarness<CaseInput> agent,
-      UnmatchedMail unmatched) {
+      UnmatchedMail unmatched,
+      Quarantine quarantine,
+      Questions questions,
+      Answers answers,
+      Grounding grounding) {
     this.cases = cases;
     this.timeline = timeline;
     this.decisions = decisions;
@@ -82,10 +97,17 @@ public class WorkbenchController {
     this.erp = erp;
     this.agent = agent;
     this.unmatched = unmatched;
+    this.quarantine = quarantine;
+    this.questions = questions;
+    this.answers = answers;
+    this.grounding = grounding;
   }
 
   /** A pending decision as the worklist shows it: the decision and the case it belongs to. */
   public record Waiting(PendingDecision decision, CaseRecord kase) {}
+
+  /** A question that waits for the signed-in person, with its case. */
+  public record Asked(Question question, CaseRecord kase) {}
 
   @GetMapping
   public String worklist(Authentication me, Model model) {
@@ -100,6 +122,12 @@ public class WorkbenchController {
         "waiting",
         mine.stream()
             .map(d -> cases.find(d.exceptionId()).map(c -> new Waiting(d, c)))
+            .flatMap(Optional::stream)
+            .toList());
+    model.addAttribute(
+        "asked",
+        questions.waitingFor(me.getName()).stream()
+            .map(q -> cases.find(q.exceptionId()).map(c -> new Asked(q, c)))
             .flatMap(Optional::stream)
             .toList());
     model.addAttribute("cases", cases.recent(50));
@@ -123,6 +151,7 @@ public class WorkbenchController {
     model.addAttribute("me", me.getName());
     model.addAttribute("roles", roles);
     model.addAttribute("kase", c);
+    model.addAttribute("integrity", cases.integrity(exceptionId));
     model.addAttribute("exceptionId", exceptionId);
     model.addAttribute("invoice", read(erp.invoice(c.invoiceId())));
     model.addAttribute(
@@ -130,6 +159,14 @@ public class WorkbenchController {
     model.addAttribute("receipts", c.poNumber() == null ? null : read(erp.receipts(c.poNumber())));
     model.addAttribute("timeline", timeline.of(exceptionId));
     model.addAttribute("decisions", all);
+    model.addAttribute("questions", questions.forCase(exceptionId));
+    // What the approver should know: citations the agent never actually read.
+    model.addAttribute(
+        "ungrounded",
+        all.stream()
+            .collect(
+                Collectors.toMap(
+                    PendingDecision::id, d -> grounding.ungrounded(c.agentId(), d.evidence()))));
     model.addAttribute(
         "decidable",
         all.stream()
@@ -137,6 +174,20 @@ public class WorkbenchController {
             .filter(d -> Deciders.mayDecide(d, me.getName(), roles))
             .toList());
     return "workbench/case";
+  }
+
+  /**
+   * Quarantined mail, for a person who works cases. The quarantine decides who may read it and
+   * records each read; anybody else gets a 404, which says nothing about whether it exists.
+   */
+  @GetMapping("/mail/{handle}")
+  public String mail(@PathVariable String handle, Model model) {
+    Reply reply =
+        quarantine
+            .forPerson(handle)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No such mail"));
+    model.addAttribute("reply", reply);
+    return "workbench/mail";
   }
 
   /** The timeline alone, for the case page to refresh in place. */
@@ -214,6 +265,33 @@ public class WorkbenchController {
             ? "Carried out again: " + outcomeOf(decisionId, true)
             : "Only " + d.decidedBy() + ", who decided this, can carry it through.");
     return "redirect:/workbench/cases/" + d.exceptionId();
+  }
+
+  /** The person asked answers, signed in. Nobody else may; the answer goes to the agent. */
+  @PostMapping("/questions/{questionId}/answer")
+  public String answer(
+      @PathVariable UUID questionId,
+      @RequestParam(required = false) String choice,
+      @RequestParam(required = false) String comment,
+      Authentication me,
+      RedirectAttributes redirect) {
+    Answers.Answered result = answers.answer(questionId, me.getName(), choice, comment);
+    String message =
+        switch (result) {
+          case Answers.Answered.Told _ -> "Sent to the agent.";
+          case Answers.Answered.NotYours _ ->
+              throw new ResponseStatusException(
+                  HttpStatus.FORBIDDEN, "This question waits for someone else");
+          case Answers.Answered.AlreadyAnswered _ -> "This question already has its answer.";
+          case Answers.Answered.NotAChoice _ -> "Pick one of the choices.";
+          case Answers.Answered.NeedsAnAnswer _ -> "Pick a choice or write an answer.";
+          case Answers.Answered.NoSuchQuestion _ ->
+              throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such question");
+        };
+    redirect.addFlashAttribute("message", message);
+    return result instanceof Answers.Answered.Told(Question q)
+        ? "redirect:/workbench/cases/" + q.exceptionId()
+        : "redirect:/workbench";
   }
 
   @PostMapping("/cases/{exceptionId}/notes")

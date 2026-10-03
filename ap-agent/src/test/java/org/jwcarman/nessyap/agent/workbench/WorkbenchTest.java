@@ -44,6 +44,8 @@ import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.DecisionStatus;
 import org.jwcarman.nessyap.agent.decisions.Decisions;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
+import org.jwcarman.nessyap.agent.quarantine.Quarantine;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReasonCode;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,6 +70,7 @@ class WorkbenchTest extends ApAgentIntegrationTest {
   @Autowired QueuedHarness<CaseInput> agent;
   @Autowired Cases cases;
   @Autowired Decisions decisions;
+  @Autowired Quarantine quarantine;
 
   private MockMvc mvc;
   private UUID exceptionId;
@@ -130,12 +133,15 @@ class WorkbenchTest extends ApAgentIntegrationTest {
 
   @Test
   void mail_no_case_claimed_is_shown_to_a_manager_but_not_to_a_clerk() throws Exception {
+    String handle =
+        quarantine.hold(
+            new Reply(null, "<x@y>", "stranger@elsewhere.example", "Who pays this?", "b"));
     jdbc.sql(
             """
-            insert into unmatched_mail (id, message_id, sender, subject, body, received_at)
-            values (gen_random_uuid(), '<x@y>', 'stranger@elsewhere.example', 'Who pays this?',
-                    'b', now())
+            insert into unmatched_mail (id, message_id, mail_handle, received_at)
+            values (gen_random_uuid(), '<x@y>', :handle, now())
             """)
+        .param("handle", handle)
         .update();
 
     mvc.perform(get("/workbench").with(as("mark", "ap-manager")))
@@ -152,6 +158,18 @@ class WorkbenchTest extends ApAgentIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("pay what arrived")))
         .andExpect(content().string(containsString("Approve")));
+  }
+
+  @Test
+  void a_case_that_read_mail_from_outside_says_so_and_why_paying_is_blocked() throws Exception {
+    mvc.perform(get("/workbench/cases/{id}", exceptionId).with(as("connie", "controller")))
+        .andExpect(content().string(not(containsString("read mail from outside"))));
+
+    cases.markReadUnendorsed(exceptionId, true);
+
+    mvc.perform(get("/workbench/cases/{id}", exceptionId).with(as("connie", "controller")))
+        .andExpect(content().string(containsString("read mail from outside")))
+        .andExpect(content().string(containsString("tried to give instructions")));
   }
 
   @Test

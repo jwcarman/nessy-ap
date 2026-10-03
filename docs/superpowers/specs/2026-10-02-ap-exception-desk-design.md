@@ -475,6 +475,34 @@ Nessy design conversations, not changes made from this repo.
   policy for each gated tool at startup, or a decision could carry the policy's
   revision into the trail.
 
+- **F13 — Stored agent history has no retention or cleanup.** The quarantined reader
+  (slice 8) is a direct harness with no tools and a typed answer, which Nessy supports
+  directly. Each read is stored like any agent's history, which is right for audit.
+  But nothing expires or deletes an agent's stored history, so a one-shot reader's
+  transcripts, which hold untrusted text, grow without limit, and that copy sits
+  outside the application's own controls (here, Occlude's labels and record).
+
+- **F14 — The direct door fails inside a caller's transaction, and nothing anticipated it.**
+  `JdbcRowLocks` uses `PROPAGATION_REQUIRED` on purpose, so the agent lock and the work it
+  guards commit as one transaction. A side effect is that it joins a transaction the caller
+  already has open. Its javadoc names one cost of that (a slow caller holds the lock too long),
+  and no design record considers the direct door under a caller's transaction. The direct door runs a turn as short steps with the model call between them,
+  on an effect thread with its own connection. Inside a caller's transaction that thread cannot
+  see the step it follows and fails with "no event at 1 for agent ...". The mail route read
+  replies inside its transaction, so every live read failed and fell back to "a person must
+  read this". Holding a transaction open across a model call was our mistake; the desk now
+  suspends it. For Nessy: decide whether the direct door suspends a caller's transaction or
+  refuses one, then document it and fail fast with a clear message instead of an internal error.
+
+- **F15 — A dropped connection to the model ends the turn, and nothing retries it.**
+  Measured under parallel load on LM Studio: the server dropped requests ("Client
+  disconnected"), the OpenAI adapter reported `Failure.Unknown` ("no answer from the model:
+  Request failed"), and the engine retries only `Failure.Transient`. Its own comment says
+  retrying an unknown outcome "belongs to the kind of work"; for inference, repeating is safe
+  except for its cost, but nothing lets an application say so. The turn fails and the case is
+  left with nobody acting on it. Nessy should let an inference retry policy cover unknown
+  outcomes; the desk should put a case whose turn failed in front of a person.
+
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`
 give an idempotent answer path (§3.3); `PolicyApprover` + `Verdict.Delegate`
@@ -499,6 +527,10 @@ Each slice gets its own implementation plan.
    `receipt.posted`.
 6. **Full evaluation** — whole catalogue, 429/stale-read faults, failure
    scenarios, model matrix.
+7. **Camel inbox** — the desk's IMAP inbox as an idiomatic Camel route.
+8. **Quarantine** — mail held by Occlude; the agent sees only a typed reading.
+9. **Questions on the workbench** — people inside the company answer on the
+   workbench, not by mail (§13).
 
 ## 12. Decisions from review (r2)
 
@@ -519,3 +551,44 @@ Each slice gets its own implementation plan.
 
 - Clerks deciding `hold`: realistic for some shops, not others — kept because
   it gives the clerk role something to do in the demo.
+- **Delegated tokens instead of the workbench acting (candidate, for James).**
+  Decision 2 has the workbench call the ERP with the deciding person's own token.
+  Keycloak 26.8.0 (running here) makes token-exchange delegation a preview
+  feature: a person can delegate to a client through consent
+  (`delegation:client:<client-id>` scope), and tokens carry the RFC 8693 `act`
+  claim, so a resource server sees both the person and the client acting for
+  them. The desk could then carry out an approved decision itself, with a token
+  the approver delegated, and the ERP would record "the desk, acting for bob".
+  Open questions: consent per decision or per session, token lifetime against a
+  decision that runs days later, and whether a preview feature belongs in a
+  demo meant to teach.
+
+## 13. Slice 9: people answer on the workbench
+
+James's rulings (2026-10-03): build it as for a client, to spend the client's money well and to
+respect the time of the people in the loop; follow sound information-flow-control principles.
+
+- **Inside the company, the workbench; outside, mail.** The agent asks the buyer a question on
+  the workbench. The buyer signs in (Keycloak) and answers there. A signed-in answer carries the
+  person's own integrity, like a workbench note. Mail stays for vendors only, and vendor mail
+  stays in the quarantine.
+- **`ask_buyer` replaces `email_buyer`.** The question goes to the buyer the ERP names on the
+  case's PO; the agent never chooses the person. A question is at most 1,000 characters, with up
+  to four short choices. One question waits per case at a time, and at most three per case.
+- **A short answer is one click.** The buyer picks a choice, or writes a comment, or both. A
+  comment is required when there are no choices.
+- **The person is told, not burdened.** A notice mail says that a question waits and links to
+  the workbench. It carries no question text and no case token, so a reply to it has nothing to
+  carry and is set aside as unmatched mail.
+- **Only the person asked may answer, once.** Anyone who works cases may read the question and
+  the answer. The answer reaches the agent as a trusted input and goes on the timeline.
+- **Ask once.** When the decision would be the buyer's own anyway (a price variance on their PO
+  within their authority), the agent proposes it with its evidence and does not ask first. The
+  buyer decides on the workbench.
+- **No interim hold (James's ruling).** Asking needs no hold: the invoice is already stopped
+  by its exception. A case that waits on someone is `AWAITING_ANSWER`, and goes back to
+  `INVESTIGATING` when the answer or reply arrives. A status set by a decision is never undone
+  by mail or an answer.
+- **Not in this slice:** reminders or escalation of an unanswered question. An unanswered
+  question leaves the case waiting, and the workbench shows on whom.
+

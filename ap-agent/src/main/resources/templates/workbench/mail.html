@@ -1,0 +1,15 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{workbench/layout :: head('Mail')}"></head>
+<body>
+<header th:replace="~{workbench/layout :: header}"></header>
+<main>
+  <h1>Mail to the desk</h1>
+  <p class="flash">This text came from outside the company. Nothing has verified it. The agent did
+    not read it: it read only a typed summary. This read is recorded.</p>
+  <p><strong>From:</strong> <span th:text="${reply.sender}">ann@acme.example</span></p>
+  <p><strong>Subject:</strong> <span th:text="${reply.subject}">Re: [AP ...]</span></p>
+  <pre th:text="${reply.body}">The words of the mail.</pre>
+</main>
+</body>
+</html>

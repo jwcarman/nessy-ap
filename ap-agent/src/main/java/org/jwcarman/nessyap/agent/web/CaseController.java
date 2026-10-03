@@ -21,10 +21,14 @@ import java.util.Set;
 import java.util.UUID;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
+import org.jwcarman.nessyap.agent.cases.CaseUsage;
 import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.Decisions;
+import org.jwcarman.nessyap.agent.decisions.Grounding;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
 import org.jwcarman.nessyap.agent.mail.Counterparty;
+import org.jwcarman.nessyap.agent.questions.Question;
+import org.jwcarman.nessyap.agent.questions.Questions;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -49,9 +53,11 @@ public class CaseController {
       String requiredUser,
       String status,
       String decidedBy,
-      String erpResult) {
+      String erpResult,
+      List<String> evidence,
+      List<String> ungrounded) {
 
-    static CaseDecision of(PendingDecision d) {
+    static CaseDecision of(PendingDecision d, List<String> ungrounded) {
       return new CaseDecision(
           d.id(),
           d.action(),
@@ -60,7 +66,9 @@ public class CaseController {
           d.requiredUser(),
           d.status().name(),
           d.decidedBy(),
-          d.erpResult());
+          d.erpResult(),
+          d.evidence(),
+          ungrounded);
     }
   }
 
@@ -72,7 +80,8 @@ public class CaseController {
       String status,
       List<CaseTimeline.CaseEvent> timeline,
       List<CaseDecision> decisions,
-      List<CaseMail> mail) {}
+      List<CaseMail> mail,
+      List<Question> questions) {}
 
   /** A message the desk sent about the case, and the Message-ID a reply would answer. */
   public record CaseMail(
@@ -82,18 +91,39 @@ public class CaseController {
   private final CaseTimeline timeline;
   private final Decisions decisions;
   private final Counterparty counterparty;
+  private final Questions questions;
+  private final Grounding grounding;
+  private final CaseUsage caseUsage;
 
   public CaseController(
-      Cases cases, CaseTimeline timeline, Decisions decisions, Counterparty counterparty) {
+      Cases cases,
+      CaseTimeline timeline,
+      Decisions decisions,
+      Counterparty counterparty,
+      Questions questions,
+      Grounding grounding,
+      CaseUsage caseUsage) {
     this.cases = cases;
     this.timeline = timeline;
     this.decisions = decisions;
     this.counterparty = counterparty;
+    this.questions = questions;
+    this.grounding = grounding;
+    this.caseUsage = caseUsage;
   }
 
   /** Who may read a case: anyone who works cases, and the auditor. */
   private static final Set<String> READERS =
       Set.of("ap-clerk", "buyer", "ap-manager", "controller", "auditor");
+
+  /** What the case cost so far: every agent that worked it, by model. */
+  @GetMapping("/api/cases/{exceptionId}/usage")
+  public CaseUsage.Spent usage(@PathVariable UUID exceptionId, Authentication me) {
+    if (RealmRoles.of(me).stream().noneMatch(READERS::contains)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cases are for the AP team");
+    }
+    return caseUsage.of(exceptionId);
+  }
 
   @GetMapping("/api/cases/{exceptionId}")
   public CaseView get(@PathVariable UUID exceptionId, Authentication me) {
@@ -112,9 +142,12 @@ public class CaseController {
         c.reasonCode().name(),
         c.status().name(),
         timeline.of(exceptionId),
-        decisions.forCase(exceptionId).stream().map(CaseDecision::of).toList(),
+        decisions.forCase(exceptionId).stream()
+            .map(d -> CaseDecision.of(d, grounding.ungrounded(c.agentId(), d.evidence())))
+            .toList(),
         counterparty.forCase(exceptionId).stream()
             .map(m -> new CaseMail(m.kind(), m.recipient(), m.subject(), m.messageId(), m.sentAt()))
-            .toList());
+            .toList(),
+        questions.forCase(exceptionId));
   }
 }

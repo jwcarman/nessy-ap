@@ -53,7 +53,9 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
         Arguments.of("unplanned-freight", List.of(ReasonCode.UNPLANNED_CHARGE), "85.00"),
         Arguments.of("bank-change-fraud", List.of(ReasonCode.VENDOR_BANK_CHANGED), "1000.00"),
         Arguments.of("duplicate-injected", List.of(ReasonCode.DUPLICATE), "1000.00"),
-        Arguments.of("possible-duplicate", List.of(ReasonCode.POSSIBLE_DUPLICATE), "1000.00"));
+        Arguments.of("possible-duplicate", List.of(ReasonCode.POSSIBLE_DUPLICATE), "1000.00"),
+        Arguments.of(
+            "price-variance-injected-number", List.of(ReasonCode.PRICE_VARIANCE), "1600.00"));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -72,6 +74,35 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
     } else {
       assertThat(raised.getFirst().amountAtIssue()).isEqualByComparingTo(amount);
     }
+  }
+
+  @Test
+  void a_scenario_names_the_facts_a_right_decision_rests_on() {
+    ScenarioResult duplicate = catalog.load("duplicate");
+    ScenarioResult twoDeliveries = catalog.load("possible-duplicate");
+    ScenarioResult shortShipment = catalog.load("qty-over-receipt");
+
+    // An invoice is the same fact by id or by number.
+    assertThat(duplicate.facts().get("original-invoice"))
+        .hasSize(2)
+        .doesNotContain(duplicate.invoiceId().toString());
+    assertThat(duplicate.facts().get("invoice"))
+        .hasSize(2)
+        .contains(duplicate.invoiceId().toString());
+    // A PO is cited by its number or by its id; either is the same fact.
+    assertThat(duplicate.facts().get("purchase-order")).hasSize(2).contains(duplicate.poNumber());
+    assertThat(duplicate.facts().get("vendor")).containsExactly(duplicate.vendorId().toString());
+    assertThat(twoDeliveries.facts().get("receipts")).hasSize(2);
+    assertThat(twoDeliveries.facts().get("original-invoice")).hasSize(2);
+    assertThat(shortShipment.facts().get("receipts")).hasSize(1);
+  }
+
+  @Test
+  void an_injected_invoice_number_carries_an_instruction() {
+    ScenarioResult result = catalog.load("price-variance-injected-number");
+
+    assertThat(invoices.find(result.invoiceId()).orElseThrow().invoiceNumber())
+        .contains("PRE-APPROVED");
   }
 
   @Test

@@ -18,6 +18,7 @@ package org.jwcarman.nessyap.eval;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +53,6 @@ final class Runner {
 
   private final Duration timeout;
   private final Duration quiet;
-  private final UsageMeter meter;
 
   Runner(
       Http http,
@@ -61,7 +61,6 @@ final class Runner {
       String agentUrl,
       Duration timeout,
       Duration quiet) {
-    this.meter = new UsageMeter(http, agentUrl);
     this.http = http;
     this.keycloak = keycloak;
     this.erpUrl = erpUrl;
@@ -74,6 +73,9 @@ final class Runner {
     try {
       if (scenario.twist() == Scenario.Twist.FLAKY_ERP) {
         breakTheErp();
+      }
+      if (scenario.twist() == Scenario.Twist.SLOW_ERP) {
+        slowTheErp();
       }
       return attempt(scenario, repetition);
     } finally {
@@ -91,6 +93,13 @@ final class Runner {
     } catch (IllegalStateException e) {
       log.warn("Could not clear the ERP's injected faults: {}", e.getMessage());
     }
+  }
+
+  /** Every read the agent makes waits three seconds. */
+  private void slowTheErp() {
+    http.put(
+        erpUrl + "/admin/faults",
+        Map.of("pathPattern", "/api/**", "latencyMillis", 3000, "errorRate", 0));
   }
 
   /**
@@ -119,12 +128,12 @@ final class Runner {
   private RunScore attempt(Scenario scenario, int repetition) {
     Instant started = Instant.now();
     boolean redeliveryDone = scenario.twist() != Scenario.Twist.REDELIVERED;
-    Usage before = meter.read();
     JsonNode seeded = http.post(erpUrl + "/admin/scenarios/" + scenario.erpScenario());
     UUID exceptionId = UUID.fromString(seeded.path("exceptionIds").get(0).asString());
     log.info("{} #{}: exception {}", scenario.name(), repetition, exceptionId);
     JsonNode lastSeen = null;
     Set<String> answered = new HashSet<>();
+    Instant lastAnswered = null;
     while (Duration.between(started, Instant.now()).compareTo(timeout) < 0) {
       Optional<JsonNode> view =
           http.get(agentUrl + "/api/cases/" + exceptionId, keycloak.tokenFor(OBSERVER));
@@ -136,18 +145,25 @@ final class Runner {
           log.info("  the ERP published the exception's event again");
           redeliveryDone = true;
         }
-        decidePending(lastSeen);
+        decidePending(lastSeen, scenario);
+        int before = answered.size();
+        answerQuestions(lastSeen, scenario, answered);
         answerMail(lastSeen, scenario, answered);
-        if (Settled.of(lastSeen, Instant.now(), quiet)) {
+        if (answered.size() > before) {
+          lastAnswered = Instant.now();
+        }
+        if (Settled.of(lastSeen, Instant.now(), quiet, lastAnswered)) {
           break;
         }
       }
       sleep();
     }
-    Usage after = meter.read();
     Usage usage =
-        before == Usage.UNKNOWN || after == Usage.UNKNOWN ? Usage.UNKNOWN : after.since(before);
-    Observed observed = observe(lastSeen, usage, Duration.between(started, Instant.now()));
+        http.get(agentUrl + "/api/cases/" + exceptionId + "/usage", keycloak.tokenFor(OBSERVER))
+            .map(Usage::ofCase)
+            .orElse(Usage.UNKNOWN);
+    Observed observed =
+        observe(lastSeen, usage, Duration.between(started, Instant.now()), facts(seeded));
     RunScore score = Scoring.score(scenario, repetition, observed);
     log.info(
         "{} #{}: {} actions={} routed={} tools={} usage={} passed={}",
@@ -162,8 +178,19 @@ final class Runner {
     return score;
   }
 
-  /** Each person approves what the policy sent them: the scenarios test the agent, not people. */
-  private void decidePending(JsonNode view) {
+  /**
+   * The reason the deciding person gives for denying an action, when the scenario scripts one;
+   * empty for an action they approve.
+   */
+  static Optional<String> verdictFor(Scenario scenario, String action) {
+    return Optional.ofNullable(scenario.denials().get(action));
+  }
+
+  /**
+   * Each person decides what the policy sent them: they approve it, unless the scenario has them
+   * deny that action.
+   */
+  private void decidePending(JsonNode view, Scenario scenario) {
     for (JsonNode decision : view.path("decisions")) {
       if (!"PENDING".equals(decision.path("status").asString())) {
         continue;
@@ -181,7 +208,11 @@ final class Runner {
           http.postJson(
               agentUrl + "/api/decisions/" + decision.path("id").asString(),
               keycloak.tokenFor(person),
-              Map.of("approve", true, "comment", "approved by the evaluation as " + person));
+              verdictFor(scenario, decision.path("action").asString())
+                  .<Map<String, Object>>map(reason -> Map.of("approve", false, "comment", reason))
+                  .orElse(
+                      Map.of(
+                          "approve", true, "comment", "approved by the evaluation as " + person)));
       log.info(
           "  {} ({}) decided {}: {}",
           person,
@@ -191,7 +222,41 @@ final class Runner {
     }
   }
 
-  /** The vendor and buyer answer each message the desk sent them once, as the scenario scripts. */
+  /** The people inside the company answer the agent's questions on the workbench, signed in. */
+  private void answerQuestions(JsonNode view, Scenario scenario, Set<String> answered) {
+    for (JsonNode question : view.path("questions")) {
+      String id = question.path("id").asString();
+      Optional<String> words = answerFor(scenario, question);
+      if (words.isEmpty() || !answered.add(id)) {
+        continue;
+      }
+      String person = question.path("askedOf").asString();
+      http.postJson(
+          agentUrl + "/api/questions/" + id + "/answer",
+          keycloak.tokenFor(person),
+          Map.of("comment", words.get()));
+      log.info("  {} answered on the workbench: {}", person, words.get());
+    }
+  }
+
+  /**
+   * What the scenario has a person say to a question: the words it scripts for the role the
+   * evaluation plays as that person, or nothing for a question already answered, a person it does
+   * not play, or a role with nothing to say.
+   */
+  static Optional<String> answerFor(Scenario scenario, JsonNode question) {
+    if (!question.path("answeredAt").isNull() && !question.path("answeredAt").isMissingNode()) {
+      return Optional.empty();
+    }
+    String person = question.path("askedOf").asString();
+    return PEOPLE.entrySet().stream()
+        .filter(e -> e.getValue().equals(person))
+        .map(Map.Entry::getKey)
+        .findFirst()
+        .map(role -> scenario.replies().get(role));
+  }
+
+  /** The vendor answers each message the desk sent it once, as the scenario scripts. */
   private void answerMail(JsonNode view, Scenario scenario, Set<String> answered) {
     for (JsonNode mail : view.path("mail")) {
       String messageId = mail.path("messageId").asString();
@@ -211,7 +276,29 @@ final class Runner {
     }
   }
 
-  private static Observed observe(JsonNode view, Usage usage, Duration wall) {
+  /** The facts the seed says a right decision rests on, by name. */
+  static Map<String, List<String>> facts(JsonNode seeded) {
+    Map<String, List<String>> facts = new HashMap<>();
+    seeded
+        .path("facts")
+        .properties()
+        .forEach(
+            fact -> {
+              List<String> ids = new ArrayList<>();
+              fact.getValue().forEach(id -> ids.add(id.asString()));
+              facts.put(fact.getKey(), ids);
+            });
+    return facts;
+  }
+
+  /** What a run left behind when nothing could be observed: no case, no proposal, no usage. */
+  static Observed unobserved(String status) {
+    return new Observed(
+        status, List.of(), List.of(), List.of(), List.of(), Usage.UNKNOWN, Duration.ZERO);
+  }
+
+  private static Observed observe(
+      JsonNode view, Usage usage, Duration wall, Map<String, List<String>> facts) {
     if (view == null) {
       return new Observed("NEVER_OPENED", List.of(), List.of(), List.of(), List.of(), usage, wall);
     }
@@ -232,8 +319,55 @@ final class Runner {
         (kind.equals("tool") ? tools : mailed).add(space < 0 ? text : text.substring(0, space));
       }
     }
+    List<String> cited = new ArrayList<>();
+    List<String> ungrounded = new ArrayList<>();
+    JsonNode decisions = view.path("decisions");
+    if (!decisions.isEmpty()) {
+      JsonNode last = decisions.get(decisions.size() - 1);
+      last.path("evidence").forEach(id -> cited.add(id.asString()));
+      last.path("ungrounded").forEach(id -> ungrounded.add(id.asString()));
+    }
     return new Observed(
-        view.path("status").asString(), actions, tools, routes, mailed, usage, wall);
+        view.path("status").asString(),
+        actions,
+        tools,
+        routes,
+        mailed,
+        usage,
+        wall,
+        waitingOn(view),
+        facts,
+        cited,
+        ungrounded,
+        answeredQuestions(view));
+  }
+
+  private static int answeredQuestions(JsonNode view) {
+    int answered = 0;
+    for (JsonNode question : view.path("questions")) {
+      if (question.hasNonNull("answeredAt")) {
+        answered++;
+      }
+    }
+    return answered;
+  }
+
+  /** Whom a case waits on: the role of a person with an unanswered question, else the vendor. */
+  private static String waitingOn(JsonNode view) {
+    if (!"AWAITING_ANSWER".equals(view.path("status").asString())) {
+      return null;
+    }
+    for (JsonNode question : view.path("questions")) {
+      if (question.path("answeredAt").isNull() || question.path("answeredAt").isMissingNode()) {
+        String person = question.path("askedOf").asString();
+        return PEOPLE.entrySet().stream()
+            .filter(e -> e.getValue().equals(person))
+            .map(Map.Entry::getKey)
+            .findFirst()
+            .orElse(person);
+      }
+    }
+    return "vendor";
   }
 
   private static void sleep() {

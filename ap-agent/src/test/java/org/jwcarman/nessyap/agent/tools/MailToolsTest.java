@@ -20,13 +20,10 @@ import static org.awaitility.Awaitility.await;
 import static org.jwcarman.nessyap.agent.ScriptedProvider.call;
 import static org.jwcarman.nessyap.agent.ScriptedProvider.steps;
 
-import java.math.BigDecimal;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.Awaited;
 import org.jwcarman.nessy.api.Narration;
 import org.jwcarman.nessy.api.QueuedHarness;
@@ -36,9 +33,8 @@ import org.jwcarman.nessy.api.turn.ToolOutcome;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
+import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
-import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
-import org.jwcarman.nessyap.contracts.ReasonCode;
 import org.springframework.beans.factory.annotation.Autowired;
 
 class MailToolsTest extends ApAgentIntegrationTest {
@@ -72,68 +68,32 @@ class MailToolsTest extends ApAgentIntegrationTest {
   }
 
   @Test
-  void the_buyer_is_whoever_placed_the_order() throws Exception {
-    ToolResult result = send(tools.emailBuyer(), "Which PO?", "Can you tell us?");
-
-    assertThat(result).isInstanceOf(ToolResult.Success.class);
-    assertThat(mailbox.awaitOne("bob@nessy-ap.example").getSubject())
-        .isEqualTo("[AP " + exceptionId + "] Which PO?");
-    assertThat(timeline.of(exceptionId))
-        .filteredOn(e -> e.kind().equals("mail-sent"))
-        .singleElement()
-        .satisfies(e -> assertThat(e.text()).startsWith("buyer bob@nessy-ap.example: "));
-  }
-
-  @Test
   void the_vendor_is_written_to_at_the_contact_of_record() {
     ToolResult result = send(tools.emailVendor(), "Credit memo", "Please credit the difference.");
 
     assertThat(result).isInstanceOf(ToolResult.Success.class);
+    assertThat(caseIndex.find(exceptionId).orElseThrow().status())
+        .isEqualTo(CaseStatus.AWAITING_ANSWER);
     assertThat(mailbox.awaitOne("ann@acme.example")).isNotNull();
   }
 
   @Test
-  void a_case_writes_to_the_buyer_at_most_three_times() throws Exception {
+  void a_case_writes_to_the_vendor_at_most_three_times() throws Exception {
     for (int i = 1; i <= 3; i++) {
-      assertThat(send(tools.emailBuyer(), "Chasing " + i, "Any news?"))
+      assertThat(send(tools.emailVendor(), "Chasing " + i, "Any news?"))
           .isInstanceOf(ToolResult.Success.class);
     }
 
-    ToolResult fourth = send(tools.emailBuyer(), "Chasing 4", "Any news?");
+    ToolResult fourth = send(tools.emailVendor(), "Chasing 4", "Any news?");
 
     assertThat(fourth).isInstanceOf(ToolResult.Failure.class);
     assertThat(((ToolResult.Failure) fourth).message()).contains("3");
-    await().until(() -> mailbox.read("bob@nessy-ap.example").size() == 3);
-  }
-
-  @Test
-  void a_case_with_no_purchase_order_has_no_buyer_to_write_to() {
-    UUID noPo = UUID.randomUUID();
-    caseIndex.open(
-        new MatchExceptionRaised(
-            UUID.randomUUID(),
-            Instant.now(),
-            noPo,
-            UUID.randomUUID(),
-            "INV-2",
-            UUID.randomUUID(),
-            null,
-            ReasonCode.NO_PO,
-            "s",
-            new BigDecimal("100.00")));
-    AgentId agentId = caseIndex.agentFor(noPo);
-
-    Awaited<ToolResult> awaited =
-        tools.emailBuyer().call(Calls.by(agentId, new MailTools.Letter("Which PO?", "?")));
-
-    ToolResult result = ((Awaited.Ready<ToolResult>) awaited).value();
-    assertThat(result).isInstanceOf(ToolResult.Failure.class);
-    assertThat(((ToolResult.Failure) result).message()).contains("purchase order");
+    await().until(() -> mailbox.read("ann@acme.example").size() == 3);
   }
 
   @Test
   void a_body_longer_than_four_thousand_characters_is_refused_not_cut() {
-    ToolResult result = send(tools.emailBuyer(), "Long", "x".repeat(4001));
+    ToolResult result = send(tools.emailVendor(), "Long", "x".repeat(4001));
 
     assertThat(result).isInstanceOf(ToolResult.Failure.class);
   }

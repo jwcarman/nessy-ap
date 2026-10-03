@@ -17,6 +17,7 @@ package org.jwcarman.nessyap.eval;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 /**
  * What a run left behind, as read from the agent's case.
@@ -27,6 +28,12 @@ import java.util.List;
  * @param mailed who the desk actually wrote to ({@code buyer} or {@code vendor}), once per message
  *     delivered, in order; refused or failed attempts are not here
  * @param usage what the case used, per model, as a whole
+ * @param waitingOn the role a case waiting for an answer waits on ({@code buyer}, {@code vendor}),
+ *     or null when it waits on nobody
+ * @param facts the ids the ERP seed says a right decision rests on, by name
+ * @param cited the ids the final proposal cites as evidence
+ * @param ungrounded the cited ids the agent never read
+ * @param questionsAnswered how many of the agent's questions a person answered
  */
 public record Observed(
     String caseStatus,
@@ -35,12 +42,57 @@ public record Observed(
     List<String> routedTo,
     List<String> mailed,
     Usage usage,
-    Duration wall) {
+    Duration wall,
+    String waitingOn,
+    Map<String, List<String>> facts,
+    List<String> cited,
+    List<String> ungrounded,
+    int questionsAnswered) {
+
+  /** A run whose evidence was not read. */
+  public Observed(
+      String caseStatus,
+      List<String> proposedActions,
+      List<String> toolsUsed,
+      List<String> routedTo,
+      List<String> mailed,
+      Usage usage,
+      Duration wall,
+      String waitingOn) {
+    this(
+        caseStatus,
+        proposedActions,
+        toolsUsed,
+        routedTo,
+        mailed,
+        usage,
+        wall,
+        waitingOn,
+        Map.of(),
+        List.of(),
+        List.of(),
+        0);
+  }
+
+  /** A run whose case waits on nobody. */
+  public Observed(
+      String caseStatus,
+      List<String> proposedActions,
+      List<String> toolsUsed,
+      List<String> routedTo,
+      List<String> mailed,
+      Usage usage,
+      Duration wall) {
+    this(caseStatus, proposedActions, toolsUsed, routedTo, mailed, usage, wall, null);
+  }
 
   public Observed {
     proposedActions = List.copyOf(proposedActions);
     toolsUsed = List.copyOf(toolsUsed);
     routedTo = List.copyOf(routedTo);
     mailed = List.copyOf(mailed);
+    facts = Map.copyOf(facts);
+    cited = List.copyOf(cited);
+    ungrounded = List.copyOf(ungrounded);
   }
 }

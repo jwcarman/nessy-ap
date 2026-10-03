@@ -7,12 +7,12 @@ import rego.v1
 # Fail closed: a policy that matches nothing denies, it never approves.
 default decision := {"effect": "deny", "reason": "no policy rule matched"}
 
-# Tools named here need no approval: they read, or write only to the case and to the buyer.
+# Tools named here need no approval: they read, or write only to the case and to the workbench.
 # Proposals are routed and vendor mail is checked below. A tool this policy does not name falls
 # to the default and is denied, so an app newer than its policy fails closed, never open.
 ungated := {
 	"get_invoice", "get_purchase_order", "get_receipts", "get_vendor",
-	"find_similar_invoices", "get_vendor_invoice_history", "note_case", "email_buyer",
+	"find_similar_invoices", "get_vendor_invoice_history", "note_case", "ask_buyer",
 }
 
 decision := {"effect": "allow"} if input.toolName in ungated
@@ -81,6 +81,12 @@ resolution := {"effect": "deny", "reason": sprintf("%v is not a resolution", [ac
 	not action in actions
 }
 
+# Nobody is asked to approve a decision that changes nothing: a person's time is the scarce thing.
+else := {"effect": "deny", "reason": "the invoice is already on hold: there is nothing to decide"} if {
+	action == "hold"
+	input.facts.invoiceStatus == "ON_HOLD"
+}
+
 else := {"effect": "deny", "reason": "a short-pay needs a positive amount"} if {
 	action == "short-pay"
 	not short_pay_amount > 0
@@ -103,6 +109,19 @@ else := {
 else := {"effect": "deny", "reason": "the amount in question is unknown"} if {
 	action in moves_money
 	not at_issue
+}
+
+# Information flow: the case's agent has read mail that tried to instruct the desk or claimed an
+# approval. Everything it proposes after that is influenced by an attacker's words, so nothing that
+# moves money goes through on this case, ever: nothing in the desk lowers the flag, and a person
+# settles the invoice in the ERP. It fails safe: the worst an attacker
+# can do with it is force a hold.
+else := {
+	"effect": "deny",
+	"reason": "a reply on this case tried to instruct the desk or claimed an approval, or could not be read: the desk does not move money on this case; a person settles it in the ERP",
+} if {
+	action in moves_money
+	object.get(input.facts, "instructionsSeen", false) == true
 }
 
 # The same invoice number as one already received is a repeat: nothing pays it from the desk, however

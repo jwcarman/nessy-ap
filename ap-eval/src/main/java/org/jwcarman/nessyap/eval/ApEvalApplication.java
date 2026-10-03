@@ -20,6 +20,12 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
+import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -52,6 +58,50 @@ public class ApEvalApplication {
         .close();
   }
 
+  /**
+   * Makes the runs side by side, at most {@code parallel} at once, on virtual threads; the scores
+   * come back in the schedule's order, whatever order the runs finish in.
+   */
+  static List<RunScore> together(
+      BiFunction<Scenario, Integer, RunScore> runner, List<Schedule.Run> runs, int parallel) {
+    Semaphore slots = new Semaphore(parallel);
+    try (ExecutorService threads = Executors.newVirtualThreadPerTaskExecutor()) {
+      List<Future<RunScore>> pending =
+          runs.stream()
+              .map(
+                  run ->
+                      threads.submit(
+                          () -> {
+                            slots.acquire();
+                            try {
+                              return runner.apply(run.scenario(), run.repetition());
+                            } catch (RuntimeException broke) {
+                              // One broken run must not take the others' results with it.
+                              log.warn(
+                                  "{} #{} broke: {}",
+                                  run.scenario().name(),
+                                  run.repetition(),
+                                  broke.toString());
+                              return Scoring.score(
+                                  run.scenario(), run.repetition(), Runner.unobserved("ERROR"));
+                            } finally {
+                              slots.release();
+                            }
+                          }))
+              .toList();
+      List<RunScore> scores = new ArrayList<>();
+      for (Future<RunScore> score : pending) {
+        scores.add(score.get());
+      }
+      return scores;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("The evaluation was interrupted", e);
+    } catch (ExecutionException e) {
+      throw new IllegalStateException("A run failed outright", e.getCause());
+    }
+  }
+
   @Bean
   ApplicationRunner evaluate(JsonMapper json) {
     return args -> {
@@ -76,12 +126,10 @@ public class ApEvalApplication {
               timeout,
               Duration.parse(option(args, "quiet", "PT8S")));
       runner.clearFaults();
-      List<RunScore> scores = new ArrayList<>();
-      for (Scenario scenario : scenarios) {
-        for (int i = 1; i <= repetitions; i++) {
-          scores.add(runner.run(scenario, i));
-        }
-      }
+      Schedule schedule = Schedule.of(scenarios, repetitions);
+      int parallel = Integer.parseInt(option(args, "parallel", "4"));
+      List<RunScore> scores = new ArrayList<>(together(runner::run, schedule.together(), parallel));
+      schedule.alone().forEach(run -> scores.add(runner.run(run.scenario(), run.repetition())));
       Path report = Report.write(out, label, scores, json);
       log.info(
           "Overall pass rate {}; report at {}", Scoring.passRate(scores), report.toAbsolutePath());
