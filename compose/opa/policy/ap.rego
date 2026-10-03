@@ -7,11 +7,15 @@ import rego.v1
 # Fail closed: a policy that matches nothing denies, it never approves.
 default decision := {"effect": "deny", "reason": "no policy rule matched"}
 
-# Proposals are routed and vendor mail is checked; every other tool reads, or writes only to the
-# case and to the buyer.
-gated := {"propose_resolution", "email_vendor"}
+# Tools named here need no approval: they read, or write only to the case and to the buyer.
+# Proposals are routed and vendor mail is checked below. A tool this policy does not name falls
+# to the default and is denied, so an app newer than its policy fails closed, never open.
+ungated := {
+	"get_invoice", "get_purchase_order", "get_receipts", "get_vendor",
+	"find_similar_invoices", "get_vendor_invoice_history", "note_case", "email_buyer",
+}
 
-decision := {"effect": "allow"} if not input.toolName in gated
+decision := {"effect": "allow"} if input.toolName in ungated
 
 decision := resolution if input.toolName == "propose_resolution"
 

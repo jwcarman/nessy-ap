@@ -140,3 +140,12 @@ test_mailing_a_vendor_with_verified_bank_details_is_allowed if {
 test_mailing_a_vendor_with_no_word_on_the_bank_details_is_denied if {
 	ap.decision.effect == "deny" with input as vendor_mail({})
 }
+
+test_a_tool_the_policy_does_not_know_is_denied if {
+	ap.decision.effect == "deny" with input as {"toolName": "wire_money", "arguments": {}, "facts": {}}
+}
+
+test_the_buyer_and_the_case_notebook_need_no_approval if {
+	ap.decision == {"effect": "allow"} with input as {"toolName": "email_buyer", "arguments": {}, "facts": {}}
+	ap.decision == {"effect": "allow"} with input as {"toolName": "note_case", "arguments": {}, "facts": {}}
+}
