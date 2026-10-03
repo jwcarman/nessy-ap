@@ -16,21 +16,25 @@
 package org.jwcarman.nessyap.agent.tools;
 
 import java.time.Instant;
+import java.util.UUID;
 import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.AgentType;
 import org.jwcarman.nessy.api.TurnId;
 import org.jwcarman.nessy.api.tool.CallId;
+import org.jwcarman.nessy.api.tool.IdempotencyKey;
 import org.jwcarman.nessy.api.tool.ReplyToken;
 import org.jwcarman.nessy.api.tool.ToolCallRequest;
 import org.jwcarman.nessy.api.tool.ToolName;
 import org.jwcarman.nessyap.agent.AgentConfiguration;
 
 /** A tool call as the engine would hand it over, for calling a tool directly in a test. */
-public record Calls<I>(AgentId agentId, I input, TurnId turn, CallId callId)
+public record Calls<I>(
+    AgentId agentId, I input, TurnId turn, CallId callId, IdempotencyKey idempotencyKey)
     implements ToolCallRequest<I> {
 
   public static <I> Calls<I> by(AgentId agentId, I input) {
-    return new Calls<>(agentId, input, new TurnId(1), new CallId("call-1"));
+    return new Calls<>(
+        agentId, input, new TurnId(1), new CallId("call-1"), IdempotencyKey.of(UUID.randomUUID()));
   }
 
   @Override

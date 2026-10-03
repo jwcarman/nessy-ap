@@ -28,6 +28,7 @@ import org.jwcarman.nessy.api.TurnId;
 import org.jwcarman.nessy.api.tool.ApprovalRequest;
 import org.jwcarman.nessy.api.tool.ApprovalResult;
 import org.jwcarman.nessy.api.tool.CallId;
+import org.jwcarman.nessy.api.tool.IdempotencyKey;
 import org.jwcarman.nessy.api.tool.ReplyToken;
 import org.jwcarman.nessy.api.tool.ToolName;
 import org.jwcarman.nessyap.agent.AgentConfiguration;
@@ -71,6 +72,7 @@ class WorkbenchDeskTest extends ApAgentIntegrationTest {
             agentId,
             new TurnId(1),
             new CallId("c1"),
+            IdempotencyKey.of(UUID.randomUUID()),
             new ToolName("propose_resolution"),
             "{\"action\":\"approve-variance\",\"rationale\":\"r\"}",
             "approve-variance: r",

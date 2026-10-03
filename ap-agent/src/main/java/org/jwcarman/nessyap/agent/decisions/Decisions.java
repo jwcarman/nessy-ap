@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.jwcarman.nessy.api.AgentId;
+import org.jwcarman.nessy.api.tool.IdempotencyKey;
 import org.jwcarman.nessy.api.tool.ReplyToken;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -53,17 +54,17 @@ public class Decisions {
     jdbc.sql(
             """
             insert into pending_decision
-                (id, agent_id, call_key, reply_token, exception_id, invoice_id, action, amount,
+                (id, agent_id, idempotency_key, reply_token, exception_id, invoice_id, action, amount,
                  rationale, evidence, deadline, status, created_at, required_role, required_user)
-            values (:id, :agentId, :callKey, :replyToken, :exceptionId, :invoiceId, :action,
+            values (:id, :agentId, :idempotencyKey, :replyToken, :exceptionId, :invoiceId, :action,
                     :amount, :rationale, :evidence, :deadline, :status, :createdAt, :requiredRole,
                     :requiredUser)
-            on conflict (agent_id, call_key) do update
+            on conflict (idempotency_key) do update
                 set reply_token = excluded.reply_token, deadline = excluded.deadline
             """)
         .param("id", d.id())
         .param("agentId", d.agentId().value())
-        .param("callKey", d.callKey())
+        .param("idempotencyKey", d.idempotencyKey())
         .param("replyToken", d.replyToken().value())
         .param("exceptionId", d.exceptionId())
         .param("invoiceId", d.invoiceId())
@@ -94,11 +95,9 @@ public class Decisions {
         .optional();
   }
 
-  public Optional<PendingDecision> forCall(AgentId agentId, String callKey) {
-    return jdbc.sql(
-            "select * from pending_decision where agent_id = :agentId and call_key = :callKey")
-        .param("agentId", agentId.value())
-        .param("callKey", callKey)
+  public Optional<PendingDecision> forCall(IdempotencyKey key) {
+    return jdbc.sql("select * from pending_decision where idempotency_key = :key")
+        .param("key", key.value())
         .query(this::decision)
         .optional();
   }
@@ -203,7 +202,7 @@ public class Decisions {
     return new PendingDecision(
         rs.getObject("id", UUID.class),
         new AgentId(rs.getObject("agent_id", UUID.class)),
-        rs.getString("call_key"),
+        rs.getObject("idempotency_key", UUID.class),
         new ReplyToken(rs.getString("reply_token")),
         rs.getObject("exception_id", UUID.class),
         rs.getObject("invoice_id", UUID.class),

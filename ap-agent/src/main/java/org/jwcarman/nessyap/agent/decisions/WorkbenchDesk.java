@@ -86,7 +86,7 @@ public class WorkbenchDesk implements Approver {
         new PendingDecision(
             Ids.next(),
             request.agentId(),
-            request.callKey(),
+            request.idempotencyKey().value(),
             request.replyToken(),
             c.exceptionId(),
             c.invoiceId(),

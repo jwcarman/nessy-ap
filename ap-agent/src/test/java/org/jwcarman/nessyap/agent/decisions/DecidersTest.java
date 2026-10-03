@@ -31,7 +31,7 @@ class DecidersTest {
     return new PendingDecision(
         UUID.randomUUID(),
         new AgentId(UUID.randomUUID()),
-        "1/c1",
+        UUID.randomUUID(),
         new ReplyToken("t"),
         UUID.randomUUID(),
         UUID.randomUUID(),

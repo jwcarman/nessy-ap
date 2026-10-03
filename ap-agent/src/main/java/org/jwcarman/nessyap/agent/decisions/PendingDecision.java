@@ -25,7 +25,7 @@ import org.jwcarman.nessy.api.tool.ReplyToken;
 /**
  * A proposal waiting on, or answered by, a decider.
  *
- * @param callKey the proposing call, {@code turn/callId}: unique only within its agent
+ * @param idempotencyKey the proposing call's key: Nessy's, shared by its approval and its run
  * @param replyToken the only address the waiting call can be answered at
  * @param requiredRole the role the routing policy named to decide it
  * @param requiredUser for the {@code buyer} role only: the one buyer who may decide it
@@ -35,7 +35,7 @@ import org.jwcarman.nessy.api.tool.ReplyToken;
 public record PendingDecision(
     UUID id,
     AgentId agentId,
-    String callKey,
+    UUID idempotencyKey,
     ReplyToken replyToken,
     UUID exceptionId,
     UUID invoiceId,

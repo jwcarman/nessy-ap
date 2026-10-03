@@ -78,8 +78,7 @@ public class ProposeResolutionTool implements Tool<ProposeResolution> {
   public Awaited<ToolResult> call(ToolCallRequest<ProposeResolution> request) {
     // The decision is found by the call that proposed it. Nessy hands a tool no approval
     // reference (spec §10, F1), so the call key is the join.
-    String callKey = request.turn().value() + "/" + request.callId().value();
-    Optional<PendingDecision> decision = decisions.forCall(request.agentId(), callKey);
+    Optional<PendingDecision> decision = decisions.forCall(request.idempotencyKey());
     if (decision.isEmpty()) {
       return Awaited.ready(new ToolResult.Failure("No decision was recorded for this proposal."));
     }
