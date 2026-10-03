@@ -1,0 +1,31 @@
+server:
+  port: 8081
+spring:
+  application:
+    name: erp-sim
+  datasource:
+    url: jdbc:postgresql://localhost:55432/erp
+    username: nessyap
+    password: nessyap
+  rabbitmq:
+    host: localhost
+    port: 55672
+    username: nessyap
+    password: nessyap
+    publisher-confirm-type: simple
+  threads:
+    virtual:
+      enabled: true
+  mvc:
+    problemdetails:
+      enabled: true
+erp:
+  matching:
+    price-tolerance-percent: 2
+  outbox:
+    poll-interval-ms: 500
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
