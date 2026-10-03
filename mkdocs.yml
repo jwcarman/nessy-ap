@@ -81,6 +81,4 @@ nav:
       - "Slice 5: mail": evaluation/slice-5-mail.md
       - "Slice 6: the full evaluation": evaluation/slice-6-evaluation.md
       - "Slice 7: the Camel inbox": evaluation/slice-7-camel-inbox.md
-  - Nessy:
-      - Assessing Nessy for this use case: nessy-assessment.md
-      - Findings: findings.md
+  - Findings for Nessy: findings.md

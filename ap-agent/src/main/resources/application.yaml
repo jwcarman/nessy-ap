@@ -3,6 +3,9 @@ server:
 spring:
   application:
     name: ap-agent
+  # Development secrets, written by scripts/dev-secrets.sh and never committed.
+  config:
+    import: optional:file:./.env[.properties]
   datasource:
     url: jdbc:postgresql://localhost:55432/apagent
     username: nessyap
@@ -53,10 +56,10 @@ nessy:
     lmstudio:
       enabled: true
       base-url: ${AP_MODEL_URL:http://localhost:1234/v1}
-  # A FIXED key so a decision waiting on a person survives a restart. A DEMO key: generate your
-  # own (openssl rand -base64 32) for anything real.
+  # A fixed key, so a decision that waits on a person survives a restart. It comes from the
+  # environment or .env (scripts/dev-secrets.sh); no key is committed.
   reply-token-encryption-keys:
-    - ${AP_REPLY_KEY:bmVzc3ktYXAtZGVtby1rZXktMzItYnl0ZXMtbG9uZyE=}
+    - ${AP_REPLY_KEY}
 ap:
   erp:
     base-url: http://localhost:8081
@@ -89,3 +92,16 @@ management:
     web:
       exposure:
         include: health,info,metrics
+# The quarantine for untrusted text (Occlude). The key and the root come from the environment or
+# .env (scripts/dev-secrets.sh). None is committed: without them the desk refuses to start.
+occlude:
+  keys:
+    current: dev
+    keks:
+      dev: ${OCCLUDE_KEK}
+  roots:
+    current: dev
+    secrets:
+      dev: ${OCCLUDE_ROOT}
+  migrate: true
+

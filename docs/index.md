@@ -35,5 +35,4 @@ untrusted input and a measured evaluation.
 - [Getting started](getting-started.md): run the stack on your machine.
 - [How it works](system.md): the parts, a case from start to end, and every control.
 - [Evaluation](evaluation/index.md): how runs are scored, and the results slice by slice.
-- [Assessing Nessy](nessy-assessment.md): a critique of Nessy for this use case, with numbers.
 - [Findings for Nessy](findings.md): what this application taught us about Nessy.

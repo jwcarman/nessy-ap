@@ -16,6 +16,8 @@
 package org.jwcarman.nessyap.agent;
 
 import java.nio.file.Path;
+import java.security.SecureRandom;
+import java.util.Base64;
 import org.jwcarman.nessyap.agent.mail.Mailbox;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -84,6 +86,22 @@ public class ApAgentContainers {
       registry.add("ap.mail.imap.port", () -> greenMail.getMappedPort(3143));
       registry.add("ap.mail.imap.password", () -> "ap-desk@nessy-ap.example");
     };
+  }
+
+  /** Fresh random secrets for every test run: none is committed. */
+  @Bean
+  DynamicPropertyRegistrar secrets() {
+    return registry -> {
+      registry.add("nessy.reply-token-encryption-keys[0]", () -> randomKey(32));
+      registry.add("occlude.keys.keks.dev", () -> randomKey(32));
+      registry.add("occlude.roots.secrets.dev", () -> randomKey(48));
+    };
+  }
+
+  private static String randomKey(int bytes) {
+    byte[] key = new byte[bytes];
+    new SecureRandom().nextBytes(key);
+    return Base64.getEncoder().encodeToString(key);
   }
 
   @Bean

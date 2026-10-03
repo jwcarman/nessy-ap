@@ -96,6 +96,14 @@
       <artifactId>camel-spring-boot-starter</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.jwcarman.occlude</groupId>
+      <artifactId>occlude-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jwcarman.occlude</groupId>
+      <artifactId>occlude-jdbc</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.apache.camel.springboot</groupId>
       <artifactId>camel-mail-starter</artifactId>
     </dependency>
