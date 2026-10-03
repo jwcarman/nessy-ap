@@ -92,7 +92,7 @@ decisions and audit.
 | **F11.** Inputs carry no provenance. | The application frames untrusted text itself. A prompt injection still persuaded the agent in 4 of 5 runs. |
 | **F12.** Nothing checks that the policy knows a gated tool. | A new tool met an old policy, and a fraudulent vendor received mail. The policy now denies any tool it does not name. |
 | **F13.** Stored history has no retention or cleanup. | The quarantined reader's history holds the text of every reply, outside Occlude. Nessy's storage codec encrypts it (the desk uses codec-crypto), but nothing expires it, and Occlude's erasure cannot reach it. |
-| **F14.** The direct door fails inside a caller's transaction. | Every live read failed and fell back to "a person must read this". No test saw it. The reader now suspends the caller's transaction. |
+| **F14.** The direct door cannot run inside a caller's transaction, and neither says so nor checks. | We called it inside the mail route's transaction (our mistake: a model call held a transaction open). Every live read failed with an internal error, and no test saw it. The reader now suspends the transaction. |
 
 Two smaller points:
 - **The `Tool` interface is verbose for simple tools.** Each tool implements four methods.

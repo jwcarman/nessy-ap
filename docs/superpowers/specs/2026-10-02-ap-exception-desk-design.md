@@ -482,13 +482,16 @@ Nessy design conversations, not changes made from this repo.
   transcripts, which hold untrusted text, grow without limit, and that copy sits
   outside the application's own controls (here, Occlude's labels and record).
 
-- **F14 — The direct door fails inside a caller's transaction.** `DirectHarness.ask` writes
-  the turn on the caller's connection, then runs the model call on an effect thread with a
-  connection of its own. That thread cannot see the uncommitted turn and fails ("no event at
-  1 for agent ..."). The mail route reads replies inside its transaction, so every live read
-  failed and fell back to "a person must read this". No test saw it: the tests switched the
-  reader off. The desk now runs the read with the transaction suspended. Nessy should either
-  run the direct door in a transaction of its own or refuse an ambient one with a clear error.
+- **F14 — The direct door's "no caller transaction" precondition is unstated and unchecked.**
+  Nessy joins a caller's transaction on purpose: the agent lock must be the same transaction
+  as the work it guards, and for the queued door that is what makes `tell` atomic with the
+  caller's work. The direct door runs a turn as short steps with the model call between them,
+  on an effect thread with its own connection. Inside a caller's transaction that thread cannot
+  see the step it follows and fails with "no event at 1 for agent ...". The mail route read
+  replies inside its transaction, so every live read failed and fell back to "a person must
+  read this". Holding a transaction open across a model call was our mistake; the desk now
+  suspends it. Nessy's part is narrower: it should state the precondition and fail fast with a
+  clear message when `ask` finds a transaction open.
 
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`
