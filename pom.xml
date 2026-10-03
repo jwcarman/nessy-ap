@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright © ${year} James Carman
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.1.1</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>org.jwcarman.nessyap</groupId>
+  <artifactId>nessy-ap</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>Nessy AP</name>
+
+  <modules>
+    <module>ap-contracts</module>
+    <module>erp-sim</module>
+  </modules>
+
+  <properties>
+    <java.version>25</java.version>
+    <nessy.version>0.4.0-SNAPSHOT</nessy.version>
+    <jug.version>5.2.0</jug.version>
+    <testcontainers.version>2.0.5</testcontainers.version>
+    <spotless.version>3.10.2</spotless.version>
+    <license.plugin.version>5.1.2</license.plugin.version>
+    <license.owner>James Carman</license.owner>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers-bom</artifactId>
+        <version>${testcontainers.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.uuid</groupId>
+        <artifactId>java-uuid-generator</artifactId>
+        <version>${jug.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jwcarman.nessyap</groupId>
+        <artifactId>ap-contracts</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>${spotless.version}</version>
+        <configuration>
+          <java>
+            <googleJavaFormat>
+              <style>GOOGLE</style>
+            </googleJavaFormat>
+          </java>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>${license.plugin.version}</version>
+        <configuration>
+          <properties>
+            <owner>${license.owner}</owner>
+          </properties>
+          <licenseSets>
+            <licenseSet>
+              <inlineHeader><![CDATA[Copyright © ${year} ${owner}
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.]]></inlineHeader>
+              <excludes>
+                <exclude>**/*.md</exclude>
+                <exclude>**/*.txt</exclude>
+                <exclude>**/*.sh</exclude>
+                <exclude>**/*.yaml</exclude>
+                <exclude>**/*.sql</exclude>
+                <exclude>src/main/resources/**</exclude>
+                <exclude>src/test/resources/**</exclude>
+                <exclude>docs/**</exclude>
+                <exclude>compose/**</exclude>
+                <exclude>.mvn/**</exclude>
+                <exclude>mvnw</exclude>
+                <exclude>mvnw.cmd</exclude>
+                <exclude>.gitignore</exclude>
+                <exclude>.worktrees/**</exclude>
+                <exclude>.claude/**</exclude>
+                <exclude>.superpowers/**</exclude>
+              </excludes>
+            </licenseSet>
+          </licenseSets>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

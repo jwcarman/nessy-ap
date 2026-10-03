@@ -1,0 +1,26 @@
+name: nessy-ap
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: nessyap
+      POSTGRES_PASSWORD: nessyap
+    ports:
+      - "55432:5432"
+    volumes:
+      - ./compose/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - postgres-data:/var/lib/postgresql
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: nessyap
+      RABBITMQ_DEFAULT_PASS: nessyap
+    ports:
+      - "55672:5672"
+      - "55673:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+volumes:
+  postgres-data:
+  rabbitmq-data:
