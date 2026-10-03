@@ -36,6 +36,9 @@ import org.jwcarman.nessyap.agent.erp.ErpOutcome;
 import org.jwcarman.nessyap.agent.mail.UnmatchedMail;
 import org.jwcarman.nessyap.agent.quarantine.Quarantine;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
+import org.jwcarman.nessyap.agent.questions.Answers;
+import org.jwcarman.nessyap.agent.questions.Question;
+import org.jwcarman.nessyap.agent.questions.Questions;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -69,6 +72,8 @@ public class WorkbenchController {
   private final QueuedHarness<CaseInput> agent;
   private final UnmatchedMail unmatched;
   private final Quarantine quarantine;
+  private final Questions questions;
+  private final Answers answers;
 
   public WorkbenchController(
       Cases cases,
@@ -78,7 +83,9 @@ public class WorkbenchController {
       ErpClient erp,
       QueuedHarness<CaseInput> agent,
       UnmatchedMail unmatched,
-      Quarantine quarantine) {
+      Quarantine quarantine,
+      Questions questions,
+      Answers answers) {
     this.cases = cases;
     this.timeline = timeline;
     this.decisions = decisions;
@@ -87,10 +94,15 @@ public class WorkbenchController {
     this.agent = agent;
     this.unmatched = unmatched;
     this.quarantine = quarantine;
+    this.questions = questions;
+    this.answers = answers;
   }
 
   /** A pending decision as the worklist shows it: the decision and the case it belongs to. */
   public record Waiting(PendingDecision decision, CaseRecord kase) {}
+
+  /** A question that waits for the signed-in person, with its case. */
+  public record Asked(Question question, CaseRecord kase) {}
 
   @GetMapping
   public String worklist(Authentication me, Model model) {
@@ -105,6 +117,12 @@ public class WorkbenchController {
         "waiting",
         mine.stream()
             .map(d -> cases.find(d.exceptionId()).map(c -> new Waiting(d, c)))
+            .flatMap(Optional::stream)
+            .toList());
+    model.addAttribute(
+        "asked",
+        questions.waitingFor(me.getName()).stream()
+            .map(q -> cases.find(q.exceptionId()).map(c -> new Asked(q, c)))
             .flatMap(Optional::stream)
             .toList());
     model.addAttribute("cases", cases.recent(50));
@@ -136,6 +154,7 @@ public class WorkbenchController {
     model.addAttribute("receipts", c.poNumber() == null ? null : read(erp.receipts(c.poNumber())));
     model.addAttribute("timeline", timeline.of(exceptionId));
     model.addAttribute("decisions", all);
+    model.addAttribute("questions", questions.forCase(exceptionId));
     model.addAttribute(
         "decidable",
         all.stream()
@@ -234,6 +253,33 @@ public class WorkbenchController {
             ? "Carried out again: " + outcomeOf(decisionId, true)
             : "Only " + d.decidedBy() + ", who decided this, can carry it through.");
     return "redirect:/workbench/cases/" + d.exceptionId();
+  }
+
+  /** The person asked answers, signed in. Nobody else may; the answer goes to the agent. */
+  @PostMapping("/questions/{questionId}/answer")
+  public String answer(
+      @PathVariable UUID questionId,
+      @RequestParam(required = false) String choice,
+      @RequestParam(required = false) String comment,
+      Authentication me,
+      RedirectAttributes redirect) {
+    Answers.Answered result = answers.answer(questionId, me.getName(), choice, comment);
+    String message =
+        switch (result) {
+          case Answers.Answered.Told _ -> "Sent to the agent.";
+          case Answers.Answered.NotYours _ ->
+              throw new ResponseStatusException(
+                  HttpStatus.FORBIDDEN, "This question waits for someone else");
+          case Answers.Answered.AlreadyAnswered _ -> "This question already has its answer.";
+          case Answers.Answered.NotAChoice _ -> "Pick one of the choices.";
+          case Answers.Answered.NeedsAnAnswer _ -> "Pick a choice or write an answer.";
+          case Answers.Answered.NoSuchQuestion _ ->
+              throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such question");
+        };
+    redirect.addFlashAttribute("message", message);
+    return result instanceof Answers.Answered.Told(Question q)
+        ? "redirect:/workbench/cases/" + q.exceptionId()
+        : "redirect:/workbench";
   }
 
   @PostMapping("/cases/{exceptionId}/notes")

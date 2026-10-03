@@ -21,6 +21,19 @@
       </tbody>
     </table>
   </section>
+  <section th:unless="${asked.isEmpty()}">
+    <h2>Questions for you</h2>
+    <p class="muted">The agent needs your answer. Pick a choice, or write a short answer.</p>
+    <div class="question" th:each="a : ${asked}">
+      <p><a th:href="@{/workbench/cases/{id}(id=${a.kase.exceptionId})}" th:text="${a.kase.invoiceNumber}">INV-1</a>:
+        <strong th:text="${a.question.text}">Did you agree the price?</strong></p>
+      <form th:action="@{/workbench/questions/{id}/answer(id=${a.question.id})}" method="post" class="verdict">
+        <button th:each="c : ${a.question.choices}" name="choice" th:value="${c}" th:text="${c}">Agreed</button>
+        <input type="text" name="comment" placeholder="Your answer, or a note" aria-label="Your answer">
+        <button th:if="${a.question.choices.isEmpty()}">Answer</button>
+      </form>
+    </div>
+  </section>
   <section th:if="${!unmatched.isEmpty()}">
     <h2>Unmatched mail</h2>
     <p class="muted">Mail to the desk that answers no case. Read it before anyone acts on it.</p>

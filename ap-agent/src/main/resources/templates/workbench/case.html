@@ -20,6 +20,22 @@
       policy blocks every action that moves money. A person must decide.</span>
   </p>
 
+  <section class="questions" th:unless="${questions.isEmpty()}">
+    <h2>Questions</h2>
+    <div class="question" th:each="q : ${questions}">
+      <p>To <span th:text="${q.askedOf}">bob</span>: <strong th:text="${q.text}">Did you agree the price?</strong></p>
+      <p th:if="${q.answered()}" class="muted">Answered by <span th:text="${q.answeredBy}">bob</span>:
+        <span th:text="${q.choice}">Agreed</span> <span th:text="${q.comment}">By phone.</span></p>
+      <form th:if="${!q.answered() and q.askedOf == me}"
+            th:action="@{/workbench/questions/{id}/answer(id=${q.id})}" method="post" class="verdict">
+        <button th:each="c : ${q.choices}" name="choice" th:value="${c}" th:text="${c}">Agreed</button>
+        <input type="text" name="comment" placeholder="Your answer, or a note" aria-label="Your answer">
+        <button th:if="${q.choices.isEmpty()}">Answer</button>
+      </form>
+      <p th:if="${!q.answered() and q.askedOf != me}" class="muted">Waiting for an answer.</p>
+    </div>
+  </section>
+
   <section class="decide" th:each="d : ${decidable}">
     <h2>The agent proposes: <span th:text="${d.action}">approve-variance</span>
       <span th:if="${d.amount != null}" th:text="${d.amount}">950.00</span></h2>

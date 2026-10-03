@@ -25,6 +25,8 @@ import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.Decisions;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
 import org.jwcarman.nessyap.agent.mail.Counterparty;
+import org.jwcarman.nessyap.agent.questions.Question;
+import org.jwcarman.nessyap.agent.questions.Questions;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -72,7 +74,8 @@ public class CaseController {
       String status,
       List<CaseTimeline.CaseEvent> timeline,
       List<CaseDecision> decisions,
-      List<CaseMail> mail) {}
+      List<CaseMail> mail,
+      List<Question> questions) {}
 
   /** A message the desk sent about the case, and the Message-ID a reply would answer. */
   public record CaseMail(
@@ -82,13 +85,19 @@ public class CaseController {
   private final CaseTimeline timeline;
   private final Decisions decisions;
   private final Counterparty counterparty;
+  private final Questions questions;
 
   public CaseController(
-      Cases cases, CaseTimeline timeline, Decisions decisions, Counterparty counterparty) {
+      Cases cases,
+      CaseTimeline timeline,
+      Decisions decisions,
+      Counterparty counterparty,
+      Questions questions) {
     this.cases = cases;
     this.timeline = timeline;
     this.decisions = decisions;
     this.counterparty = counterparty;
+    this.questions = questions;
   }
 
   /** Who may read a case: anyone who works cases, and the auditor. */
@@ -115,6 +124,7 @@ public class CaseController {
         decisions.forCase(exceptionId).stream().map(CaseDecision::of).toList(),
         counterparty.forCase(exceptionId).stream()
             .map(m -> new CaseMail(m.kind(), m.recipient(), m.subject(), m.messageId(), m.sentAt()))
-            .toList());
+            .toList(),
+        questions.forCase(exceptionId));
   }
 }
