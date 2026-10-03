@@ -15,6 +15,11 @@
  */
 package org.jwcarman.nessyap.erp;
 
+import org.jwcarman.nessyap.contracts.ErpEvents;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.TopicExchange;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
@@ -28,6 +33,9 @@ import org.testcontainers.rabbitmq.RabbitMQContainer;
 @TestConfiguration(proxyBeanMethods = false)
 public class ErpContainers {
 
+  /** A queue that hears every ERP event, so a test can see what was published. */
+  public static final String TAP_QUEUE = "test.erp-events.tap";
+
   @Bean
   @ServiceConnection
   PostgreSQLContainer postgres() {
@@ -38,5 +46,15 @@ public class ErpContainers {
   @ServiceConnection
   RabbitMQContainer rabbit() {
     return new RabbitMQContainer("rabbitmq:4-management-alpine");
+  }
+
+  @Bean
+  Queue tapQueue() {
+    return new Queue(TAP_QUEUE, true);
+  }
+
+  @Bean
+  Binding tapBinding(Queue tapQueue) {
+    return BindingBuilder.bind(tapQueue).to(new TopicExchange(ErpEvents.EXCHANGE)).with("#");
   }
 }

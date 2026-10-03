@@ -26,7 +26,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Where an event is written down, in the same transaction as the change it describes, so the two
- * commit or vanish together. {@code OutboxPublisher} delivers it later.
+ * commit or vanish together. {@link OutboxPublisher} delivers it later.
  */
 @Component
 public class Outbox {
