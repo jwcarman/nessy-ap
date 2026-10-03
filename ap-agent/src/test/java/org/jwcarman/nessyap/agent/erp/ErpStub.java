@@ -50,6 +50,7 @@ public final class ErpStub implements AutoCloseable {
 
   private final HttpServer server;
   private final Map<String, Canned> responses = new ConcurrentHashMap<>();
+  private final Map<String, Canned> prefixes = new ConcurrentHashMap<>();
   private final List<Seen> seen = new CopyOnWriteArrayList<>();
 
   public ErpStub() {
@@ -77,12 +78,21 @@ public final class ErpStub implements AutoCloseable {
     return this;
   }
 
+  /**
+   * Answer any {@code method} whose target starts with {@code prefix}, unless an exact one does.
+   */
+  public ErpStub onPrefix(String method, String prefix, int status, String body) {
+    prefixes.put(method + " " + prefix, new Canned(status, body, Duration.ZERO));
+    return this;
+  }
+
   public List<Seen> seen() {
     return List.copyOf(seen);
   }
 
   public void reset() {
     responses.clear();
+    prefixes.clear();
     seen.clear();
   }
 
@@ -95,15 +105,24 @@ public final class ErpStub implements AutoCloseable {
     seen.add(
         new Seen(
             exchange.getRequestMethod(), target, Map.copyOf(exchange.getRequestHeaders()), body));
+    String key = exchange.getRequestMethod() + " " + target;
     Canned canned =
         responses.getOrDefault(
-            exchange.getRequestMethod() + " " + target,
+            key,
             new Canned(
                 404,
                 "{\"status\":404,\"code\":\"NOT_FOUND\",\"detail\":\"stub has nothing for "
                     + target
                     + "\"}",
                 Duration.ZERO));
+    if (!responses.containsKey(key)) {
+      canned =
+          prefixes.entrySet().stream()
+              .filter(e -> key.startsWith(e.getKey()))
+              .map(Map.Entry::getValue)
+              .findFirst()
+              .orElse(canned);
+    }
     if (!canned.delay().isZero()) {
       try {
         Thread.sleep(canned.delay());

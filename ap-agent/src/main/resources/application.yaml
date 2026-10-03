@@ -35,10 +35,12 @@ nessy:
 ap:
   erp:
     base-url: http://localhost:8081
+  opa:
+    url: http://localhost:58181
   approval:
     timeout: P3D
   decisions:
-    auto: true
+    auto: false
 management:
   endpoints:
     web:
