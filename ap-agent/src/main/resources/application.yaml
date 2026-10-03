@@ -1,0 +1,46 @@
+server:
+  port: 8082
+spring:
+  application:
+    name: ap-agent
+  datasource:
+    url: jdbc:postgresql://localhost:55432/apagent
+    username: nessyap
+    password: nessyap
+  rabbitmq:
+    host: localhost
+    port: 55672
+    username: nessyap
+    password: nessyap
+  threads:
+    virtual:
+      enabled: true
+  mvc:
+    problemdetails:
+      enabled: true
+nessy:
+  # The model the agent reasons with. The default is the local pair measured to work with Nessy:
+  # Qwen3-Coder-30B in LM Studio. Point AP_PROVIDER / AP_MODEL elsewhere to compare.
+  provider: ${AP_PROVIDER:lmstudio}
+  model: ${AP_MODEL:qwen/qwen3-coder-30b}
+  max-tokens: 4096
+  providers:
+    lmstudio:
+      enabled: true
+      base-url: ${AP_MODEL_URL:http://localhost:1234/v1}
+  # A FIXED key so a decision waiting on a person survives a restart. A DEMO key: generate your
+  # own (openssl rand -base64 32) for anything real.
+  reply-token-encryption-keys:
+    - ${AP_REPLY_KEY:bmVzc3ktYXAtZGVtby1rZXktMzItYnl0ZXMtbG9uZyE=}
+ap:
+  erp:
+    base-url: http://localhost:8081
+  approval:
+    timeout: P3D
+  decisions:
+    auto: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

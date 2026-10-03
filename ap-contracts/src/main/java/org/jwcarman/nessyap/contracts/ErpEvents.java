@@ -30,6 +30,12 @@ public final class ErpEvents {
   /** The queue that collects unrouted events, so they can be seen and replayed. */
   public static final String UNROUTED_QUEUE = "erp.events.unrouted";
 
+  /**
+   * The AP agent's own quorum queue, bound to {@link #EXCHANGE} for raised exceptions and posted
+   * receipts. Provisioned by the broker's definitions and declared again by the agent.
+   */
+  public static final String AGENT_QUEUE = "ap-agent.erp-events";
+
   private ErpEvents() {}
 
   public static String routingKey(ErpEvent event) {
