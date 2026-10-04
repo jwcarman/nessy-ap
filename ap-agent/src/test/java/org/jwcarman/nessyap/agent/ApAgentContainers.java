@@ -105,6 +105,30 @@ public class ApAgentContainers {
     return Base64.getEncoder().encodeToString(key);
   }
 
+  /**
+   * The workbench's login client, with no Keycloak behind it. Boot discovers a provider that names
+   * an issuer while the context starts, and the tests fake their tokens, so they point the client
+   * at a provider that names its endpoints instead. Nothing is fetched until a browser logs in,
+   * which no test does.
+   */
+  @Bean
+  DynamicPropertyRegistrar loginWithoutKeycloak() {
+    String realm = "http://keycloak.invalid/realms/nessy-ap/protocol/openid-connect";
+    String provider = "spring.security.oauth2.client.provider.keycloak-offline.";
+    return registry -> {
+      registry.add(
+          "spring.security.oauth2.client.registration.keycloak.provider", () -> "keycloak-offline");
+      registry.add(
+          "spring.security.oauth2.client.registration.keycloak.redirect-uri",
+          () -> "{baseUrl}/login/oauth2/code/{registrationId}");
+      registry.add(provider + "authorization-uri", () -> realm + "/auth");
+      registry.add(provider + "token-uri", () -> realm + "/token");
+      registry.add(provider + "jwk-set-uri", () -> realm + "/certs");
+      registry.add(provider + "user-info-uri", () -> realm + "/userinfo");
+      registry.add(provider + "user-name-attribute", () -> "preferred_username");
+    };
+  }
+
   @Bean
   DynamicPropertyRegistrar opaUrl(GenericContainer<?> opa) {
     return registry ->
