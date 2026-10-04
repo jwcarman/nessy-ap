@@ -125,6 +125,18 @@ public class Cases {
         .list();
   }
 
+  /** The open cases on a PO that the rules still work. */
+  public List<UUID> rulesCasesForPo(String poNumber) {
+    return jdbc.sql(
+            """
+            select exception_id from ap_case
+            where po_number = :poNumber and status <> 'RESOLVED' and handled_by = 'rules'
+            """)
+        .param("poNumber", poNumber)
+        .query(UUID.class)
+        .list();
+  }
+
   public List<AgentId> openCasesForPo(String poNumber) {
     return jdbc.sql(
             """

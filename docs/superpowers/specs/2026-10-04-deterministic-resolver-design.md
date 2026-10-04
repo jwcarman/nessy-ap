@@ -200,7 +200,29 @@ Each of these is new vocabulary or a new public type:
 - **The resolver's own tests.** Each DMN table has unit tests that need no model and no
   container: every row, every `NeedsFact`, and the `unhandled` and `conflict` outcomes.
 
-## 12. The case-study chapter
+## 12. Amendments made during the build (2026-10-04)
+
+The build and its final review changed these points. James has not ruled on them yet.
+
+- **§5 cross-check.** Only the shipped item is checked, against the invoice line's item code, and
+  only for a reply from the vendor address the desk wrote to. Both item codes are vendor-written:
+  the check shows that the reply is about this line. The double read for money-moving slots is
+  not built; the reader reads once.
+- **§6 the buyer.** No phase-1 rule needs a fact from the buyer, so the rules ask only the vendor.
+- **§3 escalation reasons.** Added: `declined`, `unread`, `unsent`, `reply`, `receipt`,
+  `person`, `failed` and `refused`. `invariant` also covers a proposal that did not wait for a
+  person. The spec's own `invariant` case (two exceptions on one invoice) is not built.
+- **§3 proposals.** A rule that fires proposes only when the desk read the invoice, the PO the
+  case cites, and a price for every line.
+- **§8 the handoff.** The agent gets the known facts, not a list of unknown ones. A pending
+  proposal from the rules is withdrawn at the handoff. A receipt, a reply the rules did not ask
+  for, and a person's note each hand the case over.
+- **§11 settledBy.** Three values: `rules`, `rules+facts`, `agent`. A case in `NEEDS_PERSON` is
+  scored as the agent's.
+- **The playbook** keeps its reason-code rows, aligned with the tables, because the agent sees
+  those codes after a handoff.
+
+## 13. The case-study chapter
 
 A new page, "Stay deterministic as long as you can", tells the story with the numbers: the
 finding (16 of 21 scenarios needed no correspondence), the principles above, the layers, how the

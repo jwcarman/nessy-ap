@@ -17,6 +17,8 @@ package org.jwcarman.nessyap.agent.cases;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.jwcarman.nessy.api.InputRenderer;
 import org.jwcarman.nessy.api.block.Block;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
@@ -87,7 +89,10 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
         summary = summary.replace(reference, VendorReference.shown(reference));
       }
     }
-    return summary;
+    // The ERP quotes other vendor-written text, such as an item code, in double quotes.
+    return QUOTED
+        .matcher(summary)
+        .replaceAll(m -> Matcher.quoteReplacement("\"" + VendorReference.shown(m.group(1)) + "\""));
   }
 
   private static String stopped(String why) {
@@ -97,9 +102,17 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
       case "refused" -> "the policy refused what they proposed";
       case "invariant" -> "they could not compute the amount their rule needs";
       case "person" -> "a person on the desk wrote to you about it";
+      case "declined" -> "a person declined what they proposed, and no rule says what to do next";
+      case "reply" -> "mail arrived that they did not ask for";
+      case "receipt" -> "goods arrived while their proposal waited";
+      case "unread" -> "they could not read every fact the rule needs from the ERP";
+      case "unsent" -> "they could not send their question to the vendor";
+      case "failed" -> "they failed with an error";
       default -> "no rule covers what they know about this case";
     };
   }
+
+  private static final Pattern QUOTED = Pattern.compile("\"([^\"]*)\"");
 
   /** An answer settles a wait, so it always ends by asking for a move. */
   private static final String NEXT =

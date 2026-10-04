@@ -153,10 +153,15 @@ public class ErpEventListener {
         // The rules look first; they tell the agent themselves when they cannot settle it.
         resolverDesk.opened(raised);
       }
-      case ReceiptPosted receipt ->
-          cases
-              .openCasesForPo(receipt.poNumber())
-              .forEach(agentId -> agent.tell(agentId, new CaseInput.ReceiptArrived(receipt)));
+      case ReceiptPosted receipt -> {
+        // Goods change what the rules proposed: their cases on the PO go to the agents first.
+        cases
+            .rulesCasesForPo(receipt.poNumber())
+            .forEach(exceptionId -> resolverDesk.handOver(exceptionId, "receipt"));
+        cases
+            .openCasesForPo(receipt.poNumber())
+            .forEach(agentId -> agent.tell(agentId, new CaseInput.ReceiptArrived(receipt)));
+      }
       default -> log.debug("Ignoring ERP event {} of a kind no case needs", event.eventId());
     }
   }

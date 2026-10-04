@@ -68,6 +68,8 @@ public class CaseSlots {
    * @param atPoPrice what the billed lines cost at the PO's prices, or null
    * @param withoutCharges the total without freight and lines the PO does not have, or null
    * @param vendorEmail the vendor's contact of record, or null
+   * @param complete whether the desk read the invoice, the PO the case cites, and a price for every
+   *     line: a resolution must not rest on less
    */
   public record Read(
       Map<String, Object> slots,
@@ -75,7 +77,8 @@ public class CaseSlots {
       BigDecimal total,
       BigDecimal atPoPrice,
       BigDecimal withoutCharges,
-      String vendorEmail) {}
+      String vendorEmail,
+      boolean complete) {}
 
   public Read read(CaseRecord c) {
     Map<String, Object> slots = new HashMap<>();
@@ -95,6 +98,7 @@ public class CaseSlots {
       BigDecimal freight = decimal(invoice.path("freight"));
       withoutCharges = total == null ? null : total.subtract(freight == null ? ZERO : freight);
     }
+    boolean priced = false;
     if (invoice != null && po.isPresent()) {
       evidence.add(c.poNumber());
       Lines lines = lines(invoice, po.get());
@@ -104,15 +108,22 @@ public class CaseSlots {
       if (lines.billedItem() != null) {
         slots.put("billedItem", lines.billedItem());
       }
-      atPoPrice = lines.atPoPrice();
-      withoutCharges = withoutCharges == null ? null : withoutCharges.subtract(lines.offPo());
+      priced = lines.priced();
+      atPoPrice = priced ? lines.atPoPrice() : null;
+      withoutCharges =
+          withoutCharges == null || !priced ? null : withoutCharges.subtract(lines.offPo());
+    } else if (c.poNumber() != null) {
+      // Without the PO, the desk cannot tell a charge the PO has from one it does not.
+      withoutCharges = null;
     }
     readReceipts(c, slots, evidence);
     String vendorEmail = readVendor(c, evidence);
     readOriginal(c, invoice, slots, evidence);
     cases.slots(c.exceptionId()).forEach(slots::put);
     declined(c).ifPresent(action -> slots.put("declinedAction", action));
-    return new Read(slots, List.copyOf(evidence), total, atPoPrice, withoutCharges, vendorEmail);
+    boolean complete = invoice != null && (c.poNumber() == null || (po.isPresent() && priced));
+    return new Read(
+        slots, List.copyOf(evidence), total, atPoPrice, withoutCharges, vendorEmail, complete);
   }
 
   /**
@@ -123,7 +134,11 @@ public class CaseSlots {
    * @param atPoPrice what the compared lines cost at PO prices, or null when no line could be
    */
   private record Lines(
-      BigDecimal variancePercent, BigDecimal atPoPrice, BigDecimal offPo, String billedItem) {}
+      BigDecimal variancePercent,
+      BigDecimal atPoPrice,
+      BigDecimal offPo,
+      String billedItem,
+      boolean priced) {}
 
   private static Lines lines(JsonNode invoice, JsonNode po) {
     Map<Integer, BigDecimal> poPrices = new HashMap<>();
@@ -145,7 +160,7 @@ public class CaseSlots {
       BigDecimal billed = decimal(line.path("unitPrice"));
       if (quantity == null || billed == null) {
         // A line the desk cannot price makes every amount from these lines untrustworthy.
-        return new Lines(null, null, ZERO, billedItem);
+        return new Lines(null, null, ZERO, billedItem, false);
       }
       BigDecimal poPrice =
           line.hasNonNull("poLineNo") ? poPrices.get(line.path("poLineNo").asInt()) : null;
@@ -158,7 +173,7 @@ public class CaseSlots {
           billed.subtract(poPrice).multiply(HUNDRED).divide(poPrice, 2, RoundingMode.HALF_UP);
       worst = worst == null ? percent : worst.max(percent);
     }
-    return new Lines(worst, atPoPrice, offPo, billedItem);
+    return new Lines(worst, atPoPrice, offPo, billedItem, true);
   }
 
   private void readReceipts(CaseRecord c, Map<String, Object> slots, Set<String> evidence) {

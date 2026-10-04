@@ -77,8 +77,9 @@ file in a DMN modeler.
   they do not choose.
 
 A fact that the desk could not read is unknown, and unknown is not false. A row fires only on
-known values. When an ERP read fails three times, the fact stays unknown, no row matches, and the
-case goes to the agent.
+known values. The desk tries each ERP read three times. Some rows fire on the reason code alone,
+so a row match is not enough: the rules propose only when the desk read the invoice, the PO that
+the case cites, and a price for every line. Otherwise the case goes to the agent.
 
 The rules stop for these reasons. The agent's first input names the reason:
 
@@ -88,8 +89,14 @@ The rules stop for these reasons. The agent's first input names the reason:
 | `conflict` | Two rows match and disagree. |
 | `exhausted` | A fact the rules asked for did not come back in a form they can check. |
 | `refused` | The policy refused what the rules proposed. |
-| `invariant` | A rule needs an amount that the desk could not compute. |
+| `declined` | A person declined what the rules proposed, and no rule says what to do next. The agent gets the decider's comment. |
+| `unread` | The desk could not read every fact that a proposal must rest on. |
+| `invariant` | A rule needs an amount that the desk could not compute, or a proposal did not wait for a person. |
+| `unsent` | The desk could not send its question to the vendor. |
+| `reply` | Mail arrived on the case that the rules did not ask for. The agent also gets the reply. |
+| `receipt` | Goods arrived while a proposal from the rules waited. The agent also gets the receipt. |
 | `person` | A person wrote a note to the agent on the workbench. |
+| `failed` | The rules failed with an error. |
 
 ## What the rules settle
 
@@ -129,8 +136,10 @@ PO line's item and raises `ITEM_SUBSTITUTED`.
 3. The vendor answers. The reply goes through the quarantine, as all mail does. The reader, a
    model with no tools, reads it into a typed reading: the intent `SUBSTITUTED_ITEM`, the reason
    `OUT_OF_STOCK`, and the item shipped.
-4. The desk checks the reading against the ERP. The item that the vendor says it shipped must be
-   the item on the invoice line. Only then does the reason become a fact.
+4. The desk checks the reply. It must come from the vendor address the desk wrote to, and the
+   item that the vendor says it shipped must be the item on the invoice line in the ERP. Only then
+   does the reason become a fact. Both item codes are the vendor's words: the check shows that the
+   reply is about this line, not that the reason is true.
 5. `resolution` returns approve-variance. The desk proposes it with a rationale from a template and
    the ids it read as evidence. The policy routes it to the PO's buyer.
 6. The buyer approves on the workbench, and the ERP applies it in the buyer's name. That is one
@@ -164,11 +173,15 @@ The differences:
 ## The handoff to the agent
 
 When the rules stop, the desk gives the case to its agent for good. The agent's first input is
-the exception, the reason the rules stopped, and every fact they established. From then on, the
-agent works as before, under every control it had before. The rules do not take the case back.
+the exception, the reason the rules stopped, and every fact they established. A vendor-written
+value among those facts, such as the billed item code, is shown only when it is shaped like a
+reference, as everywhere else. From then on, the agent works as before, under every control it
+had before. The rules do not take the case back.
 
-A receipt that arrives reaches only the cases that an agent works. A person's note on a case
-that the rules work gives the case to its agent first, because a note is for the agent.
+A proposal from the rules that nobody has decided yet is withdrawn at the handoff, so a person
+never sees two proposals for one case. A person's note, a reply the rules did not ask for, and a
+receipt for the case's PO each give the case to its agent first, and the agent then gets the
+note, the reply or the receipt.
 
 ## How the evaluation measures it
 
@@ -219,5 +232,10 @@ still to do. One run of each scenario shows that a path works; it does not measu
 - **Asking the buyer for a fact.** No rule needs one yet, so the rules ask only the vendor.
 - **The agent as a fact finder.** In phase 2, an agent that the rules call returns facts, and the
   rules decide. The question is whether that beats the agent proposing.
-- **A receipt for a case the rules hold.** A receipt that arrives does not run the rules again.
-  The hold that the rules proposed stays in front of its decider.
+- **A crash between a decision and the rules' next step.** When a person decides a proposal from
+  the rules, the rules act after that decision commits, in a transaction of their own. A failure
+  there gives the case to its agent. A process that stops between the two leaves the case with
+  nobody acting, and no sweeper looks for it yet.
+- **A letter sent twice.** The rules send their letter inside the transaction that handles the
+  ERP's event. If that transaction rolls back after the send, the redelivered event sends it
+  again. An outbox would send it once.

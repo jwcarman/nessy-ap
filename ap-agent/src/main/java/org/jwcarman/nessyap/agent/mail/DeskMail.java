@@ -56,6 +56,9 @@ public class DeskMail {
   /** Longer Message-IDs are kept by their hash: an index entry has a size limit. */
   private static final int MAX_ID = 500;
 
+  private static final String WROTE_TO = " the desk wrote to";
+  private static final String FROM_VENDOR = "the vendor" + WROTE_TO;
+
   private final MailRouter router;
   private final Cases cases;
   private final CaseTimeline timeline;
@@ -140,7 +143,7 @@ public class DeskMail {
     timeline.record(
         exceptionId, "mail-received", from + ": " + summary(reading), reading.reply().id());
     // A reply to the rules' own question is theirs to read; any other reply is the agent's.
-    if (resolverDesk.replied(exceptionId, claim)) {
+    if (resolverDesk.replied(exceptionId, claim, from.equals(FROM_VENDOR))) {
       return;
     }
     agent.tell(
@@ -166,7 +169,7 @@ public class DeskMail {
         .param("sender", sender)
         .query(String.class)
         .optional()
-        .map(kind -> "the " + kind + " the desk wrote to")
+        .map(kind -> "the " + kind + WROTE_TO)
         .orElse("someone the desk never wrote to on this case");
   }
 
