@@ -197,6 +197,23 @@ public class Decisions {
         .update();
   }
 
+  /** Keeps what produced a proposal, as JSON. */
+  public void rememberProvenance(UUID id, String provenance) {
+    jdbc.sql("insert into decision_provenance (decision_id, provenance) values (:id, :provenance)")
+        .param("id", id)
+        .param("provenance", provenance)
+        .update();
+  }
+
+  /** What produced a proposal, if it was recorded. */
+  public Optional<Provenance.Stamp> provenance(UUID id) {
+    return jdbc.sql("select provenance from decision_provenance where decision_id = :id")
+        .param("id", id)
+        .query(String.class)
+        .optional()
+        .map(text -> json.readValue(text, Provenance.Stamp.class));
+  }
+
   private PendingDecision decision(ResultSet rs, int row) throws SQLException {
     Timestamp decidedAt = rs.getTimestamp("decided_at");
     return new PendingDecision(

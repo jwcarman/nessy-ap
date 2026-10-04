@@ -48,6 +48,7 @@ class WorkbenchDeskTest extends ApAgentIntegrationTest {
   @Autowired CaseTimeline timeline;
   @Autowired JsonMapper json;
   @Autowired Clock clock;
+  @Autowired Provenance provenance;
 
   @Test
   void a_buyers_desk_with_no_buyer_named_refuses_rather_than_letting_any_buyer_decide() {
@@ -65,7 +66,8 @@ class WorkbenchDeskTest extends ApAgentIntegrationTest {
             "s",
             BigDecimal.TEN));
     AgentId agentId = cases.agentFor(exceptionId);
-    WorkbenchDesk buyers = new WorkbenchDesk("buyer", decisions, cases, timeline, json, clock);
+    WorkbenchDesk buyers =
+        new WorkbenchDesk("buyer", decisions, cases, timeline, json, clock, provenance);
     ApprovalRequest request =
         new ApprovalRequest(
             AgentConfiguration.AGENT_TYPE,

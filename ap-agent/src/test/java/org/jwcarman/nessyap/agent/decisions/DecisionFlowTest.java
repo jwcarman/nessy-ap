@@ -131,6 +131,21 @@ class DecisionFlowTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void a_proposal_records_what_produced_it() {
+    PendingDecision proposal = awaitProposal();
+
+    assertThat(decisions.provenance(proposal.id()))
+        .hasValueSatisfying(
+            p -> {
+              assertThat(p.proposer()).isEqualTo("agent");
+              assertThat(p.agentModel()).isEqualTo("scripted");
+              assertThat(p.playbook()).hasSize(12);
+              assertThat(p.rules()).hasSize(12);
+              assertThat(p.policy()).hasSize(12);
+            });
+  }
+
+  @Test
   void an_approval_is_carried_out_in_the_erp_under_the_decision_id() {
     PendingDecision proposal = awaitProposal();
     erp.on("POST", "/api/invoices/" + INVOICE + "/approve-variance", 200, APPROVED_JSON);

@@ -50,12 +50,14 @@ public class PolicyConfig {
       Cases cases,
       CaseTimeline timeline,
       JsonMapper json,
-      Clock clock) {
+      Clock clock,
+      Provenance provenance) {
     return PolicyApprover.of(
         config -> {
           config.engine(engine);
           for (String role : DECIDING_ROLES) {
-            config.delegate(role, new WorkbenchDesk(role, decisions, cases, timeline, json, clock));
+            config.delegate(
+                role, new WorkbenchDesk(role, decisions, cases, timeline, json, clock, provenance));
           }
         });
   }

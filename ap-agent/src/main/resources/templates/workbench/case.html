@@ -41,6 +41,13 @@
     <h2><span th:text="${d.replyToken().value() == 'rules'} ? 'The desk rules propose:' : 'The agent proposes:'">The agent proposes:</span> <span th:text="${d.action}">approve-variance</span>
       <span th:if="${d.amount != null}" th:text="${d.amount}">950.00</span></h2>
     <p class="rationale" th:text="${d.rationale}">Why.</p>
+    <p class="muted provenance" th:with="p=${provenance.get(d.id)}" th:if="${p != null}">
+      Made by <span th:text="${p.proposer}">rules</span><span th:if="${p.agentModel != null}"
+        th:text="' (' + ${p.agentModel} + ')'"> (model)</span>
+      · desk <code th:text="${p.deskBuild}">abc1234</code>
+      · playbook <code th:text="${p.playbook}">0</code>
+      · rules <code th:text="${p.rules}">0</code>
+      · policy <code th:text="${p.policy}">0</code></p>
     <p class="muted evidence" th:unless="${d.evidence.isEmpty()}">Evidence:
       <code th:each="e : ${d.evidence}" th:text="${e}">id</code></p>
     <p class="flash warn" th:unless="${ungrounded.get(d.id).isEmpty()}">The agent cites, but never read:

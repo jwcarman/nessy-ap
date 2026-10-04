@@ -91,7 +91,9 @@ public class TrailController {
     return new Trail(
         c,
         timeline.of(exceptionId),
-        decisions.forCase(exceptionId).stream().map(DecisionView::of).toList(),
+        decisions.forCase(exceptionId).stream()
+            .map(d -> DecisionView.of(d, decisions.provenance(d.id()).orElse(null)))
+            .toList(),
         turns);
   }
 }

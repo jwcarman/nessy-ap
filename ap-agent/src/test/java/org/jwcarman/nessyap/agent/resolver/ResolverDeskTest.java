@@ -183,6 +183,9 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
         .satisfies(
             d -> {
               assertThat(d.proposedBy()).isEqualTo("rules");
+              assertThat(d.provenance().proposer()).isEqualTo("rules");
+              assertThat(d.provenance().agentModel()).isNull();
+              assertThat(d.provenance().policy()).isNotEqualTo("unknown");
               assertThat(d.evidence()).contains(invoiceId.toString(), poNumber);
               assertThat(d.ungrounded()).isEmpty();
             });

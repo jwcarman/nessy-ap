@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
+import org.jwcarman.nessyap.agent.decisions.Provenance;
 
 /**
  * A decision as the API shows it. Never the reply token: that is the credential that answers the
@@ -40,9 +41,15 @@ public record DecisionView(
     String decisionComment,
     String erpResult,
     Instant createdAt,
-    Instant deadline) {
+    Instant deadline,
+    Provenance.Stamp provenance) {
 
   public static DecisionView of(PendingDecision d) {
+    return of(d, null);
+  }
+
+  /** The decision with what produced it, as the auditor's trail shows it. */
+  public static DecisionView of(PendingDecision d, Provenance.Stamp provenance) {
     return new DecisionView(
         d.id(),
         d.exceptionId(),
@@ -58,6 +65,7 @@ public record DecisionView(
         d.decisionComment(),
         d.erpResult(),
         d.createdAt(),
-        d.deadline());
+        d.deadline(),
+        provenance);
   }
 }

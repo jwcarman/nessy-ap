@@ -28,6 +28,7 @@ import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.Decisions;
 import org.jwcarman.nessyap.agent.decisions.Grounding;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
+import org.jwcarman.nessyap.agent.decisions.Provenance;
 import org.jwcarman.nessyap.agent.mail.Counterparty;
 import org.jwcarman.nessyap.agent.questions.Question;
 import org.jwcarman.nessyap.agent.questions.Questions;
@@ -59,9 +60,11 @@ public class CaseController {
       String erpResult,
       List<String> evidence,
       List<String> ungrounded,
-      String proposedBy) {
+      String proposedBy,
+      Provenance.Stamp provenance) {
 
-    static CaseDecision of(PendingDecision d, List<String> ungrounded) {
+    static CaseDecision of(
+        PendingDecision d, List<String> ungrounded, Provenance.Stamp provenance) {
       return new CaseDecision(
           d.id(),
           d.action(),
@@ -73,7 +76,8 @@ public class CaseController {
           d.erpResult(),
           d.evidence(),
           ungrounded,
-          ResolverDesk.TOKEN.equals(d.replyToken()) ? "rules" : "agent");
+          ResolverDesk.TOKEN.equals(d.replyToken()) ? "rules" : "agent",
+          provenance);
     }
   }
 
@@ -157,7 +161,10 @@ public class CaseController {
             .anyMatch(turn -> !turn.complete()),
         timeline.of(exceptionId),
         decisions.forCase(exceptionId).stream()
-            .map(d -> CaseDecision.of(d, grounding.ungrounded(d)))
+            .map(
+                d ->
+                    CaseDecision.of(
+                        d, grounding.ungrounded(d), decisions.provenance(d.id()).orElse(null)))
             .toList(),
         counterparty.forCase(exceptionId).stream()
             .map(m -> new CaseMail(m.kind(), m.recipient(), m.subject(), m.messageId(), m.sentAt()))

@@ -15,7 +15,9 @@
  */
 package org.jwcarman.nessyap.agent.workbench;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -33,6 +35,7 @@ import org.jwcarman.nessyap.agent.decisions.Decisions;
 import org.jwcarman.nessyap.agent.decisions.Grounding;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
 import org.jwcarman.nessyap.agent.decisions.PolicyConfig;
+import org.jwcarman.nessyap.agent.decisions.Provenance;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
 import org.jwcarman.nessyap.agent.erp.ErpOutcome;
 import org.jwcarman.nessyap.agent.mail.UnmatchedMail;
@@ -168,6 +171,10 @@ public class WorkbenchController {
     model.addAttribute(
         "ungrounded",
         all.stream().collect(Collectors.toMap(PendingDecision::id, grounding::ungrounded)));
+    // What produced each proposal, for the person who decides it and for the record.
+    Map<UUID, Provenance.Stamp> made = new HashMap<>();
+    all.forEach(d -> decisions.provenance(d.id()).ifPresent(p -> made.put(d.id(), p)));
+    model.addAttribute("provenance", made);
     model.addAttribute(
         "decidable",
         all.stream()

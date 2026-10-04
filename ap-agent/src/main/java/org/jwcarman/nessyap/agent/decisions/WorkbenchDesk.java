@@ -17,6 +17,7 @@ package org.jwcarman.nessyap.agent.decisions;
 
 import java.time.Clock;
 import java.util.Optional;
+import java.util.UUID;
 import org.jwcarman.nessy.api.Awaited;
 import org.jwcarman.nessy.api.tool.ApprovalRequest;
 import org.jwcarman.nessy.api.tool.ApprovalResult;
@@ -43,6 +44,7 @@ public class WorkbenchDesk implements Approver {
   private final JsonMapper json;
   private final Clock clock;
   private final String role;
+  private final Provenance provenance;
 
   public WorkbenchDesk(
       String role,
@@ -50,7 +52,9 @@ public class WorkbenchDesk implements Approver {
       Cases cases,
       CaseTimeline timeline,
       JsonMapper json,
-      Clock clock) {
+      Clock clock,
+      Provenance provenance) {
+    this.provenance = provenance;
     this.role = role;
     this.decisions = decisions;
     this.cases = cases;
@@ -82,9 +86,10 @@ public class WorkbenchDesk implements Approver {
           ApprovalResult.denied("The policy sent this to a buyer but named none; it cannot wait."));
     }
     CaseRecord c = found.get();
+    UUID decisionId = Ids.next();
     decisions.insert(
         new PendingDecision(
-            Ids.next(),
+            decisionId,
             request.agentId(),
             request.idempotencyKey().value(),
             request.replyToken(),
@@ -105,6 +110,8 @@ public class WorkbenchDesk implements Approver {
             clock.instant(),
             role,
             requiredUser));
+    decisions.rememberProvenance(
+        decisionId, json.writeValueAsString(provenance.stamp(request.agentType())));
     cases.setStatus(c.exceptionId(), CaseStatus.AWAITING_DECISION);
     timeline.record(c.exceptionId(), "proposal", request.action() + " (for " + role + ")");
     return Awaited.deferred();
