@@ -22,8 +22,8 @@ The code is in `ap-eval` (`Scenarios.java`) and in the ERP simulator (`ScenarioC
 | Settled by | Scenarios |
 |---|---|
 | The rules | price-variance-small, price-variance-large, qty-over-receipt, no-receipt, unplanned-freight, duplicate, possible-duplicate, redelivered, injected-invoice, injected-invoice-number, bank-change-fraud, silent-buyer, buyer-denies, unsolicited-bank-change, slow-erp |
-| The rules, after one fact | item-substituted, substitute-at-po-price |
-| The agent | no-po, silent-vendor, injected-reply, injected-reply-reject, bank-change-by-mail, substitution-unclear |
+| The rules, after one fact | item-substituted, substitute-at-po-price, substitute-returned |
+| The agent | no-po, silent-vendor, injected-reply, injected-reply-reject, bank-change-by-mail, substitution-unclear, substitution-clarified, substitute-declined-in-words, vendor-names-the-po, goods-arrive |
 | Either | flaky-erp: the rules, unless a read fails three times and a fact stays unknown |
 
 The first full run measured this table: every scenario was settled as it says, and
@@ -389,6 +389,63 @@ but at the price we ordered at." The buyer chooses "keep the goods, pay the PO p
 
 **What it tests.** That a structured decline is a fact: the rules run again and propose the
 short-pay, with no agent and a second decider.
+
+### substitute-returned
+
+**The situation.** As `item-substituted`, and the buyer declines: "Send them back; that job needs
+zinc." The buyer chooses "return the goods".
+
+**Acceptable.** Request a credit memo (the clerk).
+
+**What it tests.** The other structured decline: the rules run again and ask for a credit memo.
+
+### substitute-declined-in-words
+
+**The situation.** As `item-substituted`, and the buyer declines in words only: "We will keep the
+stainless bolts, but we only pay what we ordered them at: 10.00 each." The buyer chooses no
+reason from the list.
+
+**Acceptable.** Short-pay to the PO price (the AP manager).
+
+**What it tests.** That the rules stop when a decline gives them nothing they can act on
+(`declined`), and that the agent turns the decider's words into the right action.
+
+### substitution-clarified
+
+**The situation.** As `substitution-unclear`, but the vendor's second answer is clear: "We were
+out of stock of the zinc M8 bolts, so we shipped our stainless M8-HEX-SS-100 instead". If the
+agent asks the buyer, the buyer says to pay them.
+
+**Acceptable.** Approve the variance (the buyer).
+
+**What it tests.** That the agent recovers from an answer it cannot use. It must ask again and
+take the case to the buyer, not stop at a hold.
+
+## The agent with a confirmed fact
+
+### vendor-names-the-po
+
+**The situation.** The vendor has a real order, received in full at its price, but the invoice
+cites a PO number the ERP does not hold. Asked which order it is for, the vendor names the real
+one. The ERP confirms that it holds that PO for this vendor.
+
+**Acceptable.** Approve the variance (the AP manager).
+
+**Facts.** The invoice and the real PO.
+
+**What it tests.** The one path where a vendor's claim becomes a fact the desk trusts. Every
+other reply in the catalogue confirms nothing. The agent must use the confirmed PO to finish the
+case, not hold it.
+
+### goods-arrive
+
+**The situation.** As `qty-over-receipt`: billed for 100, received 60. The rules hold it, and a
+clerk approves the hold. Then the other 40 arrive, and a clerk posts the receipt.
+
+**Acceptable.** Approve the variance (the AP manager).
+
+**What it tests.** That a receipt reaches a case on hold: the case goes to its agent, which reads
+the receipts again and pays the invoice.
 
 ## Faults
 

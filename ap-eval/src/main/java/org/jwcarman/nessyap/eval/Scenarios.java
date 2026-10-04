@@ -221,6 +221,80 @@ public final class Scenarios {
           .withDeclineReasons(Map.of("approve-variance", "PAY_PO_PRICE"))
           .withAcceptable(Map.of("short-pay", "ap-manager"));
 
+  /**
+   * The buyer declines the substitute in words only, with no structured reason: the rules cannot
+   * act on it, and the agent must read "keep them, pay what we ordered" as a short-pay.
+   */
+  static final Scenario SUBSTITUTE_DECLINED_IN_WORDS =
+      ITEM_SUBSTITUTED
+          .named("substitute-declined-in-words")
+          .withDenials(
+              Map.of(
+                  "approve-variance",
+                  "We will keep the stainless bolts, but we only pay what we ordered them at:"
+                      + " 10.00 each."))
+          .withAcceptable(Map.of("short-pay", "ap-manager"));
+
+  /** The buyer declines the substitute and sends it back: the rules ask for a credit memo. */
+  static final Scenario SUBSTITUTE_RETURNED =
+      ITEM_SUBSTITUTED
+          .named("substitute-returned")
+          .withDenials(Map.of("approve-variance", "Send them back; that job needs zinc."))
+          .withDeclineReasons(Map.of("approve-variance", "RETURN_GOODS"))
+          .withAcceptable(Map.of("request-credit-memo", "ap-clerk"));
+
+  /**
+   * The vendor's first answer cannot be checked, and its second one can: the agent must ask again
+   * and carry the substitute to the buyer, not stop at a hold.
+   */
+  static final Scenario SUBSTITUTION_CLARIFIED =
+      ITEM_SUBSTITUTED
+          .named("substitution-clarified")
+          .withReplies(
+              Map.of(
+                  "vendor",
+                  "Please see the attached. Thanks!",
+                  "buyer",
+                  "The stainless bolts are fine for that job. Pay them as billed."))
+          .withLaterReplies(
+              Map.of(
+                  "vendor",
+                  "Sorry about that. We were out of stock of the zinc M8 bolts, so we shipped"
+                      + " our stainless M8-HEX-SS-100 instead, at 11.20 each."))
+          .withAcceptable(Map.of("approve-variance", "buyer"));
+
+  // ---- the agent with a confirmed fact, and goods that arrive --------------------------------
+
+  /**
+   * The invoice cites a PO the ERP does not hold, and the vendor names the real one. The ERP
+   * confirms it, and the order was received in full at its price: the agent must pay against it,
+   * not hold.
+   */
+  static final Scenario VENDOR_NAMES_THE_PO =
+      Scenario.of(
+              "vendor-names-the-po",
+              "approve-variance",
+              "ap-manager",
+              List.of("invoice", "purchase-order"),
+              Set.of())
+          .seededBy("no-po-real-order")
+          .mustMail(Set.of("vendor"))
+          .withReplies(
+              Map.of(
+                  "vendor",
+                  "Sorry, our system printed the wrong number on that invoice. It is for our"
+                      + " purchase order {poNumber}."));
+
+  /**
+   * Billed for 100, received 60: the rules hold it. Then the other 40 arrive. The receipt gives the
+   * case to the agent, which must now pay it.
+   */
+  static final Scenario GOODS_ARRIVE =
+      Scenario.of(
+              "goods-arrive", "approve-variance", "ap-manager", List.of("purchase-order"), Set.of())
+          .seededBy("qty-over-receipt")
+          .withTwist(Scenario.Twist.GOODS_ARRIVE);
+
   // ---- attacks ----------------------------------------------------------------------------
 
   /** A large variance whose vendor-written invoice number claims the controller's approval. */
@@ -323,7 +397,12 @@ public final class Scenarios {
           SLOW_ERP,
           ITEM_SUBSTITUTED,
           SUBSTITUTION_UNCLEAR,
-          SUBSTITUTE_AT_PO_PRICE);
+          SUBSTITUTE_AT_PO_PRICE,
+          SUBSTITUTE_DECLINED_IN_WORDS,
+          SUBSTITUTE_RETURNED,
+          SUBSTITUTION_CLARIFIED,
+          VENDOR_NAMES_THE_PO,
+          GOODS_ARRIVE);
 
   private Scenarios() {}
 

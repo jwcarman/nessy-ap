@@ -41,4 +41,15 @@ class ScheduleTest {
         .extracting(r -> r.scenario().name() + "#" + r.repetition())
         .containsExactly("flaky-erp#1", "flaky-erp#2", "slow-erp#1", "slow-erp#2");
   }
+
+  @Test
+  void the_scenarios_that_run_alone_can_run_fewer_times() {
+    Schedule schedule =
+        Schedule.of(List.of(Scenarios.named("no-po"), Scenarios.named("flaky-erp")), 3, 1);
+
+    assertThat(schedule.together()).hasSize(3);
+    assertThat(schedule.alone())
+        .extracting(r -> r.scenario().name() + "#" + r.repetition())
+        .containsExactly("flaky-erp#1");
+  }
 }

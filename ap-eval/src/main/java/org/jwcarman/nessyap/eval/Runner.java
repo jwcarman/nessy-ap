@@ -131,6 +131,7 @@ final class Runner {
     Instant started = Instant.now();
     boolean redeliveryDone = scenario.twist() != Scenario.Twist.REDELIVERED;
     boolean unsolicitedDone = scenario.twist() != Scenario.Twist.UNSOLICITED_BANK_CHANGE;
+    boolean goodsDone = scenario.twist() != Scenario.Twist.GOODS_ARRIVE;
     JsonNode seeded = http.post(erpUrl + "/admin/scenarios/" + scenario.erpScenario());
     UUID exceptionId = UUID.fromString(seeded.path("exceptionIds").get(0).asString());
     log.info("{} #{}: exception {}", scenario.name(), repetition, exceptionId);
@@ -152,14 +153,18 @@ final class Runner {
           writeUnprompted(seeded);
           unsolicitedDone = true;
         }
+        if (!goodsDone && "ON_HOLD".equals(lastSeen.path("status").asString())) {
+          deliverTheRest(seeded);
+          goodsDone = true;
+        }
         decidePending(lastSeen, scenario);
         int before = answered.size();
         answerQuestions(lastSeen, scenario, answered);
-        answerMail(lastSeen, scenario, answered);
+        answerMail(lastSeen, scenario, answered, seeded);
         if (answered.size() > before) {
           lastAnswered = Instant.now();
         }
-        if (Settled.of(lastSeen, Instant.now(), quiet, lastAnswered)) {
+        if (goodsDone && Settled.of(lastSeen, Instant.now(), quiet, lastAnswered)) {
           break;
         }
       }
@@ -291,11 +296,30 @@ final class Runner {
     log.info("  an outsider mailed the desk a bank change for {}", number);
   }
 
-  /** The vendor answers each message the desk sent it once, as the scenario scripts. */
-  private void answerMail(JsonNode view, Scenario scenario, Set<String> answered) {
+  /**
+   * The rest of a short shipment arrives: a clerk posts a receipt for the 40 units the seed left
+   * missing.
+   */
+  private void deliverTheRest(JsonNode seeded) {
+    String po = seeded.path("poNumber").asString();
+    http.postJson(
+        erpUrl + "/api/receipts",
+        keycloak.tokenFor(PEOPLE.get("ap-clerk")),
+        Map.of("poNumber", po, "lines", List.of(Map.of("poLineNo", 1, "quantity", 40))));
+    log.info("  the rest of the goods arrived on {}", po);
+  }
+
+  /**
+   * The vendor answers each message the desk sent it once, as the scenario scripts: its first
+   * answer to the first message, and its later answer to each one after.
+   */
+  private void answerMail(JsonNode view, Scenario scenario, Set<String> answered, JsonNode seeded) {
+    Map<String, Integer> sent = new HashMap<>();
     for (JsonNode mail : view.path("mail")) {
       String messageId = mail.path("messageId").asString();
-      String text = scenario.replies().get(mail.path("kind").asString());
+      String kind = mail.path("kind").asString();
+      int earlier = sent.merge(kind, 1, Integer::sum) - 1;
+      String text = replyTo(scenario, kind, earlier, seeded);
       if (text == null || !answered.add(messageId)) {
         continue;
       }
@@ -309,6 +333,18 @@ final class Runner {
           mail.path("kind").asString(),
           text);
     }
+  }
+
+  /**
+   * What a counterparty answers to its message after {@code earlier} others, with the seed's PO
+   * number in place of {@code {poNumber}}.
+   */
+  static String replyTo(Scenario scenario, String kind, int earlier, JsonNode seeded) {
+    String text =
+        earlier > 0 && scenario.laterReplies().containsKey(kind)
+            ? scenario.laterReplies().get(kind)
+            : scenario.replies().get(kind);
+    return text == null ? null : text.replace("{poNumber}", seeded.path("poNumber").asString());
   }
 
   /** The facts the seed says a right decision rests on, by name. */

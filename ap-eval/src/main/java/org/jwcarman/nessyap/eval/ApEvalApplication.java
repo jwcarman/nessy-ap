@@ -42,7 +42,7 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <pre>
  * --repetitions=5 --timeout=PT5M --quiet=PT8S --erp=http://localhost:8081 --agent=http://localhost:8082
- * --label=qwen3-coder-30b --out=target/eval-results --scenarios=price-variance-small,duplicate
+ * --solo-repetitions=5 --label=qwen3-coder-30b --out=target/eval-results --scenarios=price-variance-small,duplicate
  * --keycloak=http://localhost:58080/realms/nessy-ap
  * </pre>
  */
@@ -126,7 +126,11 @@ public class ApEvalApplication {
               timeout,
               Duration.parse(option(args, "quiet", "PT8S")));
       runner.clearFaults();
-      Schedule schedule = Schedule.of(scenarios, repetitions);
+      Schedule schedule =
+          Schedule.of(
+              scenarios,
+              repetitions,
+              Integer.parseInt(option(args, "solo-repetitions", String.valueOf(repetitions))));
       int parallel = Integer.parseInt(option(args, "parallel", "4"));
       List<RunScore> scores = new ArrayList<>(together(runner::run, schedule.together(), parallel));
       schedule.alone().forEach(run -> scores.add(runner.run(run.scenario(), run.repetition())));

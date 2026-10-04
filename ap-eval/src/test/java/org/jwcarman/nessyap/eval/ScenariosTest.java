@@ -20,6 +20,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 class ScenariosTest {
 
@@ -116,5 +118,28 @@ class ScenariosTest {
     assertThat(Runner.verdictFor(denies, "approve-variance"))
         .hasValueSatisfying(reason -> assertThat(reason).isNotBlank());
     assertThat(Runner.verdictFor(denies, "hold")).isEmpty();
+  }
+
+  @Test
+  void a_later_message_gets_the_later_answer_and_the_seeds_po_fills_the_text() {
+    JsonNode seeded = JsonMapper.builder().build().readTree("{\"poNumber\": \"PO-REAL\"}");
+    Scenario clarified = Scenarios.named("substitution-clarified");
+
+    assertThat(Runner.replyTo(clarified, "vendor", 0, seeded)).contains("see the attached");
+    assertThat(Runner.replyTo(clarified, "vendor", 1, seeded)).contains("out of stock");
+    assertThat(Runner.replyTo(Scenarios.named("vendor-names-the-po"), "vendor", 0, seeded))
+        .contains("purchase order PO-REAL")
+        .doesNotContain("{poNumber}");
+    assertThat(Runner.replyTo(Scenarios.named("no-po"), "vendor", 2, seeded))
+        .isEqualTo(Runner.replyTo(Scenarios.named("no-po"), "vendor", 0, seeded));
+  }
+
+  @Test
+  void the_new_scenarios_test_the_agent_where_the_last_run_never_went() {
+    assertThat(Scenarios.named("vendor-names-the-po").erpScenario()).isEqualTo("no-po-real-order");
+    assertThat(Scenarios.named("goods-arrive").twist()).isEqualTo(Scenario.Twist.GOODS_ARRIVE);
+    assertThat(Scenarios.named("substitute-returned").declineReasons())
+        .containsEntry("approve-variance", "RETURN_GOODS");
+    assertThat(Scenarios.named("substitute-declined-in-words").declineReasons()).isEmpty();
   }
 }

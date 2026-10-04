@@ -37,11 +37,20 @@ record Schedule(List<Run> together, List<Run> alone) {
   }
 
   static Schedule of(List<Scenario> scenarios, int repetitions) {
+    return of(scenarios, repetitions, repetitions);
+  }
+
+  /**
+   * As {@link #of(List, int)}, with a run count of its own for the scenarios that run alone: they
+   * take the longest, one at a time.
+   */
+  static Schedule of(List<Scenario> scenarios, int repetitions, int aloneRepetitions) {
     List<Run> together = new ArrayList<>();
     List<Run> alone = new ArrayList<>();
     for (Scenario scenario : scenarios) {
-      for (int i = 1; i <= repetitions; i++) {
-        (scenario.twist().global() ? alone : together).add(new Run(scenario, i));
+      boolean global = scenario.twist().global();
+      for (int i = 1; i <= (global ? aloneRepetitions : repetitions); i++) {
+        (global ? alone : together).add(new Run(scenario, i));
       }
     }
     return new Schedule(together, alone);

@@ -320,6 +320,13 @@ from run to run.
 
 See [Stay deterministic as long as you can](../deterministic-first.md).
 
+## 16. Spend runs where the answer varies
+
+Twenty runs of a scenario that the rules settle the same way every time measure nothing new. The
+scenarios that run alone take longest, one at a time: `--solo-repetitions` gives them a run count
+of their own. `flaky-erp` is the one to watch, because its faults are random: a few runs show that
+both of its paths still work, but not how often each happens.
+
 ## Run it yourself
 
 ```bash
