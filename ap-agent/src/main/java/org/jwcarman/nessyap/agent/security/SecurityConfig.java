@@ -37,7 +37,7 @@ public class SecurityConfig {
 
   @Bean
   @Order(1)
-  public SecurityFilterChain api(HttpSecurity http) throws Exception {
+  public SecurityFilterChain api(HttpSecurity http) {
     http.securityMatcher("/api/**")
         .authorizeHttpRequests(requests -> requests.anyRequest().authenticated())
         .oauth2ResourceServer(
@@ -52,7 +52,7 @@ public class SecurityConfig {
   @Bean
   @Order(2)
   public SecurityFilterChain workbench(
-      HttpSecurity http, ClientRegistrationRepository registrations) throws Exception {
+      HttpSecurity http, ClientRegistrationRepository registrations) {
     DefaultOAuth2AuthorizationRequestResolver authorizationRequests =
         new DefaultOAuth2AuthorizationRequestResolver(registrations, "/oauth2/authorization");
     authorizationRequests.setAuthorizationRequestCustomizer(
