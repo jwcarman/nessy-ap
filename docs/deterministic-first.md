@@ -287,6 +287,21 @@ Usage per case for the new agent scenarios, all `gpt-6-luna`:
 | vendor-names-the-po | 26,338 | 1,232 | 21,062 | 4,533 | 597 |
 | goods-arrive | 16,605 | 614 | 13,318 | 3,273 | 228 |
 
+## The run on the governance build
+
+The governance build added provenance on every proposal, the pause, the budgets and the `ap.`
+metrics. Its full run had the same 550 cases, on `gpt-6-luna`, 16 side by side.
+
+**547 of 550 passed.** The 3 failures were all `vendor-names-the-po`. In each, the agent wanted the
+buyer to confirm the order before paying, and `ask_buyer` could not reach anyone: it looked for
+the buyer only on the invoice's own PO, which does not exist. The desk now keeps a PO that the ERP
+confirmed from a reply, and `ask_buyer` asks that order's buyer when the case's own PO has none.
+After that change, `vendor-names-the-po` passed 20 of 20, and in 15 of them the agent asked the
+buyer first.
+
+The new metrics agreed with the evaluation: `ap.rules.escalated` counted 202 cases given to the
+agent, the same 202 runs the report counts as settled by the agent.
+
 ## What is not done
 
 - **A second reading for facts that move money.** The design reads a reply twice for such a fact
