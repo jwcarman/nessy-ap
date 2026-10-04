@@ -142,6 +142,10 @@ public class DeskMail {
     cases.addAgent(exceptionId, QuarantineConfig.READER, ModelReplyReader.agentFor(reply));
     timeline.append(
         exceptionId, "mail-received", from + ": " + summary(reading), reading.reply().id());
+    // A PO the ERP confirms for this vendor is a fact of the case: its buyer can be asked.
+    reading
+        .confirmedPo()
+        .ifPresent(po -> cases.rememberSlot(exceptionId, Cases.CONFIRMED_PO, po, "erp-confirmed"));
     // A reply to the rules' own question is theirs to read; any other reply is the agent's.
     CaseInput.CounterpartyReply forAgent =
         new CaseInput.CounterpartyReply(

@@ -150,6 +150,9 @@ public class Cases {
         .list();
   }
 
+  /** The slot that holds a PO the ERP confirmed for the case's vendor from a reply. */
+  public static final String CONFIRMED_PO = "confirmedPo";
+
   /** The open cases on a PO that the rules still work. */
   public List<UUID> rulesCasesForPo(String poNumber) {
     return jdbc.sql(

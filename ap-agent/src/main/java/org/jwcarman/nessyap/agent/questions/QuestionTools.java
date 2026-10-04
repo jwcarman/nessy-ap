@@ -75,8 +75,10 @@ public class QuestionTools {
       @Override
       public String description() {
         return "Ask the buyer who placed this case's purchase order a question on the workbench,"
-            + " for example whether a price was agreed or which order an invoice belongs to. The"
-            + " answer comes back to this case.";
+            + " for example whether a price was agreed or which order an invoice belongs to. If"
+            + " the invoice's own purchase order does not exist, the question goes to the buyer"
+            + " of the order the ERP confirmed from the vendor's reply. The answer comes back to"
+            + " this case.";
       }
 
       @Override
@@ -123,10 +125,19 @@ public class QuestionTools {
                 + " hold just to wait."));
   }
 
+  /**
+   * The buyer of the case's own PO, or else of the PO the ERP confirmed for the case from a reply.
+   * The agent never names the person.
+   */
   private Optional<String> buyerOf(CaseRecord c) {
+    Optional<String> own = buyerOf(c, c.poNumber());
+    return own.isPresent() ? own : buyerOf(c, cases.slots(c.exceptionId()).get(Cases.CONFIRMED_PO));
+  }
+
+  private Optional<String> buyerOf(CaseRecord c, String poNumber) {
     // The PO number is the vendor's claim: the buyer counts only if the PO is the case vendor's.
-    if (c.poNumber() != null
-        && erp.purchaseOrder(c.poNumber()) instanceof ErpOutcome.Ok(JsonNode po)
+    if (poNumber != null
+        && erp.purchaseOrder(poNumber) instanceof ErpOutcome.Ok(JsonNode po)
         && po.hasNonNull("buyer")
         && c.vendorId().toString().equals(po.path("vendorId").asString())) {
       return Optional.of(po.get("buyer").asString());

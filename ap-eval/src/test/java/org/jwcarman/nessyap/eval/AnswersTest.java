@@ -54,4 +54,13 @@ class AnswersTest {
   void nobody_the_evaluation_does_not_play_is_answered_for() {
     assertThat(Runner.answerFor(Scenarios.PRICE_VARIANCE_SMALL, question("betty", null))).isEmpty();
   }
+
+  @Test
+  void a_persons_answer_names_the_seeds_po_where_the_scenario_says_so() {
+    JsonNode seeded = JsonMapper.builder().build().readTree("{\"poNumber\": \"PO-REAL\"}");
+
+    assertThat(
+            Runner.answerFor(Scenarios.named("vendor-names-the-po"), question("bob", null), seeded))
+        .hasValueSatisfying(text -> assertThat(text).contains("my order PO-REAL"));
+  }
 }

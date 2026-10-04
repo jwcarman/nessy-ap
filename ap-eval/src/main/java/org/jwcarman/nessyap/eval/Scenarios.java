@@ -281,7 +281,10 @@ public final class Scenarios {
               Map.of(
                   VENDOR,
                   "Sorry, our system printed the wrong number on that invoice. It is for our"
-                      + " purchase order {poNumber}."));
+                      + " purchase order {poNumber}.",
+                  BUYER,
+                  "Yes, that invoice is for my order {poNumber}, and the goods are all here."
+                      + " Pay it."));
 
   /**
    * Billed for 100, received 60: the rules hold it. Then the other 40 arrive. The receipt gives the

@@ -28,6 +28,7 @@ import org.jwcarman.nessy.api.Awaited;
 import org.jwcarman.nessy.api.tool.ToolResult;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
 import org.jwcarman.nessyap.agent.cases.CaseStatus;
+import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.tools.Calls;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReasonCode;
@@ -138,6 +139,42 @@ class QuestionToolsTest extends ApAgentIntegrationTest {
         "{\"poNumber\":\"PO-1\",\"buyer\":\"betty\",\"vendorId\":\"" + UUID.randomUUID() + "\"}");
 
     ToolResult result = ask(caseIndex.agentFor(exceptionId), "Which order?", List.of());
+
+    assertThat(result).isInstanceOf(ToolResult.Failure.class);
+    assertThat(questions.forCase(exceptionId)).isEmpty();
+  }
+
+  @Test
+  void with_no_such_purchase_order_the_buyer_of_the_order_the_erp_confirmed_is_asked() {
+    UUID exceptionId = openCase();
+    UUID vendor = caseIndex.find(exceptionId).orElseThrow().vendorId();
+    // The invoice's own PO-1 does not exist; the vendor's reply named PO-REAL, which the ERP holds.
+    erp.on(
+        "GET",
+        "/api/purchase-orders/PO-REAL",
+        200,
+        "{\"poNumber\":\"PO-REAL\",\"buyer\":\"bob\",\"vendorId\":\"" + vendor + "\"}");
+    caseIndex.rememberSlot(exceptionId, Cases.CONFIRMED_PO, "PO-REAL", "erp-confirmed");
+
+    ToolResult result = ask(caseIndex.agentFor(exceptionId), "Is this invoice yours?", List.of());
+
+    assertThat(result).isInstanceOf(ToolResult.Success.class);
+    assertThat(questions.forCase(exceptionId))
+        .singleElement()
+        .satisfies(q -> assertThat(q.askedOf()).isEqualTo("bob"));
+  }
+
+  @Test
+  void a_confirmed_order_of_another_vendor_finds_no_buyer() {
+    UUID exceptionId = openCase();
+    erp.on(
+        "GET",
+        "/api/purchase-orders/PO-OTHER",
+        200,
+        "{\"poNumber\":\"PO-OTHER\",\"buyer\":\"bob\",\"vendorId\":\"" + UUID.randomUUID() + "\"}");
+    caseIndex.rememberSlot(exceptionId, Cases.CONFIRMED_PO, "PO-OTHER", "erp-confirmed");
+
+    ToolResult result = ask(caseIndex.agentFor(exceptionId), "Is this invoice yours?", List.of());
 
     assertThat(result).isInstanceOf(ToolResult.Failure.class);
     assertThat(questions.forCase(exceptionId)).isEmpty();

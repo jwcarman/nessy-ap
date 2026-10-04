@@ -163,7 +163,7 @@ final class Runner {
         goodsDone = goodsDelivered(goodsDone, lastSeen, seeded);
         decidePending(lastSeen, scenario);
         int before = answered.size();
-        answerQuestions(lastSeen, scenario, answered);
+        answerQuestions(lastSeen, scenario, answered, seeded);
         answerMail(lastSeen, scenario, answered, seeded);
         if (answered.size() > before) {
           lastAnswered = Instant.now();
@@ -272,10 +272,11 @@ final class Runner {
   }
 
   /** The people inside the company answer the agent's questions on the workbench, signed in. */
-  private void answerQuestions(JsonNode view, Scenario scenario, Set<String> answered) {
+  private void answerQuestions(
+      JsonNode view, Scenario scenario, Set<String> answered, JsonNode seeded) {
     for (JsonNode question : view.path(QUESTIONS)) {
       String id = question.path("id").asString();
-      Optional<String> words = answerFor(scenario, question);
+      Optional<String> words = answerFor(scenario, question, seeded);
       if (words.isEmpty() || !answered.add(id)) {
         continue;
       }
@@ -294,6 +295,14 @@ final class Runner {
    * not play, or a role with nothing to say.
    */
   static Optional<String> answerFor(Scenario scenario, JsonNode question) {
+    return answerFor(scenario, question, null);
+  }
+
+  /**
+   * As {@link #answerFor(Scenario, JsonNode)}, with the seed's PO number in place of {@code
+   * {poNumber}}.
+   */
+  static Optional<String> answerFor(Scenario scenario, JsonNode question, JsonNode seeded) {
     if (!question.path(ANSWERED_AT).isNull() && !question.path(ANSWERED_AT).isMissingNode()) {
       return Optional.empty();
     }
@@ -302,7 +311,12 @@ final class Runner {
         .filter(e -> e.getValue().equals(person))
         .map(Map.Entry::getKey)
         .findFirst()
-        .map(role -> scenario.replies().get(role));
+        .map(role -> scenario.replies().get(role))
+        .map(
+            text ->
+                seeded == null
+                    ? text
+                    : text.replace("{poNumber}", seeded.path("poNumber").asString()));
   }
 
   /**

@@ -427,7 +427,8 @@ take the case to the buyer, not stop at a hold.
 
 **The situation.** The vendor has a real order, received in full at its price, but the invoice
 cites a PO number the ERP does not hold. Asked which order it is for, the vendor names the real
-one. The ERP confirms that it holds that PO for this vendor.
+one. The ERP confirms that it holds that PO for this vendor. If the agent asks the buyer of that
+order, the buyer says the invoice is theirs and the goods are all there.
 
 **Acceptable.** Approve the variance (the AP manager).
 
