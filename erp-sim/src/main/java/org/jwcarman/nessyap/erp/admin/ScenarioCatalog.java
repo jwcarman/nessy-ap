@@ -108,6 +108,7 @@ public class ScenarioCatalog {
     scenarios.put("possible-duplicate", this::possibleDuplicate);
     scenarios.put("price-variance-injected-number", this::priceVarianceInjectedNumber);
     scenarios.put("item-substituted", this::itemSubstituted);
+    scenarios.put("no-po-real-order", this::noPoRealOrder);
   }
 
   public Set<String> names() {
@@ -258,6 +259,19 @@ public class ScenarioCatalog {
     String missing = unique("PO");
     Invoice invoice = bill(vendor, unique("INV"), missing, "100", "10.00", "0");
     return result("no-po", vendor, missing, invoice);
+  }
+
+  /**
+   * The vendor has a real order, received in full, but the invoice cites a number the ERP does not
+   * hold. The result names the real order, so a scripted vendor can name it in a reply.
+   */
+  private ScenarioResult noPoRealOrder() {
+    Vendor vendor = acme();
+    PurchaseOrder po = order(vendor, "100", "10.00");
+    String receipt = receive(po, "100");
+    Invoice invoice = bill(vendor, unique("INV"), unique("PO"), "100", "10.00", "0");
+    return result(
+        "no-po-real-order", vendor, po.poNumber(), invoice, Map.of("receipts", List.of(receipt)));
   }
 
   private ScenarioResult bankChangeFraud() {

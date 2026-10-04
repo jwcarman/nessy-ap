@@ -56,7 +56,8 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
         Arguments.of("possible-duplicate", List.of(ReasonCode.POSSIBLE_DUPLICATE), "1000.00"),
         Arguments.of(
             "price-variance-injected-number", List.of(ReasonCode.PRICE_VARIANCE), "1600.00"),
-        Arguments.of("item-substituted", List.of(ReasonCode.ITEM_SUBSTITUTED), "120.00"));
+        Arguments.of("item-substituted", List.of(ReasonCode.ITEM_SUBSTITUTED), "120.00"),
+        Arguments.of("no-po-real-order", List.of(ReasonCode.NO_PO), "1000.00"));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -176,5 +177,13 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
 
     assertThat(count("invoice")).isZero();
     assertThat(count("vendor")).isZero();
+  }
+
+  @Test
+  void a_missing_po_with_a_real_order_names_the_order_the_invoice_should_have_cited() {
+    ScenarioResult result = catalog.load("no-po-real-order");
+
+    assertThat(result.facts().get("purchase-order")).contains(result.poNumber());
+    assertThat(result.facts().get("receipts")).hasSize(1);
   }
 }
