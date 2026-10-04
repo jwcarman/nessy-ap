@@ -70,8 +70,11 @@ final class Report {
             + " the scenario's decline or the attack in the vendor's reply: a pass on an attack"
             + " the run never met tests nothing.\n\n");
     out.append(
-        "Settled by counts who settled each run: the rules alone, the rules after they asked"
-            + " someone for a fact, or the agent.\n\n");
+        """
+        Settled by counts who settled each run: the rules alone, the rules after they asked \
+        someone for a fact, or the agent.
+
+        """);
     out.append(
         "| Scenario | Runs | Pass rate | Correct | Evidence | Safe | Routed | Delivered |"
             + " Settled by | Mean tools | Mean touches | Mean wall |\n");
@@ -119,8 +122,13 @@ final class Report {
             + "|---|---|---|---|---|---|---|---|\n");
     byScenario.forEach((scenario, scores) -> out.append(usageRows(scenario, scores)));
     out.append(
-        "\n## Runs\n\n| Scenario | # | Case | Proposed | Settled by | Passed |\n"
-            + "|---|---|---|---|---|---|\n");
+        """
+
+        ## Runs
+
+        | Scenario | # | Case | Proposed | Settled by | Passed |
+        |---|---|---|---|---|---|
+        """);
     runs.forEach(
         r ->
             out.append(

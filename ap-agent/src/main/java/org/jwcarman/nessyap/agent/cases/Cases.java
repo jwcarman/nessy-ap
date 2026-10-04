@@ -47,6 +47,8 @@ public class Cases {
 
   private static final NameBasedGenerator AGENT_IDS = Generators.nameBasedGenerator(NAMESPACE);
 
+  private static final String PO_NUMBER = "poNumber";
+
   private final JdbcClient jdbc;
   private final Clock clock;
 
@@ -77,7 +79,7 @@ public class Cases {
         .param("invoiceId", raised.invoiceId())
         .param("invoiceNumber", raised.invoiceNumber())
         .param("vendorId", raised.vendorId())
-        .param("poNumber", raised.poNumber(), Types.VARCHAR)
+        .param(PO_NUMBER, raised.poNumber(), Types.VARCHAR)
         .param("reasonCode", raised.reasonCode().name())
         .param("amount", raised.amountAtIssue())
         .param("now", now)
@@ -132,7 +134,7 @@ public class Cases {
             select exception_id from ap_case
             where po_number = :poNumber and status <> 'RESOLVED' and handled_by = 'rules'
             """)
-        .param("poNumber", poNumber)
+        .param(PO_NUMBER, poNumber)
         .query(UUID.class)
         .list();
   }
@@ -143,7 +145,7 @@ public class Cases {
             select agent_id from ap_case
             where po_number = :poNumber and status <> 'RESOLVED' and handled_by = 'agent'
             """)
-        .param("poNumber", poNumber)
+        .param(PO_NUMBER, poNumber)
         .query((rs, row) -> new AgentId(rs.getObject("agent_id", UUID.class)))
         .list();
   }

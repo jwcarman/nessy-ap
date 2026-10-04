@@ -37,6 +37,8 @@ final class Runner {
 
   private static final Logger log = LoggerFactory.getLogger(Runner.class);
   private static final Duration POLL = Duration.ofSeconds(2);
+  private static final String APPROVE = "approve";
+  private static final String COMMENT = "comment";
 
   /** Who plays each role. The buyer of every seeded PO is bob. */
   static final Map<String, String> PEOPLE =
@@ -195,8 +197,8 @@ final class Runner {
   static Map<String, Object> denial(Scenario scenario, String action, String comment) {
     String declineReason = scenario.declineReasons().get(action);
     return declineReason == null
-        ? Map.of("approve", false, "comment", comment)
-        : Map.of("approve", false, "comment", comment, "declineReason", declineReason);
+        ? Map.of(APPROVE, false, COMMENT, comment)
+        : Map.of(APPROVE, false, COMMENT, comment, "declineReason", declineReason);
   }
 
   /**
@@ -225,8 +227,7 @@ final class Runner {
                   .<Map<String, Object>>map(
                       reason -> denial(scenario, decision.path("action").asString(), reason))
                   .orElse(
-                      Map.of(
-                          "approve", true, "comment", "approved by the evaluation as " + person)));
+                      Map.of(APPROVE, true, COMMENT, "approved by the evaluation as " + person)));
       log.info(
           "  {} ({}) decided {}: {}",
           person,
@@ -248,7 +249,7 @@ final class Runner {
       http.postJson(
           agentUrl + "/api/questions/" + id + "/answer",
           keycloak.tokenFor(person),
-          Map.of("comment", words.get()));
+          Map.of(COMMENT, words.get()));
       log.info("  {} answered on the workbench: {}", person, words.get());
     }
   }
@@ -379,7 +380,14 @@ final class Runner {
         ungrounded,
         answeredQuestions(view),
         received,
-        view.path("handledBy").isString() ? view.path("handledBy").asString() : "agent");
+        handledBy(view));
+  }
+
+  /**
+   * Who worked the case at the end, as the case view says; a desk that does not say is the agent.
+   */
+  private static String handledBy(JsonNode view) {
+    return view.path("handledBy").isString() ? view.path("handledBy").asString() : "agent";
   }
 
   private static int answeredQuestions(JsonNode view) {

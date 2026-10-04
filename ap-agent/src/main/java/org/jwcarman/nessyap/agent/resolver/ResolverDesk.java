@@ -84,6 +84,11 @@ public class ResolverDesk {
   private static final String ERP_SUMMARY = "erp:summary";
 
   private static final String ASKED = "asked:";
+  private static final String VENDOR = "vendor";
+
+  /** The timeline kind, and the source of a slot, for what the rules did. */
+  private static final String BY_RULES = "rules";
+
   private static final String WITHDRAWN = "withdrawn: the agent took the case";
 
   private final Resolver resolver;
@@ -294,11 +299,11 @@ public class ResolverDesk {
             TOKEN);
     facts.enrich(request);
     timeline.record(
-        c.exceptionId(), "rules", "rule " + resolved.rule() + " proposes " + resolved.action());
+        c.exceptionId(), BY_RULES, "rule " + resolved.rule() + " proposes " + resolved.action());
     Awaited<ApprovalResult> routed = routing.approve(request);
     if (routed instanceof Awaited.Ready<ApprovalResult>(ApprovalResult.Denied denied)) {
       // The guardrails refused what the rules proposed: the rules' view is not enough here.
-      timeline.record(c.exceptionId(), "rules", "the policy refused it: " + denied.reason());
+      timeline.record(c.exceptionId(), BY_RULES, "the policy refused it: " + denied.reason());
       escalate(c, "refused");
     } else if (routed instanceof Awaited.Ready<ApprovalResult>) {
       // Every proposal waits for a person; one that does not would leave nobody acting.
@@ -308,7 +313,7 @@ public class ResolverDesk {
 
   private void ask(CaseRecord c, CaseSlots.Read read, String slot, String from) {
     boolean alreadyAsked = cases.slots(c.exceptionId()).containsKey(ASKED + slot);
-    if (alreadyAsked || !"vendor".equals(from) || read.vendorEmail() == null) {
+    if (alreadyAsked || !VENDOR.equals(from) || read.vendorEmail() == null) {
       escalate(c, "exhausted");
       return;
     }
@@ -317,7 +322,7 @@ public class ResolverDesk {
       sent =
           mailer.send(
               c.exceptionId(),
-              "vendor",
+              VENDOR,
               read.vendorEmail(),
               Questions.subject(slot, c.invoiceNumber()),
               Questions.body(slot, c.invoiceNumber()));
@@ -326,9 +331,9 @@ public class ResolverDesk {
       escalate(c, "unsent");
       return;
     }
-    cases.rememberSlot(c.exceptionId(), ASKED + slot, "vendor", "rules");
+    cases.rememberSlot(c.exceptionId(), ASKED + slot, VENDOR, BY_RULES);
     cases.setStatus(c.exceptionId(), CaseStatus.AWAITING_ANSWER);
-    timeline.record(c.exceptionId(), "rules", "the rules need " + slot + ": asked the vendor");
+    timeline.record(c.exceptionId(), BY_RULES, "the rules need " + slot + ": asked the vendor");
     // The same record line as every letter the agent sends.
     timeline.record(
         c.exceptionId(), "mail-sent", "vendor " + read.vendorEmail() + ": " + sent.subject());
@@ -338,7 +343,7 @@ public class ResolverDesk {
     cases.handToAgent(c.exceptionId());
     withdrawProposals(c);
     timeline.record(
-        c.exceptionId(), "rules", "the rules stopped (" + why + "): the agent takes it");
+        c.exceptionId(), BY_RULES, "the rules stopped (" + why + "): the agent takes it");
     log.info("Case {} goes to its agent: the rules stopped ({})", c.exceptionId(), why);
     Map<String, Object> known = new TreeMap<>(slots.read(c).slots());
     String summary = String.valueOf(known.getOrDefault(ERP_SUMMARY, ""));

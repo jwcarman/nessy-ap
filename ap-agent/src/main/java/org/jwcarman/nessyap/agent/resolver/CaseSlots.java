@@ -89,41 +89,63 @@ public class CaseSlots {
     Optional<JsonNode> po =
         c.poNumber() == null ? Optional.empty() : tried(() -> erp.purchaseOrder(c.poNumber()));
     JsonNode invoice = view.map(v -> v.path("invoice")).orElse(null);
-    BigDecimal total = null;
-    BigDecimal atPoPrice = null;
-    BigDecimal withoutCharges = null;
-    if (invoice != null) {
-      evidence.add(c.invoiceId().toString());
-      total = decimal(invoice.path("total"));
-      BigDecimal freight = decimal(invoice.path("freight"));
-      withoutCharges = total == null ? null : total.subtract(freight == null ? ZERO : freight);
-    }
-    boolean priced = false;
-    if (invoice != null && po.isPresent()) {
-      evidence.add(c.poNumber());
-      Lines lines = lines(invoice, po.get());
-      if (lines.variancePercent() != null) {
-        slots.put("variancePercent", lines.variancePercent());
-      }
-      if (lines.billedItem() != null) {
-        slots.put("billedItem", lines.billedItem());
-      }
-      priced = lines.priced();
-      atPoPrice = priced ? lines.atPoPrice() : null;
-      withoutCharges =
-          withoutCharges == null || !priced ? null : withoutCharges.subtract(lines.offPo());
-    } else if (c.poNumber() != null) {
-      // Without the PO, the desk cannot tell a charge the PO has from one it does not.
-      withoutCharges = null;
-    }
+    Amounts amounts = amounts(c, invoice, po, slots, evidence);
     readReceipts(c, slots, evidence);
     String vendorEmail = readVendor(c, evidence);
     readOriginal(c, invoice, slots, evidence);
     cases.slots(c.exceptionId()).forEach(slots::put);
     declined(c).ifPresent(action -> slots.put("declinedAction", action));
-    boolean complete = invoice != null && (c.poNumber() == null || (po.isPresent() && priced));
     return new Read(
-        slots, List.copyOf(evidence), total, atPoPrice, withoutCharges, vendorEmail, complete);
+        slots,
+        List.copyOf(evidence),
+        amounts.total(),
+        amounts.atPoPrice(),
+        amounts.withoutCharges(),
+        vendorEmail,
+        amounts.complete());
+  }
+
+  /** The invoice's amounts, and whether the desk read enough to rest a resolution on them. */
+  private record Amounts(
+      BigDecimal total, BigDecimal atPoPrice, BigDecimal withoutCharges, boolean complete) {}
+
+  private static Amounts amounts(
+      CaseRecord c,
+      JsonNode invoice,
+      Optional<JsonNode> po,
+      Map<String, Object> slots,
+      Set<String> evidence) {
+    if (invoice == null) {
+      return new Amounts(null, null, null, false);
+    }
+    evidence.add(c.invoiceId().toString());
+    BigDecimal total = decimal(invoice.path("total"));
+    BigDecimal freight = decimal(invoice.path("freight"));
+    BigDecimal beforeCharges =
+        total == null ? null : total.subtract(freight == null ? ZERO : freight);
+    if (c.poNumber() == null) {
+      return new Amounts(total, null, beforeCharges, true);
+    }
+    if (po.isEmpty()) {
+      // Without the PO, the desk cannot tell a charge the PO has from one it does not.
+      return new Amounts(total, null, null, false);
+    }
+    evidence.add(c.poNumber());
+    Lines lines = lines(invoice, po.get());
+    if (lines.variancePercent() != null) {
+      slots.put("variancePercent", lines.variancePercent());
+    }
+    if (lines.billedItem() != null) {
+      slots.put("billedItem", lines.billedItem());
+    }
+    if (!lines.priced()) {
+      return new Amounts(total, null, null, false);
+    }
+    return new Amounts(
+        total,
+        lines.atPoPrice(),
+        beforeCharges == null ? null : beforeCharges.subtract(lines.offPo()),
+        true);
   }
 
   /**
