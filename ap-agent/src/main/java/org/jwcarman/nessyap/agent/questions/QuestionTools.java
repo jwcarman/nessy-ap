@@ -110,7 +110,7 @@ public class QuestionTools {
     try {
       notice.send(buyer.get(), c.invoiceNumber());
       told = "They have been told it waits.";
-    } catch (MailException e) {
+    } catch (MailException _) {
       told = "The notice mail failed, but the question waits on their worklist.";
     }
     return ToolResult.ok(

@@ -131,10 +131,9 @@ public class VendorChangesController {
 
   private static String describe(ErpOutcome outcome, String done) {
     return switch (outcome) {
-      case ErpOutcome.Ok ok -> done;
-      case ErpOutcome.Refused(int status, String code, String detail) ->
-          "The ERP refused: " + detail;
-      case ErpOutcome.Unavailable(String reason) -> "The ERP could not be reached; try again.";
+      case ErpOutcome.Ok _ -> done;
+      case ErpOutcome.Refused(_, _, String detail) -> "The ERP refused: " + detail;
+      case ErpOutcome.Unavailable _ -> "The ERP could not be reached; try again.";
     };
   }
 }

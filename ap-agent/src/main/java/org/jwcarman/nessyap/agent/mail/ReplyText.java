@@ -63,7 +63,7 @@ public final class ReplyText {
                       .replace("&lt;", "<")
                       .replace("&gt;", ">")
                       .replace("&amp;", "&"));
-    } catch (MessagingException | IOException e) {
+    } catch (MessagingException | IOException _) {
       return Optional.empty();
     }
   }

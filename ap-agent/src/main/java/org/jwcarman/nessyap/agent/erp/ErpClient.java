@@ -186,7 +186,7 @@ public class ErpClient {
               HttpResponse.BodyHandlers.ofString());
     } catch (IOException e) {
       return new ErpOutcome.Unavailable(describe(e));
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
       return new ErpOutcome.Unavailable("interrupted");
     }
@@ -217,7 +217,7 @@ public class ErpClient {
         return new ErpOutcome.Refused(
             status, problem.get("code").asString(), problem.path("detail").asString(""));
       }
-    } catch (JacksonException e) {
+    } catch (JacksonException _) {
       // not a problem document; fall through to the bare status
     }
     return new ErpOutcome.Refused(status, "HTTP_" + status, body);
@@ -227,7 +227,7 @@ public class ErpClient {
     try {
       JsonNode problem = json.readTree(body);
       return problem.path("code").asString(problem.path("detail").asString(""));
-    } catch (JacksonException e) {
+    } catch (JacksonException _) {
       return "";
     }
   }

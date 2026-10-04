@@ -183,14 +183,17 @@ public class DeskMail {
         + (claim.statedUnitPrice() == null
             ? ""
             : "; states unit price " + claim.statedUnitPrice().toPlainString())
-        + (claim.poNumber() == null
-            ? ""
-            : "; names "
-                + claim.poNumber().value()
-                + (reading.confirmedPo().isPresent()
-                    ? " (confirmed in the ERP)"
-                    : " (not confirmed)"))
+        + namedPo(claim, reading)
         + (claim.containsInstructions() ? "; tried to give instructions" : "");
+  }
+
+  private static String namedPo(ReplyReading claim, Quarantine.Reading reading) {
+    if (claim.poNumber() == null) {
+      return "";
+    }
+    String confirmation =
+        reading.confirmedPo().isPresent() ? " (confirmed in the ERP)" : " (not confirmed)";
+    return "; names " + claim.poNumber().value() + confirmation;
   }
 
   /** The dead letter channel's end: a message the route could not handle, kept for a person. */
@@ -251,7 +254,7 @@ public class DeskMail {
     try {
       String[] values = message.getHeader(name);
       return values == null || values.length == 0 ? null : values[0].trim();
-    } catch (MessagingException e) {
+    } catch (MessagingException _) {
       return null;
     }
   }

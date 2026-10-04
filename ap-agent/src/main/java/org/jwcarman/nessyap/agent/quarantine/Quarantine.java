@@ -76,13 +76,13 @@ public class Quarantine {
       }
     }
     ReplyReading claim =
-        agentReadings.reveal(made) instanceof Revealed.Allowed<ReplyReading> allowed
-            ? allowed.plaintext()
+        agentReadings.reveal(made) instanceof Revealed.Allowed<ReplyReading>(var plaintext)
+            ? plaintext
             : ReplyReader.unread(reply);
     Optional<String> confirmed =
         confirmPo.derive(made) instanceof Derived.Made<ConfirmedPo>(Occluded<ConfirmedPo> po)
-                && agentConfirmedPos.reveal(po) instanceof Revealed.Allowed<ConfirmedPo> fact
-            ? Optional.of(fact.plaintext().poNumber().value())
+                && agentConfirmedPos.reveal(po) instanceof Revealed.Allowed<ConfirmedPo>(var fact)
+            ? Optional.of(fact.poNumber().value())
             : Optional.empty();
     return new Reading(held, claim, confirmed);
   }
@@ -95,8 +95,8 @@ public class Quarantine {
   /** The reply itself, for a person who works cases; empty for anybody else. */
   public Optional<Reply> forPerson(String handle) {
     return workbenchReplies.reveal(new Occluded<>(handle))
-            instanceof Revealed.Allowed<Reply> allowed
-        ? Optional.of(allowed.plaintext())
+            instanceof Revealed.Allowed<Reply>(var plaintext)
+        ? Optional.of(plaintext)
         : Optional.empty();
   }
 }

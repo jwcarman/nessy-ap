@@ -93,8 +93,8 @@ public class ProposeResolutionTool implements Tool<ProposeResolution> {
                   + view.path("invoice").path("status").asString()
                   + approved(view.path("invoice").path("approvedAmount"))
                   + ".";
-          case ErpOutcome.Refused r -> " The invoice could not be re-read.";
-          case ErpOutcome.Unavailable u -> " The ERP could not be reached to re-read it.";
+          case ErpOutcome.Refused _ -> " The invoice could not be re-read.";
+          case ErpOutcome.Unavailable _ -> " The ERP could not be reached to re-read it.";
         };
     CaseStatus status = CaseStatus.afterApplied(d.action());
     cases.setStatus(d.exceptionId(), status);
