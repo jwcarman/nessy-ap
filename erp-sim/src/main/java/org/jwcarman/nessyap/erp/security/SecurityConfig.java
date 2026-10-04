@@ -64,9 +64,10 @@ public class SecurityConfig {
         .oauth2ResourceServer(server -> server.jwt(Customizer.withDefaults()))
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        // Callers send a bearer token, never a cookie the browser adds by itself, so a forged
-        // cross-site request has nothing to ride on. The admin endpoints are for development.
-        .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/admin/**"));
+        // The resource server already exempts a request that carries a bearer token from CSRF.
+        // The admin endpoints take no token at all: they exist only for development and the
+        // evaluation, and no browser session can reach them.
+        .csrf(csrf -> csrf.ignoringRequestMatchers("/admin/**"));
     return http.build();
   }
 
