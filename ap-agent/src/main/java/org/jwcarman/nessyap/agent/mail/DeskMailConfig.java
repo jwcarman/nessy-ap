@@ -61,13 +61,15 @@ public class DeskMailConfig {
     return policy;
   }
 
+  private static final String IMAP_TIMEOUT_MILLIS = "10000";
+
   /** Without read timeouts a hung mail server would hold the route's consumer forever. */
   @Bean
   public Properties deskImapTimeouts() {
     Properties timeouts = new Properties();
-    timeouts.setProperty("mail.imap.connectiontimeout", "10000");
-    timeouts.setProperty("mail.imap.timeout", "10000");
-    timeouts.setProperty("mail.imap.writetimeout", "10000");
+    timeouts.setProperty("mail.imap.connectiontimeout", IMAP_TIMEOUT_MILLIS);
+    timeouts.setProperty("mail.imap.timeout", IMAP_TIMEOUT_MILLIS);
+    timeouts.setProperty("mail.imap.writetimeout", IMAP_TIMEOUT_MILLIS);
     return timeouts;
   }
 }

@@ -78,6 +78,8 @@ public class ErpTools {
       @JsonPropertyDescription("What to record on the case, for the people who work it")
           String text) {}
 
+  private static final String ACCOUNT_NUMBER = "accountNumber";
+
   private final ErpClient erp;
   private final Cases cases;
   private final CaseTimeline timeline;
@@ -236,10 +238,10 @@ public class ErpTools {
    */
   private static JsonNode maskAccounts(JsonNode vendor) {
     for (JsonNode account : vendor.path("bankAccounts")) {
-      if (account instanceof ObjectNode editable && account.hasNonNull("accountNumber")) {
-        String number = account.get("accountNumber").asString();
+      if (account instanceof ObjectNode editable && account.hasNonNull(ACCOUNT_NUMBER)) {
+        String number = account.get(ACCOUNT_NUMBER).asString();
         String last4 = number.length() <= 4 ? number : number.substring(number.length() - 4);
-        editable.put("accountNumber", "*".repeat(Math.max(0, number.length() - 4)) + last4);
+        editable.put(ACCOUNT_NUMBER, "*".repeat(Math.max(0, number.length() - 4)) + last4);
       }
       if (account instanceof ObjectNode editable && account.hasNonNull("proposedByEmail")) {
         editable.put("proposedByEmail", "(withheld: written by whoever asked for the change)");
@@ -321,7 +323,7 @@ public class ErpTools {
                         (preface == null ? "" : preface + "\n\n")
                             + json.writerWithDefaultPrettyPrinter()
                                 .writeValueAsString(shown.apply(value))));
-            case ErpOutcome.Refused(int status, String code, String detail) ->
+            case ErpOutcome.Refused(_, String code, String detail) ->
                 new ToolResult.Failure(code + ": " + detail);
             case ErpOutcome.Unavailable(String reason) ->
                 new ToolResult.Failure(

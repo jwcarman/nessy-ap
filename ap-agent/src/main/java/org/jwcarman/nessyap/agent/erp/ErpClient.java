@@ -34,6 +34,11 @@ import tools.jackson.databind.json.JsonMapper;
 /** The ERP's REST API, as the agent and the decision executor see it. */
 public class ErpClient {
 
+  private static final String VENDORS = "/api/vendors/";
+  private static final String APPLICATION_JSON = "application/json";
+  private static final String AUTHORIZATION = "Authorization";
+  private static final String BEARER = "Bearer ";
+
   private final String baseUrl;
   private final Duration readTimeout;
   private final JsonMapper json;
@@ -73,11 +78,11 @@ public class ErpClient {
   }
 
   public ErpOutcome vendor(UUID vendorId) {
-    return get("/api/vendors/" + vendorId);
+    return get(VENDORS + vendorId);
   }
 
   public ErpOutcome vendorInvoices(UUID vendorId) {
-    return get("/api/vendors/" + vendorId + "/invoices");
+    return get(VENDORS + vendorId + "/invoices");
   }
 
   public ErpOutcome matchException(UUID exceptionId) {
@@ -129,10 +134,10 @@ public class ErpClient {
     HttpRequest.Builder request =
         HttpRequest.newBuilder(uri("/api/invoices/" + invoiceId + "/" + segment(action)))
             .header("Idempotency-Key", idempotencyKey)
-            .header("Content-Type", "application/json")
+            .header("Content-Type", APPLICATION_JSON)
             .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
     if (bearerToken != null) {
-      request.header("Authorization", "Bearer " + bearerToken);
+      request.header(AUTHORIZATION, BEARER + bearerToken);
     }
     return send(request);
   }
@@ -141,7 +146,7 @@ public class ErpClient {
   public ErpOutcome recordCallBack(
       UUID vendorId, UUID accountId, String phone, boolean vendorConfirmed, String bearerToken) {
     return postAs(
-        "/api/vendors/" + vendorId + "/bank-changes/" + accountId + "/call-back",
+        VENDORS + vendorId + "/bank-changes/" + accountId + "/call-back",
         Map.of("phone", phone, "vendorConfirmed", vendorConfirmed),
         bearerToken);
   }
@@ -149,18 +154,16 @@ public class ErpClient {
   /** Confirms a called-back change, as a second person. */
   public ErpOutcome confirmBankChange(UUID vendorId, UUID accountId, String bearerToken) {
     return postAs(
-        "/api/vendors/" + vendorId + "/bank-changes/" + accountId + "/confirm",
-        Map.of(),
-        bearerToken);
+        VENDORS + vendorId + "/bank-changes/" + accountId + "/confirm", Map.of(), bearerToken);
   }
 
   private ErpOutcome postAs(String path, Object body, String bearerToken) {
     HttpRequest.Builder request =
         HttpRequest.newBuilder(uri(path))
-            .header("Content-Type", "application/json")
+            .header("Content-Type", APPLICATION_JSON)
             .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
     if (bearerToken != null) {
-      request.header("Authorization", "Bearer " + bearerToken);
+      request.header(AUTHORIZATION, BEARER + bearerToken);
     }
     return send(request);
   }
@@ -172,7 +175,7 @@ public class ErpClient {
       if (token.isEmpty()) {
         return new ErpOutcome.Unavailable("no service token for the ERP");
       }
-      request.header("Authorization", "Bearer " + token.get());
+      request.header(AUTHORIZATION, BEARER + token.get());
     }
     return send(request);
   }
@@ -182,7 +185,7 @@ public class ErpClient {
     try {
       response =
           http.send(
-              request.timeout(readTimeout).header("Accept", "application/json").build(),
+              request.timeout(readTimeout).header("Accept", APPLICATION_JSON).build(),
               HttpResponse.BodyHandlers.ofString());
     } catch (IOException e) {
       return new ErpOutcome.Unavailable(describe(e));
