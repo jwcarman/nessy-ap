@@ -1,6 +1,6 @@
 # Stay deterministic as long as you can: the resolver
 
-Status: draft for James's review. Date: 2026-10-04.
+Status: approved by James, 2026-10-04 (§9 records his rulings).
 
 This spec adds a deterministic layer in front of the agent. The layer settles every case that
 rules can settle, gathers the facts that rules need, and gives the agent only the cases that
@@ -85,14 +85,14 @@ resolution table:
 
 | Reason code | Rule (from the measured runs and the playbook) |
 |---|---|
-| `PRICE_VARIANCE` | Within the buyer's limit: approve-variance. Above it: the policy choice in §9.1. |
-| `QTY_OVER_RECEIPT` | The policy choice in §9.1 (hold, or short-pay for what was received). |
+| `PRICE_VARIANCE` | Within the buyer's limit: approve-variance, to the buyer. Above it: request-credit-memo. |
+| `QTY_OVER_RECEIPT` | Hold until the rest arrives. |
 | `NO_RECEIPT` | Hold. |
 | `DUPLICATE` | Reject, citing the original from `find_similar_invoices`. |
 | `POSSIBLE_DUPLICATE` | One receipt for each invoice: approve-variance (the controller decides). Otherwise reject. |
-| `UNPLANNED_CHARGE` | The policy choice in §9.1. |
+| `UNPLANNED_CHARGE` | Short-pay without the charge. |
 | `VENDOR_BANK_CHANGED` | Hold, citing the vendor and the pending change. |
-| A declined resolution | The declined action's alternative (§9.1), with the decision as a slot. |
+| A declined variance approval | Request-credit-memo, with the decline as a slot. |
 
 The desk reads the ERP facts these rules need (invoice, PO, receipts, vendor, similar invoices)
 directly, without a model.
@@ -104,11 +104,13 @@ was out of stock, and billed it at a higher price.
   vendor reference). The three-way match compares it with the PO line's item and raises a new
   finding, `ITEM_SUBSTITUTED`.
 - **Slots.** `orderedItem`, `shippedItem`, `poPrice`, `billedPrice` (ERP);
-  `substitutionReason`, `vendorStatedPrice` (reply reading); `buyerDecision` (person:
-  `ACCEPT_AT_BILLED`, `ACCEPT_AT_PO_PRICE` or `REJECT`).
-- **Rules.** Accept at the billed price, within the buyer's limit: approve-variance. Accept at
-  the PO price: short-pay to the PO price. Reject: request-credit-memo (the goods go back).
-- **Needs.** No reason yet: write to the vendor. A reason but no decision: ask the buyer.
+  `substitutionReason`, `vendorStatedPrice` (reply reading); `declineReason` (person:
+  `PAY_PO_PRICE` or `RETURN_GOODS`, chosen when the buyer declines).
+- **Rules.** A confirmed reason and no decision yet: propose approve-variance to the buyer, as a
+  normal routed approval (one touch when the buyer approves). Declined with `PAY_PO_PRICE`:
+  short-pay to the PO price. Declined with `RETURN_GOODS`: request-credit-memo. Each goes to its
+  own decider through the policy.
+- **Needs.** No reason yet: write to the vendor.
 - **Escalate.** The reader is `UNCLEAR`, a cross-check fails, the buyer answers in free text, or
   lines are substituted with different answers.
 
@@ -157,18 +159,19 @@ again. The rationale is a template per rule, filled from the slots.
 input that says what the rules established, which slots are unknown, and why the rules stopped.
 The agent then works as today, under every existing control.
 
-## 9. Open questions for James
+## 9. Rulings (James, 2026-10-04)
 
-1. **The unmade policy decisions.** Pick one action for each:
-   - A price variance above the buyer's limit, unexplained: credit memo or short-pay?
-   - Billed more than received: hold for the rest, or short-pay for what arrived?
-   - An unplanned charge (freight not on the PO): approve, or short-pay without it?
-   - A declined approval of a variance: credit memo or short-pay?
-2. **One touch or two.** When the only missing slot is the decider's own choice
-   (`buyerDecision`), should the question be the decision, with the buyer's pick as the approval
-   (one touch), or does the buyer answer and then approve the proposal (two touches)?
-3. **The SonarCloud CSRF findings.** Mark the two S4502 findings as reviewed and safe in
-   SonarCloud, with the justification, or another way?
+1. **The business rules follow common AP practice**, chosen by judgment; anyone may argue with
+   them, and the table is where they change. A large unexplained variance: request a credit memo
+   (a short-pay leaves a disputed open balance). Billed more than received: hold. Unplanned
+   freight: short-pay without it. A declined variance approval: request a credit memo.
+2. **One touch, and every resolution is a real approval.** The desk does not ask a question that
+   is not also a decision. For a substitution it proposes approve-variance to the buyer; a
+   decline carries a structured reason, which is a slot. Every resolution goes to the decider the
+   policy names, as now.
+3. **Two engines.** KIE decides what to propose; OPA decides who may approve and what is never
+   allowed. They stay separate so that a wrong row in a decision table cannot authorize what the
+   guardrails forbid.
 
 ## 10. New concepts for sign-off
 
@@ -179,6 +182,7 @@ Each of these is new vocabulary or a new public type:
 - The reason code **`ITEM_SUBSTITUTED`**, and an **item code** on invoice lines.
 - The reader's **`SUBSTITUTED_ITEM`** and **`UNCLEAR`** intents.
 - A **case input** for the agent: "the rules stopped here".
+- A structured **decline reason** on a workbench decision.
 - A proposal **with no agent behind it**.
 - In the evaluation, **`settledBy`**: which layer settled a run.
 
@@ -188,9 +192,9 @@ Each of these is new vocabulary or a new public type:
   gathered facts`, `agent`, or `person` (`NEEDS_PERSON`).
 - **Determinism.** A run settled by rules must be the same in every repetition. Any difference is
   a bug, not a rate.
-- **New scenarios.** A1: everything fits, settled by rules and slots with no agent. A2: the
-  vendor's reply is unclear, escalated to the agent. A3: the buyer's answer does not fit the
-  choices, escalated.
+- **New scenarios.** A1: everything fits and the buyer approves, settled by rules and slots
+  with no agent. A2: the vendor's reply is unclear, escalated to the agent. A3: the buyer
+  declines and pays the PO price, settled by rules with a second decider.
 - **The existing 21.** Same expected outcomes. The report shows the agent's share falling from 21
   scenarios to the ones that escalate.
 - **The resolver's own tests.** Each DMN table has unit tests that need no model and no
