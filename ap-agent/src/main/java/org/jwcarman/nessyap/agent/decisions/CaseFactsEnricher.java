@@ -52,8 +52,11 @@ public class CaseFactsEnricher implements ApprovalEnricher {
   private final ErpClient erp;
   private final Grounding grounding;
   private final JsonMapper json;
+  private final Decisions decisions;
 
-  public CaseFactsEnricher(Cases cases, ErpClient erp, Grounding grounding, JsonMapper json) {
+  public CaseFactsEnricher(
+      Cases cases, ErpClient erp, Grounding grounding, JsonMapper json, Decisions decisions) {
+    this.decisions = decisions;
     this.cases = cases;
     this.erp = erp;
     this.grounding = grounding;
@@ -73,6 +76,9 @@ public class CaseFactsEnricher implements ApprovalEnricher {
     request.fact("influencedByUnendorsed", nodes.booleanNode(integrity.influencedByUnendorsed()));
     request.fact("instructionsSeen", nodes.booleanNode(integrity.instructionsSeen()));
     request.fact("amountAtIssue", nodes.numberNode(c.amount()));
+    // A credit memo requested for this invoice is owed by the vendor: paying would double-count it.
+    request.fact(
+        "creditMemoRequested", nodes.booleanNode(decisions.creditMemoRequested(c.exceptionId())));
     // The rules cite only what CaseSlots read from the ERP; no agent tool call grounds them.
     boolean byRules = ResolverDesk.RULES.equals(request.agentType());
     if (!byRules) {

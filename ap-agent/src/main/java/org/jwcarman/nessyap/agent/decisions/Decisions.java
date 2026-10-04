@@ -88,6 +88,20 @@ public class Decisions {
         .update();
   }
 
+  /** Whether a credit-memo request on the case was approved and applied in the ERP. */
+  public boolean creditMemoRequested(UUID exceptionId) {
+    return jdbc.sql(
+            """
+            select exists (
+              select 1 from pending_decision
+              where exception_id = :id and action = 'request-credit-memo'
+                and approved and erp_result = 'applied')
+            """)
+        .param("id", exceptionId)
+        .query(Boolean.class)
+        .single();
+  }
+
   public Optional<PendingDecision> find(UUID id) {
     return jdbc.sql("select * from pending_decision where id = :id")
         .param("id", id)

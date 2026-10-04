@@ -271,3 +271,19 @@ test_a_vendor_that_could_not_be_read_is_not_asked_to_be_cited if {
 	reason := object.get(ap.decision, "reason", "") with input as proposal("hold", unknown)
 	not contains(reason, "cite the vendor")
 }
+
+test_paying_after_a_credit_memo_was_requested_is_refused if {
+	contains(
+		ap.decision.reason,
+		"credit memo was already requested",
+	) with input as proposal("approve-variance", object.union(price_variance, {"creditMemoRequested": true}))
+	ap.decision.effect == "deny" with input as {
+		"toolName": "propose_resolution",
+		"arguments": {"action": "short-pay", "amount": 900, "rationale": "r", "evidence": []},
+		"facts": object.union(price_variance, {"creditMemoRequested": true}),
+	}
+}
+
+test_a_hold_is_still_allowed_after_a_credit_memo_was_requested if {
+	ap.decision.to == "ap-clerk" with input as proposal("hold", object.union(price_variance, {"creditMemoRequested": true}))
+}
