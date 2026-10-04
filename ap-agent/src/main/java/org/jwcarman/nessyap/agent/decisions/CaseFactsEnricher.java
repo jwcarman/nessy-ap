@@ -16,8 +16,9 @@
 package org.jwcarman.nessyap.agent.decisions;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 import org.jwcarman.nessy.api.tool.ApprovalEnricher;
 import org.jwcarman.nessy.api.tool.ApprovalRequest;
 import org.jwcarman.nessy.api.tool.ToolName;
@@ -41,6 +42,7 @@ import tools.jackson.databind.node.JsonNodeFactory;
 public class CaseFactsEnricher implements ApprovalEnricher {
 
   private static final ToolName PROPOSE = new ToolName("propose_resolution");
+  private static final String PENDING = "PENDING_VERIFICATION";
 
   private final Cases cases;
   private final ErpClient erp;
@@ -100,9 +102,17 @@ public class CaseFactsEnricher implements ApprovalEnricher {
         && po.hasNonNull("buyer")) {
       request.fact("buyer", po.get("buyer").asString());
     }
-    bankChangeUnverified(c)
-        .ifPresent(
-            unverified -> request.fact("bankChangeUnverified", nodes.booleanNode(unverified)));
+    // One read of the vendor answers both: is a bank change waiting, and does a proposal cite the
+    // vendor (its id, or a pending change's id). Left out when the vendor could not be read.
+    if (erp.vendor(c.vendorId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode vendor)) {
+      request.fact("bankChangeUnverified", nodes.booleanNode(bankChangeUnverified(vendor)));
+      if (PROPOSE.equals(request.toolName())) {
+        Set<String> vendorIds = vendorIds(c, vendor);
+        request.fact(
+            "citesVendor",
+            nodes.booleanNode(cited(request).stream().anyMatch(vendorIds::contains)));
+      }
+    }
   }
 
   /** The ids a proposal cites as its evidence. */
@@ -114,16 +124,24 @@ public class CaseFactsEnricher implements ApprovalEnricher {
     return cited;
   }
 
-  /** Empty when the vendor could not be read. */
-  private Optional<Boolean> bankChangeUnverified(CaseRecord c) {
-    if (!(erp.vendor(c.vendorId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode vendor))) {
-      return Optional.empty();
-    }
+  private static boolean bankChangeUnverified(JsonNode vendor) {
     for (JsonNode account : vendor.path("bankAccounts")) {
-      if ("PENDING_VERIFICATION".equals(account.path("status").asString())) {
-        return Optional.of(true);
+      if (PENDING.equals(account.path("status").asString())) {
+        return true;
       }
     }
-    return Optional.of(false);
+    return false;
+  }
+
+  /** The ids that name the vendor in evidence: its own, and each pending bank change's. */
+  private static Set<String> vendorIds(CaseRecord c, JsonNode vendor) {
+    Set<String> ids = new HashSet<>();
+    ids.add(c.vendorId().toString());
+    for (JsonNode account : vendor.path("bankAccounts")) {
+      if (PENDING.equals(account.path("status").asString()) && account.hasNonNull("id")) {
+        ids.add(account.get("id").asString());
+      }
+    }
+    return ids;
   }
 }

@@ -64,7 +64,7 @@ test_paying_a_vendor_with_an_unverified_bank_change_is_denied if {
 test_holding_a_vendor_with_an_unverified_bank_change_is_routed if {
 	ap.decision.to == "ap-clerk" with input as proposal(
 		"hold",
-		{"reasonCode": "VENDOR_BANK_CHANGED", "amountAtIssue": 1000, "bankChangeUnverified": true},
+		{"reasonCode": "VENDOR_BANK_CHANGED", "amountAtIssue": 1000, "bankChangeUnverified": true, "citesVendor": true},
 	)
 }
 
@@ -241,4 +241,21 @@ test_a_proposal_citing_an_id_no_tool_returned_is_refused_and_says_which if {
 	contains(ap.decision.reason, "01a103e-18ad-74d4") with input as proposal("approve-variance", ungrounded)
 	grounded := object.union(price_variance, {"ungroundedCitations": []})
 	ap.decision.to == "buyer" with input as proposal("approve-variance", grounded)
+}
+
+bank_change := {"reasonCode": "VENDOR_BANK_CHANGED", "amountAtIssue": 0, "invoiceTotal": 1000, "bankChangeUnverified": true, "ungroundedCitations": []}
+
+test_a_hold_over_an_unverified_bank_change_must_cite_the_vendor if {
+	uncited := object.union(bank_change, {"citesVendor": false})
+	ap.decision.effect == "deny" with input as proposal("hold", uncited)
+	contains(ap.decision.reason, "vendor") with input as proposal("hold", uncited)
+	not regex.match(`[0-9a-f]{8}-[0-9a-f]{4}`, ap.decision.reason) with input as proposal("hold", uncited)
+	cited := object.union(bank_change, {"citesVendor": true})
+	ap.decision.to == "ap-clerk" with input as proposal("hold", cited)
+}
+
+test_a_vendor_that_could_not_be_read_is_not_asked_to_be_cited if {
+	unknown := object.remove(bank_change, ["bankChangeUnverified"])
+	reason := object.get(ap.decision, "reason", "") with input as proposal("hold", unknown)
+	not contains(reason, "cite the vendor")
 }

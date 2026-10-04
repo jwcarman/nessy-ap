@@ -94,6 +94,20 @@ else := {
 	count(object.get(input.facts, "ungroundedCitations", [])) > 0
 }
 
+# A hold over an unverified bank change rests on the vendor, so its evidence must say so. Measured:
+# a model held correctly and cited the invoice, a receipt and the PO, but not the vendor, in 5 of
+# 20 runs. The reason names the record, never an id: an id copied from a refusal is one no tool
+# returned. Only when the vendor was read: an unreadable vendor has its own refusal.
+else := {
+	"effect": "deny",
+	"reason": "this hold rests on the vendor's unverified bank change: cite the vendor you read (its id, or the id of its pending bank change) in your evidence, then propose again",
+} if {
+	action == "hold"
+	bank_known
+	bank_unverified == true
+	not input.facts.citesVendor
+}
+
 # An agent that asked someone in this turn has not seen the answer. Measured: an agent asked the
 # buyer, then proposed approval on an answer it made up, and the overcharge was paid.
 else := {
