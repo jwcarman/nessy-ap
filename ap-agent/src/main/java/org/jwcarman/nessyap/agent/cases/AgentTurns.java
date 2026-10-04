@@ -56,38 +56,24 @@ public class AgentTurns {
   public boolean inTurn(AgentId agentId) {
     return story(agentId)
         .project(
-            new StoryProjection<Boolean>() {
-              @Override
-              public Boolean initial() {
-                return false;
-              }
-
-              @Override
-              public Boolean apply(Boolean soFar, Narrated told) {
-                return switch (told.event()) {
-                  case Narration.TurnStarted _ -> true;
-                  case Narration.TurnEnding _ -> false;
-                  default -> soFar;
-                };
-              }
-            });
+            StoryProjection.of(
+                false,
+                (Boolean soFar, Narrated told) ->
+                    switch (told.event()) {
+                      case Narration.TurnStarted _ -> true;
+                      case Narration.TurnEnding _ -> false;
+                      default -> soFar;
+                    }));
   }
 
   /** How many turns the agent has started. */
   public int started(AgentId agentId) {
     return story(agentId)
         .project(
-            new StoryProjection<Integer>() {
-              @Override
-              public Integer initial() {
-                return 0;
-              }
-
-              @Override
-              public Integer apply(Integer soFar, Narrated told) {
-                return told.event() instanceof Narration.TurnStarted ? soFar + 1 : soFar;
-              }
-            });
+            StoryProjection.of(
+                0,
+                (Integer soFar, Narrated told) ->
+                    told.event() instanceof Narration.TurnStarted ? soFar + 1 : soFar));
   }
 
   /** The agent's last turns, oldest first. */
@@ -95,37 +81,31 @@ public class AgentTurns {
     Map<TurnId, Summary> turns =
         story(agentId)
             .project(
-                new StoryProjection<Map<TurnId, Summary>>() {
-                  @Override
-                  public Map<TurnId, Summary> initial() {
-                    return new LinkedHashMap<>();
-                  }
-
-                  @Override
-                  public Map<TurnId, Summary> apply(Map<TurnId, Summary> soFar, Narrated told) {
-                    switch (told.event()) {
-                      case Narration.TurnStarted(TurnId turn) ->
-                          soFar.put(turn, new Summary(turn.value(), false, 0, null));
-                      case Narration.ActionsRequested(TurnId turn, var calls, var usage) ->
-                          soFar.computeIfPresent(
-                              turn,
-                              (t, s) -> new Summary(s.turn(), false, s.exchanges() + 1, null));
-                      case Narration.TurnEnding ending ->
-                          soFar.computeIfPresent(
-                              ending.turn(),
-                              (t, s) ->
-                                  new Summary(
-                                      s.turn(),
-                                      true,
-                                      s.exchanges(),
-                                      ending.getClass().getSimpleName()));
-                      default -> {
-                        // Nothing else shapes a turn's summary.
+                StoryProjection.of(
+                    new LinkedHashMap<TurnId, Summary>(),
+                    (Map<TurnId, Summary> soFar, Narrated told) -> {
+                      switch (told.event()) {
+                        case Narration.TurnStarted(TurnId turn) ->
+                            soFar.put(turn, new Summary(turn.value(), false, 0, null));
+                        case Narration.ActionsRequested(TurnId turn, var calls, var usage) ->
+                            soFar.computeIfPresent(
+                                turn,
+                                (t, s) -> new Summary(s.turn(), false, s.exchanges() + 1, null));
+                        case Narration.TurnEnding ending ->
+                            soFar.computeIfPresent(
+                                ending.turn(),
+                                (t, s) ->
+                                    new Summary(
+                                        s.turn(),
+                                        true,
+                                        s.exchanges(),
+                                        ending.getClass().getSimpleName()));
+                        default -> {
+                          // Nothing else shapes a turn's summary.
+                        }
                       }
-                    }
-                    return soFar;
-                  }
-                });
+                      return soFar;
+                    }));
     List<Summary> all = new ArrayList<>(turns.values());
     return all.subList(Math.max(0, all.size() - max), all.size());
   }

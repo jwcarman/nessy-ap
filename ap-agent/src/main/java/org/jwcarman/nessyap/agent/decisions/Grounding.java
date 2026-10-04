@@ -22,9 +22,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.AgentStories;
-import org.jwcarman.nessy.api.CallResult;
 import org.jwcarman.nessy.api.Seq;
-import org.jwcarman.nessy.api.StoryContent;
 import org.jwcarman.nessyap.agent.AgentConfiguration;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
@@ -42,9 +40,6 @@ public class Grounding {
 
   /** Ids are made of letters, digits and hyphens; anything else separates them. */
   private static final Pattern SEPARATOR = Pattern.compile("[^A-Za-z0-9-]+");
-
-  /** The most results Nessy returns in one page. */
-  private static final int PAGE = 1_000;
 
   private final AgentStories stories;
   private final JsonMapper json;
@@ -71,16 +66,14 @@ public class Grounding {
   /** Every whole token in the results of the agent's calls that succeeded. */
   private Set<String> seen(AgentId agent) {
     Set<String> seen = new HashSet<>();
-    StoryContent content = stories.of(AgentConfiguration.AGENT_TYPE, agent).content();
-    Seq after = Seq.NONE;
-    List<CallResult> page;
-    do {
-      page = content.results(after, PAGE);
-      for (CallResult result : page) {
-        seen.addAll(Arrays.asList(SEPARATOR.split(json.writeValueAsString(result.blocks()))));
-        after = result.seq();
-      }
-    } while (page.size() == PAGE);
+    stories
+        .of(AgentConfiguration.AGENT_TYPE, agent)
+        .content()
+        .allResults(Seq.NONE)
+        .forEach(
+            result ->
+                seen.addAll(
+                    Arrays.asList(SEPARATOR.split(json.writeValueAsString(result.blocks())))));
     return seen;
   }
 }
