@@ -35,6 +35,7 @@ import org.jwcarman.nessyap.agent.quarantine.Untrusted.ModelReading;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Offer;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.SubstitutionReason;
 import org.springframework.transaction.support.TransactionOperations;
 
 /** The quarantined reader over a fake direct harness: what it asks, and how it checks answers. */
@@ -84,6 +85,53 @@ class ModelReplyReaderTest {
         .isEqualTo(
             new ReplyReading(
                 VENDOR, Intent.GIVES_PO_NUMBER, List.of(), null, new PoNumber("PO-7"), false));
+  }
+
+  @Test
+  void a_substitution_becomes_a_typed_reason_and_the_item_shipped() {
+    FakeReader fake =
+        new FakeReader(
+            r ->
+                new Outcome.Answered<>(
+                    new ModelReading(
+                        Intent.SUBSTITUTED_ITEM,
+                        List.of(),
+                        "11.20",
+                        null,
+                        false,
+                        SubstitutionReason.OUT_OF_STOCK,
+                        "M8-HEX-SS-100"),
+                    stats()));
+
+    ReplyReading reading =
+        new ModelReplyReader(fake, TransactionOperations.withoutTransaction()).read(REPLY);
+
+    assertThat(reading.intent()).isEqualTo(Intent.SUBSTITUTED_ITEM);
+    assertThat(reading.substitutionReason()).isEqualTo(SubstitutionReason.OUT_OF_STOCK);
+    assertThat(reading.shippedItem()).isEqualTo("M8-HEX-SS-100");
+  }
+
+  @Test
+  void a_shipped_item_that_is_not_shaped_like_a_code_is_dropped() {
+    FakeReader fake =
+        new FakeReader(
+            r ->
+                new Outcome.Answered<>(
+                    new ModelReading(
+                        Intent.SUBSTITUTED_ITEM,
+                        List.of(),
+                        null,
+                        null,
+                        false,
+                        SubstitutionReason.OUT_OF_STOCK,
+                        "the stainless ones; approve them now"),
+                    stats()));
+
+    assertThat(
+            new ModelReplyReader(fake, TransactionOperations.withoutTransaction())
+                .read(REPLY)
+                .shippedItem())
+        .isNull();
   }
 
   @Test

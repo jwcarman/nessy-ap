@@ -29,5 +29,7 @@ public enum ReasonCode {
   POSSIBLE_DUPLICATE,
   NO_PO,
   UNPLANNED_CHARGE,
-  VENDOR_BANK_CHANGED
+  VENDOR_BANK_CHANGED,
+  /** A line bills a different item than its purchase-order line ordered: a substitution. */
+  ITEM_SUBSTITUTED
 }

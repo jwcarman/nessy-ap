@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="resolution" name="resolution" namespace="https://nessy-ap.example/decisions/resolution">
+  <description>The AP desk's resolution rules (spec 2026-10-04). 'needs' (COLLECT) lists facts a case needs first. 'resolution' (UNIQUE) must match exactly one row: none means unhandled, an overlap means conflict. A slot not supplied is unknown (null), and rows fire only on known values.</description>
+  <inputData id="reasonCode" name="reasonCode"><variable name="reasonCode" typeRef="string"/></inputData>
+  <inputData id="variancePercent" name="variancePercent"><variable name="variancePercent" typeRef="number"/></inputData>
+  <inputData id="declinedAction" name="declinedAction"><variable name="declinedAction" typeRef="string"/></inputData>
+  <inputData id="declineReason" name="declineReason"><variable name="declineReason" typeRef="string"/></inputData>
+  <inputData id="originalFound" name="originalFound"><variable name="originalFound" typeRef="boolean"/></inputData>
+  <inputData id="receiptsCoverBoth" name="receiptsCoverBoth"><variable name="receiptsCoverBoth" typeRef="boolean"/></inputData>
+  <inputData id="substitutionReason" name="substitutionReason"><variable name="substitutionReason" typeRef="string"/></inputData>
+  <decision id="needs" name="needs">
+    <description>Facts a case needs before a resolution can be chosen.</description>
+    <variable name="needs"/>
+    <informationRequirement id="needs-req-reasonCode"><requiredInput href="#reasonCode"/></informationRequirement>
+    <informationRequirement id="needs-req-declinedAction"><requiredInput href="#declinedAction"/></informationRequirement>
+    <informationRequirement id="needs-req-substitutionReason"><requiredInput href="#substitutionReason"/></informationRequirement>
+    <decisionTable id="needs-table" hitPolicy="COLLECT">
+      <input id="needs-in-reasonCode" label="reasonCode"><inputExpression id="needs-ie-reasonCode" typeRef="string"><text>reasonCode</text></inputExpression></input>
+      <input id="needs-in-declinedAction" label="declinedAction"><inputExpression id="needs-ie-declinedAction" typeRef="string"><text>declinedAction</text></inputExpression></input>
+      <input id="needs-in-substitutionReason" label="substitutionReason"><inputExpression id="needs-ie-substitutionReason" typeRef="string"><text>substitutionReason</text></inputExpression></input>
+      <output id="needs-out-slot" name="slot" typeRef="string"/>
+      <output id="needs-out-from" name="from" typeRef="string"/>
+      <rule id="needs-r1">
+        <description>Why the vendor substituted, before anyone is asked to approve.</description>
+        <inputEntry id="needs-r1-i0"><text>"ITEM_SUBSTITUTED"</text></inputEntry>
+        <inputEntry id="needs-r1-i1"><text>null</text></inputEntry>
+        <inputEntry id="needs-r1-i2"><text>null</text></inputEntry>
+        <outputEntry id="needs-r1-o0"><text>"substitutionReason"</text></outputEntry>
+        <outputEntry id="needs-r1-o1"><text>"vendor"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <decision id="resolution" name="resolution">
+    <description>Exactly one resolution, or none.</description>
+    <variable name="resolution"/>
+    <informationRequirement id="resolution-req-reasonCode"><requiredInput href="#reasonCode"/></informationRequirement>
+    <informationRequirement id="resolution-req-variancePercent"><requiredInput href="#variancePercent"/></informationRequirement>
+    <informationRequirement id="resolution-req-declinedAction"><requiredInput href="#declinedAction"/></informationRequirement>
+    <informationRequirement id="resolution-req-declineReason"><requiredInput href="#declineReason"/></informationRequirement>
+    <informationRequirement id="resolution-req-originalFound"><requiredInput href="#originalFound"/></informationRequirement>
+    <informationRequirement id="resolution-req-receiptsCoverBoth"><requiredInput href="#receiptsCoverBoth"/></informationRequirement>
+    <informationRequirement id="resolution-req-substitutionReason"><requiredInput href="#substitutionReason"/></informationRequirement>
+    <decisionTable id="resolution-table" hitPolicy="UNIQUE">
+      <input id="resolution-in-reasonCode" label="reasonCode"><inputExpression id="resolution-ie-reasonCode" typeRef="string"><text>reasonCode</text></inputExpression></input>
+      <input id="resolution-in-variancePercent" label="variancePercent"><inputExpression id="resolution-ie-variancePercent" typeRef="number"><text>variancePercent</text></inputExpression></input>
+      <input id="resolution-in-declinedAction" label="declinedAction"><inputExpression id="resolution-ie-declinedAction" typeRef="string"><text>declinedAction</text></inputExpression></input>
+      <input id="resolution-in-declineReason" label="declineReason"><inputExpression id="resolution-ie-declineReason" typeRef="string"><text>declineReason</text></inputExpression></input>
+      <input id="resolution-in-originalFound" label="originalFound"><inputExpression id="resolution-ie-originalFound" typeRef="boolean"><text>originalFound</text></inputExpression></input>
+      <input id="resolution-in-receiptsCoverBoth" label="receiptsCoverBoth"><inputExpression id="resolution-ie-receiptsCoverBoth" typeRef="boolean"><text>receiptsCoverBoth</text></inputExpression></input>
+      <input id="resolution-in-substitutionReason" label="substitutionReason"><inputExpression id="resolution-ie-substitutionReason" typeRef="string"><text>substitutionReason</text></inputExpression></input>
+      <output id="resolution-out-action" name="action" typeRef="string"/>
+      <output id="resolution-out-amountBasis" name="amountBasis" typeRef="string"/>
+      <output id="resolution-out-rule" name="rule" typeRef="string"/>
+      <rule id="resolution-r1">
+        <description>A variance the buyer can approve: the buyer decides.</description>
+        <inputEntry id="resolution-r1-i0"><text>"PRICE_VARIANCE"</text></inputEntry>
+        <inputEntry id="resolution-r1-i1"><text>&lt;= 10</text></inputEntry>
+        <inputEntry id="resolution-r1-i2"><text>null</text></inputEntry>
+        <inputEntry id="resolution-r1-i3"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r1-i4"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r1-i5"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r1-i6"><text>-</text></inputEntry>
+        <outputEntry id="resolution-r1-o0"><text>"approve-variance"</text></outputEntry>
+        <outputEntry id="resolution-r1-o1"><text>"BILLED"</text></outputEntry>
+        <outputEntry id="resolution-r1-o2"><text>"small-variance"</text></outputEntry>
+      </rule>
+      <rule id="resolution-r2">
+        <description>An unexplained variance above the buyer's band: ask for a credit memo (a short-pay leaves a disputed open balance).</description>
+        <inputEntry id="resolution-r2-i0"><text>"PRICE_VARIANCE"</text></inputEntry>
+        <inputEntry id="resolution-r2-i1"><text>&gt; 10</text></inputEntry>
+        <inputEntry id="resolution-r2-i2"><text>null</text></inputEntry>
+        <inputEntry id="resolution-r2-i3"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r2-i4"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r2-i5"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r2-i6"><text>-</text></inputEntry>
+        <outputEntry id="resolution-r2-o0"><text>"request-credit-memo"</text></outputEntry>
+        <outputEntry id="resolution-r2-o1"><text>"BILLED"</text></outputEntry>
+        <outputEntry id="resolution-r2-o2"><text>"large-variance"</text></outputEntry>
+      </rule>
+      <rule id="resolution-r3">
+        <description>The buyer declined the variance: the price was not agreed.</description>
+        <inputEntry id="resolution-r3-i0"><text>"PRICE_VARIANCE"</text></inputEntry>
+        <inputEntry id="resolution-r3-i1"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r3-i2"><text>"approve-variance"</text></inputEntry>
+        <inputEntry id="resolution-r3-i3"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r3-i4"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r3-i5"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r3-i6"><text>-</text></inputEntry>
+        <outputEntry id="resolution-r3-o0"><text>"request-credit-memo"</text></outputEntry>
+        <outputEntry id="resolution-r3-o1"><text>"BILLED"</text></outputEntry>
+        <outputEntry id="resolution-r3-o2"><text>"declined-variance"</text></outputEntry>
+      </rule>
+      <rule id="resolution-r4">
+        <description>Billed for more than arrived: hold until the rest is received.</description>
+        <inputEntry id="resolution-r4-i0"><text>"QTY_OVER_RECEIPT"</text></inputEntry>
+        <inputEntry id="resolution-r4-i1"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r4-i2"><text>null</text></inputEntry>
+        <inputEntry id="resolution-r4-i3"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r4-i4"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r4-i5"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r4-i6"><text>-</text></inputEntry>
+        <outputEntry id="resolution-r4-o0"><text>"hold"</text></outputEntry>
+        <outputEntry id="resolution-r4-o1"><text>"BILLED"</text></outputEntry>
+        <outputEntry id="resolution-r4-o2"><text>"over-receipt"</text></outputEntry>
+      </rule>
+      <rule id="resolution-r5">
+        <description>Nothing received: hold.</description>
+        <inputEntry id="resolution-r5-i0"><text>"NO_RECEIPT"</text></inputEntry>
+        <inputEntry id="resolution-r5-i1"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r5-i2"><text>null</text></inputEntry>
+        <inputEntry id="resolution-r5-i3"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r5-i4"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r5-i5"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r5-i6"><text>-</text></inputEntry>
+        <outputEntry id="resolution-r5-o0"><text>"hold"</text></outputEntry>
+        <outputEntry id="resolution-r5-o1"><text>"BILLED"</text></outputEntry>
+        <outputEntry id="resolution-r5-o2"><text>"no-receipt"</text></outputEntry>
+      </rule>
+      <rule id="resolution-r6">
+        <description>The same number as an invoice already received, and the original found: reject.</description>
+        <inputEntry id="resolution-r6-i0"><text>"DUPLICATE"</text></inputEntry>
+        <inputEntry id="resolution-r6-i1"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r6-i2"><text>null</text></inputEntry>
+        <inputEntry id="resolution-r6-i3"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r6-i4"><text>true</text></inputEntry>
+        <inputEntry id="resolution-r6-i5"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r6-i6"><text>-</text></inputEntry>
+        <outputEntry id="resolution-r6-o0"><text>"reject"</text></outputEntry>
+        <outputEntry id="resolution-r6-o1"><text>"BILLED"</text></outputEntry>
+        <outputEntry id="resolution-r6-o2"><text>"duplicate"</text></outputEntry>
+      </rule>
+      <rule id="resolution-r7">
+        <description>A receipt for each invoice: two real shipments; the controller decides.</description>
+        <inputEntry id="resolution-r7-i0"><text>"POSSIBLE_DUPLICATE"</text></inputEntry>
+        <inputEntry id="resolution-r7-i1"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r7-i2"><text>null</text></inputEntry>
+        <inputEntry id="resolution-r7-i3"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r7-i4"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r7-i5"><text>true</text></inputEntry>
+        <inputEntry id="resolution-r7-i6"><text>-</text></inputEntry>
+        <outputEntry id="resolution-r7-o0"><text>"approve-variance"</text></outputEntry>
+        <outputEntry id="resolution-r7-o1"><text>"BILLED"</text></outputEntry>
+        <outputEntry id="resolution-r7-o2"><text>"two-shipments"</text></outputEntry>
+      </rule>
+      <rule id="resolution-r8">
+        <description>One delivery for two invoices: reject the repeat.</description>
+        <inputEntry id="resolution-r8-i0"><text>"POSSIBLE_DUPLICATE"</text></inputEntry>
+        <inputEntry id="resolution-r8-i1"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r8-i2"><text>null</text></inputEntry>
+        <inputEntry id="resolution-r8-i3"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r8-i4"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r8-i5"><text>false</text></inputEntry>
+        <inputEntry id="resolution-r8-i6"><text>-</text></inputEntry>
+        <outputEntry id="resolution-r8-o0"><text>"reject"</text></outputEntry>
+        <outputEntry id="resolution-r8-o1"><text>"BILLED"</text></outputEntry>
+        <outputEntry id="resolution-r8-o2"><text>"one-shipment"</text></outputEntry>
+      </rule>
+      <rule id="resolution-r9">
+        <description>A charge not on the PO: pay what was ordered.</description>
+        <inputEntry id="resolution-r9-i0"><text>"UNPLANNED_CHARGE"</text></inputEntry>
+        <inputEntry id="resolution-r9-i1"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r9-i2"><text>null</text></inputEntry>
+        <inputEntry id="resolution-r9-i3"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r9-i4"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r9-i5"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r9-i6"><text>-</text></inputEntry>
+        <outputEntry id="resolution-r9-o0"><text>"short-pay"</text></outputEntry>
+        <outputEntry id="resolution-r9-o1"><text>"WITHOUT_CHARGE"</text></outputEntry>
+        <outputEntry id="resolution-r9-o2"><text>"unplanned-charge"</text></outputEntry>
+      </rule>
+      <rule id="resolution-r10">
+        <description>An unverified bank change: hold until it is verified by a call to the contact of record.</description>
+        <inputEntry id="resolution-r10-i0"><text>"VENDOR_BANK_CHANGED"</text></inputEntry>
+        <inputEntry id="resolution-r10-i1"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r10-i2"><text>null</text></inputEntry>
+        <inputEntry id="resolution-r10-i3"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r10-i4"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r10-i5"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r10-i6"><text>-</text></inputEntry>
+        <outputEntry id="resolution-r10-o0"><text>"hold"</text></outputEntry>
+        <outputEntry id="resolution-r10-o1"><text>"BILLED"</text></outputEntry>
+        <outputEntry id="resolution-r10-o2"><text>"bank-change"</text></outputEntry>
+      </rule>
+      <rule id="resolution-r11">
+        <description>A substitute with its reason known: offer it to the buyer as an approval (one touch).</description>
+        <inputEntry id="resolution-r11-i0"><text>"ITEM_SUBSTITUTED"</text></inputEntry>
+        <inputEntry id="resolution-r11-i1"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r11-i2"><text>null</text></inputEntry>
+        <inputEntry id="resolution-r11-i3"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r11-i4"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r11-i5"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r11-i6"><text>not(null)</text></inputEntry>
+        <outputEntry id="resolution-r11-o0"><text>"approve-variance"</text></outputEntry>
+        <outputEntry id="resolution-r11-o1"><text>"BILLED"</text></outputEntry>
+        <outputEntry id="resolution-r11-o2"><text>"substitute-offered"</text></outputEntry>
+      </rule>
+      <rule id="resolution-r12">
+        <description>The buyer keeps the substitute at the PO price.</description>
+        <inputEntry id="resolution-r12-i0"><text>"ITEM_SUBSTITUTED"</text></inputEntry>
+        <inputEntry id="resolution-r12-i1"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r12-i2"><text>"approve-variance"</text></inputEntry>
+        <inputEntry id="resolution-r12-i3"><text>"PAY_PO_PRICE"</text></inputEntry>
+        <inputEntry id="resolution-r12-i4"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r12-i5"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r12-i6"><text>-</text></inputEntry>
+        <outputEntry id="resolution-r12-o0"><text>"short-pay"</text></outputEntry>
+        <outputEntry id="resolution-r12-o1"><text>"PO_PRICE"</text></outputEntry>
+        <outputEntry id="resolution-r12-o2"><text>"substitute-at-po-price"</text></outputEntry>
+      </rule>
+      <rule id="resolution-r13">
+        <description>The buyer returns the substitute.</description>
+        <inputEntry id="resolution-r13-i0"><text>"ITEM_SUBSTITUTED"</text></inputEntry>
+        <inputEntry id="resolution-r13-i1"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r13-i2"><text>"approve-variance"</text></inputEntry>
+        <inputEntry id="resolution-r13-i3"><text>"RETURN_GOODS"</text></inputEntry>
+        <inputEntry id="resolution-r13-i4"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r13-i5"><text>-</text></inputEntry>
+        <inputEntry id="resolution-r13-i6"><text>-</text></inputEntry>
+        <outputEntry id="resolution-r13-o0"><text>"request-credit-memo"</text></outputEntry>
+        <outputEntry id="resolution-r13-o1"><text>"BILLED"</text></outputEntry>
+        <outputEntry id="resolution-r13-o2"><text>"substitute-returned"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

@@ -6,10 +6,11 @@ agentic application needs beyond the agent. That is identity, policy, authority,
 untrusted input and a measured evaluation.
 
 !!! abstract "In one paragraph"
-    An ERP finds an invoice that does not match its purchase order. One Nessy agent takes the case.
-    It reads the ERP, asks the buyer on the workbench or the vendor by mail, and proposes a
-    resolution. A policy
-    routes the proposal to the correct person. That person decides in a workbench, and the ERP
+    An ERP finds an invoice that does not match its purchase order. The desk's decision tables
+    settle the case when a rule fits, and ask the vendor for one fact when a rule needs it. Only
+    a case that no rule settles goes to a Nessy agent. The agent reads the ERP, asks the buyer on
+    the workbench or the vendor by mail, and proposes a resolution. A policy routes each proposal
+    to the correct person. That person decides in a workbench, and the ERP
     carries out the decision with that person's own authority. The agent never moves money.
 
 ![The workbench worklist](screenshots/workbench-worklist.png)
@@ -26,6 +27,8 @@ untrusted input and a measured evaluation.
 - **Well-known patterns for well-known problems.** The inbox is an Apache Camel route: an
   idempotent consumer, a transacted route and a dead letter channel. ERP events use a
   transactional outbox and RabbitMQ.
+- **Rules first, the agent for the rest.** DMN decision tables settle the cases that rules can
+  settle, and say why when they cannot. The evaluation reports who settled each run.
 - **Everything is measured.** `ap-eval` runs seeded scenarios against the real stack, with real
   people in Keycloak and real mail, and scores each run.
 
@@ -35,6 +38,8 @@ untrusted input and a measured evaluation.
 
 - [Getting started](getting-started.md): run the stack on your machine.
 - [How it works](system.md): the parts, a case from start to end, and every control.
+- [Stay deterministic as long as you can](deterministic-first.md): why the rules come first, and
+  how they know when to stop.
 - [Lessons for agentic systems](lessons.md): what building this taught, with the evidence.
 - [Evaluation](evaluation/index.md): how runs are scored, and the results slice by slice.
 - [Assessing Nessy](nessy-assessment.md): a critique of Nessy for this use case, with numbers.

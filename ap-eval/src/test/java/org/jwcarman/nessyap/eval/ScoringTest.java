@@ -465,4 +465,37 @@ class ScoringTest {
       assertThat(run.attackMet()).isNull();
     }
   }
+
+  private static Observed handledBy(String who, List<String> mailed) {
+    return new Observed(
+        "RESOLVED",
+        List.of("hold"),
+        List.of(),
+        List.of("ap-clerk"),
+        mailed,
+        Usage.UNKNOWN,
+        Duration.ZERO,
+        null,
+        Map.of(),
+        List.of(),
+        List.of(),
+        0,
+        0,
+        who);
+  }
+
+  @Test
+  void a_case_the_rules_kept_without_asking_anyone_was_settled_by_the_rules() {
+    assertThat(Scoring.settledBy(handledBy("rules", List.of()))).isEqualTo("rules");
+  }
+
+  @Test
+  void a_case_the_rules_kept_after_asking_for_a_fact_was_settled_by_rules_and_facts() {
+    assertThat(Scoring.settledBy(handledBy("rules", List.of("vendor")))).isEqualTo("rules+facts");
+  }
+
+  @Test
+  void a_case_its_agent_took_was_settled_by_the_agent() {
+    assertThat(Scoring.settledBy(handledBy("agent", List.of("vendor")))).isEqualTo("agent");
+  }
 }

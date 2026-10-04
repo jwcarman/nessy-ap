@@ -7,13 +7,15 @@ stops, and each control that keeps money safe. The design of record is
 ## 1. What it does
 
 An accounts-payable (AP) team receives invoices. The ERP matches each invoice against its purchase
-order (PO) and its goods receipts. When the match fails, the ERP raises a match exception. The desk
-gives each exception to an agent. The agent investigates, asks the buyer on the workbench or the
-vendor by mail when it needs to, and proposes a resolution. A person with the correct authority
-decides. The ERP carries out the decision as that person.
+order (PO) and its goods receipts. When the match fails, the ERP raises a match exception. The
+desk's rules look at each exception first. They read the ERP, ask the vendor for one fact when a
+rule needs it, and propose a resolution. When no rule settles the case, the desk gives it to an
+agent. The agent investigates, asks the buyer on the workbench or the vendor by mail when it needs
+to, and proposes a resolution. A person with the correct authority decides each proposal, from
+either one. The ERP carries out the decision as that person.
 
-The agent never moves money. It reads, asks, writes mail to the vendor's address of record, and
-proposes.
+Neither the rules nor the agent moves money. They read, ask, and propose. See
+[Stay deterministic as long as you can](deterministic-first.md) for why the rules come first.
 
 ## 2. The parts
 
@@ -54,7 +56,7 @@ flowchart TB
 | Part | What it is |
 |---|---|
 | `erp-sim` | A simulated ERP. It owns invoices, POs, receipts, vendors, the authority matrix and the audit. It publishes events through a transactional outbox. |
-| `ap-agent` | One Nessy agent per exception, on Nessy's queued door, and one no-tools reader agent per vendor reply, on the direct door. It also serves the workbench (Thymeleaf) and a JSON API. Vendor mail is held by Occlude. All of Nessy's stored history is encrypted. |
+| `ap-agent` | The desk's rules: DMN decision tables (`decisions/resolution.dmn`), run in process by Apache KIE DMN. One Nessy agent per exception that the rules cannot settle, on Nessy's queued door, and one no-tools reader agent per vendor reply, on the direct door. It also serves the workbench (Thymeleaf) and a JSON API. Vendor mail is held by Occlude. All of Nessy's stored history is encrypted. |
 | `ap-eval` | Runs seeded scenarios against the running stack and scores each run. |
 | Keycloak 26.8 | Identity: users, roles and tokens. It holds no approval limits. |
 | OPA 1.21 | The routing policy (`compose/opa/policy/ap.rego`). It decides who must decide a proposal, or refuses it. |
@@ -78,7 +80,16 @@ sequenceDiagram
 
   ERP->>MQ: match-exception.raised
   MQ->>D: event (deduplicated by event id)
-  D->>A: tell: exception raised
+  D->>ERP: the rules read invoice, PO, receipts, vendor
+  alt a rule settles it
+    D->>P: propose (no agent)
+  else a rule needs a fact
+    D->>V: one letter from a template
+    V-->>D: reply, read by the reader into a typed reading
+    D->>D: the rules run again
+  else no rule settles it
+    D->>A: tell: the exception, and what the rules established
+  end
   A->>ERP: read invoice, PO, receipts, vendor (service token)
   opt the agent needs the buyer
     A->>H: ask_buyer: a question on the buyer's worklist
@@ -105,24 +116,36 @@ sequenceDiagram
 ```
 
 1. The ERP raises an exception and publishes `match-exception.raised`.
-2. ap-agent reads the event. In one transaction, it records the event id, opens the case and tells
-   the case's agent. A repeated event changes nothing.
-3. The agent reads the invoice, the PO, the receipts and the vendor.
-4. If the agent needs the buyer, it asks on the workbench (`ask_buyer`). The question goes to the
+2. ap-agent reads the event. In one transaction, it records the event id, opens the case, and
+   gives it to the desk's rules. A repeated event changes nothing.
+3. The rules read the invoice, the PO, the receipts and the vendor from the ERP. Then one of
+   three things happens:
+   - A rule settles the case. The desk proposes the rule's resolution, and steps 6 to 8 follow.
+     No agent works the case.
+   - A rule needs a fact that the ERP does not hold. The desk writes one letter from a template to
+     the vendor's contact of record. The reply goes through the quarantine and the reader. A reading
+     that the ERP confirms becomes a fact, and the rules run again. A reading that the ERP does not
+     confirm gives the case to the agent.
+   - No rule settles the case. The desk tells the case's agent the exception and what the rules
+     established. The rest of these steps are the agent's.
+4. The agent reads the invoice, the PO, the receipts and the vendor.
+5. If the agent needs the buyer, it asks on the workbench (`ask_buyer`). The question goes to the
    buyer the ERP names on a PO that belongs to the case's vendor, and a short notice mail tells
    the buyer it waits. The buyer answers signed in, and the answer reaches the agent as the
    buyer's own word. If the agent needs the vendor, it writes to the vendor's contact of record.
    The reply comes back by mail, is held by Occlude, and is read by a model with no tools into
    a typed reading. The agent gets the reading, never the text. While it waits, the case is
    `AWAITING_ANSWER`, and the invoice stays stopped by its exception.
-5. The agent proposes a resolution: approve-variance, short-pay, hold, reject or
+6. The agent proposes a resolution: approve-variance, short-pay, hold, reject or
    request-credit-memo.
-6. OPA routes the proposal to a role (clerk, buyer, AP manager or controller), or refuses it.
-7. A person with that role decides in the workbench.
-8. The workbench sends the command to the ERP with that person's own token. The ERP checks the
+7. OPA routes the proposal to a role (clerk, buyer, AP manager or controller), or refuses it.
+8. A person with that role decides in the workbench.
+9. The workbench sends the command to the ERP with that person's own token. The ERP checks the
    person's authority again and applies the command, or refuses it.
-9. The agent reads the outcome. A refusal or a denial is information, and the agent can propose
-   again. Every turn ends with a move: a proposal, a question, or a letter.
+10. The agent reads the outcome. A refusal or a denial is information, and the agent can propose
+    again. Every turn ends with a move: a proposal, a question, or a letter. For a proposal from
+    the rules, an applied decision resolves the case, and a declined one is a new fact: the rules
+    run again.
 
 The desk records every agent that works a case (its own agent, and each reader) and reports what
 the case cost, per model, from Nessy's stored history (`/api/cases/{id}/usage`).
@@ -198,6 +221,12 @@ money safe, because a model can be persuaded.
 | No proposal in a turn that asked someone | OPA (`askedThisTurn` from the case) | An agent that invents the answer it is waiting for | `AskThenWaitTest`, `ap_test.rego` |
 | Vendor-written text reaches the agent only as a checked reference, or not at all | The desk: `VendorReference` for invoice and PO numbers, also where the ERP's summary quotes them; line descriptions and the address a bank change came from are withheld | An instruction hidden in a field nobody reads as instructions | `VendorReferenceTest`, `CaseInputRendererTest`, `InvestigateToolsTest` |
 | A case that stops with nothing in motion goes to a person | The desk (`NeedsPerson`, on turn narration) | A case nobody is acting on | `NeedsPersonTest` |
+| The rules settle a case only when exactly one row matches known facts | DMN hit policies (UNIQUE for the resolution, COLLECT for the facts needed); an unknown fact matches no row | A guess where the rules do not apply; two rules that disagree | `ResolverTest` |
+| A proposal from the rules goes through the same policy and the same decider as the agent's | `ResolverDesk` uses the routing approver and the facts enricher | A wrong decision-table row authorizing what the policy forbids | `ResolverDeskTest` |
+| A vendor's answer becomes a fact only from the vendor the desk wrote to, and only when it names the invoice line's item | `ResolverDesk` and `DeskMail` | A reply from someone else, or about a different item, supplying a fact | `ResolverDeskTest` |
+| The rules propose only on facts the desk read | `CaseSlots` (`complete`), `ResolverDesk` | A hold or short-pay proposed after a failed ERP read | `ResolverDeskTest` |
+| Vendor-written text the rules pass on is shaped like a reference | `ResolverDesk` (the billed item), `CaseInputRenderer` (text the ERP quotes in its summary) | An instruction in an item code reaching the agent | `ResolverDeskTest`, `CaseInputRendererTest` |
+| Every run the rules settle of one scenario ends in the same action | The evaluation's determinism check | Rules that depend on something they should not | `ReportTest`; the evaluation report |
 
 ### The desk's inbox route
 
@@ -249,6 +278,16 @@ flowchart LR
   workbench shows on whom.
 - **The eval's approver approves**, except where a scenario scripts a denial. A real approver
   sees the evidence and the warning for any citation the agent never read.
+- **The desk's rules stand in for rules the ERP does not have.** In a real company, the rules that
+  the ERP's own data decides belong in the ERP. The simulator keeps them in the desk.
+- **The reader reads a money-moving fact once.** The design reads it twice and treats a
+  disagreement as unknown. Today the only cross-check is the ERP's.
+- **A crash between a decision and the rules' next step leaves the case with nobody acting.** The
+  rules act after the decision commits; no sweeper finds a case that stopped between the two.
+- **The rules' letter to a vendor is sent inside the event's transaction.** A rollback after the
+  send, and the redelivery that follows, sends it twice.
+- **KIE DMN warns at startup on Java 25.** XStream, which KIE uses, calls a deprecated
+  `sun.misc.Unsafe` method, and the JVM prints a warning.
 - **Not tested yet:** an approval that expires during a decision, a restart between proposal and
   decision, and outages of mail, OPA or Postgres.
 

@@ -59,8 +59,9 @@ class ErpEventListenerTest extends ApAgentIntegrationTest {
         "INV-" + exceptionId.toString().substring(0, 8),
         UUID.randomUUID(),
         poNumber,
-        ReasonCode.QTY_OVER_RECEIPT,
-        "Line 1 billed 100 but 60 received",
+        // No rule settles a missing PO, so every case here reaches its agent.
+        ReasonCode.NO_PO,
+        "No purchase order " + poNumber + " exists",
         new BigDecimal("400.00"));
   }
 

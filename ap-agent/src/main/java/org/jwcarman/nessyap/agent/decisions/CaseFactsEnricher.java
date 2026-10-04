@@ -26,6 +26,7 @@ import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
 import org.jwcarman.nessyap.agent.erp.ErpOutcome;
+import org.jwcarman.nessyap.agent.resolver.ResolverDesk;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -71,7 +72,9 @@ public class CaseFactsEnricher implements ApprovalEnricher {
     request.fact("amountAtIssue", nodes.numberNode(c.amount()));
     // A citation counts only if a tool returned it; the policy refuses a proposal that cites
     // anything else, naming it, so the agent corrects it before a person sees it.
-    if (PROPOSE.equals(request.toolName())) {
+    // The rules cite only what CaseSlots read from the ERP; no agent tool call grounds them.
+    boolean byRules = ResolverDesk.RULES.equals(request.agentType());
+    if (PROPOSE.equals(request.toolName()) && !byRules) {
       ArrayNode ungrounded = nodes.arrayNode();
       grounding.ungrounded(request.agentId(), cited(request)).forEach(ungrounded::add);
       request.fact("ungroundedCitations", ungrounded);
@@ -79,7 +82,7 @@ public class CaseFactsEnricher implements ApprovalEnricher {
     // An agent that asked someone in this turn has not seen the answer: it proposes nothing yet.
     request.fact(
         "askedThisTurn",
-        nodes.booleanNode(cases.askedInTurn(c.exceptionId(), request.turn().value())));
+        nodes.booleanNode(!byRules && cases.askedInTurn(c.exceptionId(), request.turn().value())));
     // The ERP measures authority against the invoice total, so routing must see it too.
     // The ERP's invoice view is {"invoice": {...}, "exceptions": [...]}.
     if (erp.invoice(c.invoiceId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode view)) {

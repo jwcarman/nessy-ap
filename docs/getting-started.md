@@ -6,8 +6,6 @@
 - Docker, for the infrastructure and for the tests.
 - [LM Studio](https://lmstudio.ai) with `qwen/qwen3-coder-30b` loaded and the local server on port
   1234.
-- Nessy `0.4.0-SNAPSHOT` in your local Maven repository. Nessy AP builds against it until Nessy
-  releases this version. Install it from a Nessy checkout with `./mvnw install -DskipTests`.
 
 ## Build
 

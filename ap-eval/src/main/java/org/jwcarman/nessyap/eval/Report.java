@@ -70,9 +70,12 @@ final class Report {
             + " the scenario's decline or the attack in the vendor's reply: a pass on an attack"
             + " the run never met tests nothing.\n\n");
     out.append(
+        "Settled by counts who settled each run: the rules alone, the rules after they asked"
+            + " someone for a fact, or the agent.\n\n");
+    out.append(
         "| Scenario | Runs | Pass rate | Correct | Evidence | Safe | Routed | Delivered |"
-            + " Mean tools | Mean touches | Mean wall |\n");
-    out.append("|---|---|---|---|---|---|---|---|---|---|---|\n");
+            + " Settled by | Mean tools | Mean touches | Mean wall |\n");
+    out.append("|---|---|---|---|---|---|---|---|---|---|---|---|\n");
     Map<String, List<RunScore>> byScenario =
         runs.stream()
             .collect(
@@ -82,7 +85,7 @@ final class Report {
             out.append(
                 String.format(
                     Locale.ROOT,
-                    "| %s | %d | %s | %d | %d | %d | %d | %s | %.1f | %.1f | %.0fs |%n",
+                    "| %s | %d | %s | %d | %d | %d | %d | %s | %s | %.1f | %.1f | %.0fs |%n",
                     scenario,
                     scores.size(),
                     passRate(scores),
@@ -91,12 +94,22 @@ final class Report {
                     scores.stream().filter(RunScore::safe).count(),
                     scores.stream().filter(RunScore::routedCorrectly).count(),
                     delivered(scores),
+                    settledBy(scores),
                     scores.stream().mapToInt(RunScore::toolCalls).average().orElse(0),
                     scores.stream().mapToInt(RunScore::touches).average().orElse(0),
                     scores.stream().mapToLong(s -> s.wall().toSeconds()).average().orElse(0))));
     out.append(
         String.format(
             Locale.ROOT, "%n**Overall pass rate: %.0f%%**%n%n", Scoring.passRate(runs) * 100));
+    long byAgent = runs.stream().filter(r -> AGENT.equals(r.settledBy())).count();
+    out.append(
+        String.format(
+            Locale.ROOT,
+            "**The agent settled %d of %d runs (%.0f%%).** The rules settled the rest.%n%n",
+            byAgent,
+            runs.size(),
+            runs.isEmpty() ? 0 : 100.0 * byAgent / runs.size()));
+    out.append(determinism(byScenario));
     out.append(
         "## Usage\n\nFor each model, the mean per case of each kind Nessy reports, read from the"
             + " desk's projection of every agent on the case over Nessy's stored history. A model's counts are never"
@@ -105,19 +118,64 @@ final class Report {
             + "| Scenario | Model | Cases | Input | Output | Cache read | Cache write | Reasoning |\n"
             + "|---|---|---|---|---|---|---|---|\n");
     byScenario.forEach((scenario, scores) -> out.append(usageRows(scenario, scores)));
-    out.append("\n## Runs\n\n| Scenario | # | Case | Proposed | Passed |\n|---|---|---|---|---|\n");
+    out.append(
+        "\n## Runs\n\n| Scenario | # | Case | Proposed | Settled by | Passed |\n"
+            + "|---|---|---|---|---|---|\n");
     runs.forEach(
         r ->
             out.append(
                 String.format(
                     Locale.ROOT,
-                    "| %s | %d | %s | %s | %s |%n",
+                    "| %s | %d | %s | %s | %s | %s |%n",
                     r.scenario(),
                     r.repetition(),
                     r.caseStatus(),
                     String.join(" → ", r.proposedActions()),
+                    r.settledBy(),
                     r.passed() ? "yes" : "no")));
     return out.toString();
+  }
+
+  private static final String AGENT = "agent";
+
+  /**
+   * How many runs each settler settled, in a fixed order, leaving out the ones that settled none.
+   */
+  static String settledBy(List<RunScore> scores) {
+    List<String> parts = new ArrayList<>();
+    for (String who : List.of("rules", "rules+facts", AGENT)) {
+      long n = scores.stream().filter(r -> who.equals(r.settledBy())).count();
+      if (n > 0) {
+        parts.add(who + " " + n);
+      }
+    }
+    return parts.isEmpty() ? "—" : String.join(", ", parts);
+  }
+
+  /**
+   * The rules are code: every run they settle of one scenario must end in the same action. Names
+   * each scenario whose rules-settled runs disagree.
+   */
+  static String determinism(Map<String, List<RunScore>> byScenario) {
+    List<String> disagreements = new ArrayList<>();
+    byScenario.forEach(
+        (scenario, scores) -> {
+          List<String> finals =
+              scores.stream()
+                  .filter(r -> !AGENT.equals(r.settledBy()) && !r.proposedActions().isEmpty())
+                  .map(r -> r.proposedActions().getLast())
+                  .distinct()
+                  .toList();
+          if (finals.size() > 1) {
+            disagreements.add("- " + scenario + ": " + String.join(", ", finals));
+          }
+        });
+    return "## Determinism\n\n"
+        + (disagreements.isEmpty()
+            ? "Every scenario's runs that the rules settled ended in the same action.\n\n"
+            : "The rules settled these scenarios' runs in more than one way:\n\n"
+                + String.join("\n", disagreements)
+                + "\n\n");
   }
 
   /** The pass rate and its Wilson 95% interval, as "95% (76–99)". */

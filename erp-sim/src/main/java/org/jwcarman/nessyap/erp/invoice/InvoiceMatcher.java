@@ -66,7 +66,10 @@ class InvoiceMatcher {
             invoice.freight(),
             invoice.total(),
             invoice.lines().stream()
-                .map(l -> new MatchLine(l.lineNo(), l.poLineNo(), l.quantity(), l.unitPrice()))
+                .map(
+                    l ->
+                        new MatchLine(
+                            l.lineNo(), l.poLineNo(), l.quantity(), l.unitPrice(), l.itemCode()))
                 .toList(),
             po,
             po == null ? Map.of() : receivedByLine(receipts.findByPo(po.id())),

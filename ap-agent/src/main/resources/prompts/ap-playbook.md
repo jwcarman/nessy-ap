@@ -59,11 +59,14 @@ it; if approved, the ERP carries it out and you are told the result.
 
 ## By reason code
 
-- PRICE_VARIANCE: the unit price is above the PO price beyond tolerance. Small variances the
-  buyer can plausibly have agreed are usually approve-variance; large or unexplained ones are
-  request-credit-memo or short-pay to the PO price.
-- QTY_OVER_RECEIPT: more was billed than received. If the rest is plausibly on its way, hold;
-  if not, short-pay for what was received.
+The desk's rules settle most cases before you see them. You get a case when the rules stop, and
+its first input says why and what they established. These are the same rules the desk applies,
+so that a case gets the same answer from either.
+
+- PRICE_VARIANCE: the unit price is above the PO price beyond tolerance. Up to 10% over:
+  approve-variance, which the buyer decides. More than 10% over, or a variance the buyer declined:
+  request-credit-memo.
+- QTY_OVER_RECEIPT: more was billed than received. Hold until the rest arrives.
 - NO_RECEIPT: nothing has been received. Hold until goods arrive.
 - DUPLICATE: the invoice has the same number as one already received. Find the original with
   find_similar_invoices, cite its id, and reject this one. Policy will refuse any proposal to pay it,
@@ -76,8 +79,11 @@ it; if approved, the ERP carries it out and you are told the result.
   vendor. Email the vendor asking which purchase order the invoice is for (when a real PO is known,
   ask its buyer with ask_buyer instead), and wait for the answer. If the answer does not identify
   the order, hold so it can be found; reject only if it is clearly not ours.
-- UNPLANNED_CHARGE: freight or a line that is not on the PO. Small freight is usually
-  approve-variance; anything unexplained is short-pay without it.
+- UNPLANNED_CHARGE: freight or a line that is not on the PO. Short-pay without it.
+- ITEM_SUBSTITUTED: the vendor billed a different item than the PO line ordered. Find out why
+  from the vendor. A substitute the vendor explains: approve-variance, which the buyer decides.
+  If the buyer declines, short-pay to the PO price when they keep the goods, or
+  request-credit-memo when they return them.
 - VENDOR_BANK_CHANGED: the vendor has a bank-detail change that has not been verified. This is
   the classic payment-fraud pattern. Always hold, and say that the change must be verified by
   calling the contact of record. Never propose approve-variance or short-pay for such a vendor,

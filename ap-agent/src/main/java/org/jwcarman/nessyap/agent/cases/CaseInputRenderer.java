@@ -17,6 +17,8 @@ package org.jwcarman.nessyap.agent.cases;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.jwcarman.nessy.api.InputRenderer;
 import org.jwcarman.nessy.api.block.Block;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
@@ -34,19 +36,11 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
 
   private static String text(CaseInput input) {
     return switch (input) {
-      case CaseInput.ExceptionRaised(MatchExceptionRaised e) ->
-          "The ERP raised match exception %s (%s) on invoice %s (invoice id %s) from vendor %s, %s. Amount in question: %s. ERP summary: %s. Investigate, then end this turn with a proposal, a question to the buyer or a letter to the vendor: never with nothing."
-              .formatted(
-                  e.exceptionId(),
-                  e.reasonCode(),
-                  VendorReference.shown(e.invoiceNumber()),
-                  e.invoiceId(),
-                  e.vendorId(),
-                  e.poNumber() == null
-                      ? "which cites no purchase order"
-                      : "against purchase order " + VendorReference.shown(e.poNumber()),
-                  e.amountAtIssue().toPlainString(),
-                  summary(e));
+      case CaseInput.ExceptionRaised(MatchExceptionRaised e) -> raised(e);
+      case CaseInput.RulesStopped(var e, var why, var known) ->
+          "The desk's rules worked this case first and stopped: %s. What they established: %s. Check what you need yourself; the case is yours now. "
+                  .formatted(stopped(why), known.isEmpty() ? "nothing" : known)
+              + raised(e);
       case CaseInput.ReceiptArrived(var r) ->
           "Goods receipt %s was just posted against purchase order %s. If this case is waiting on goods, look at the receipts again."
               .formatted(r.receiptId(), r.poNumber());
@@ -69,6 +63,21 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
     };
   }
 
+  private static String raised(MatchExceptionRaised e) {
+    return "The ERP raised match exception %s (%s) on invoice %s (invoice id %s) from vendor %s, %s. Amount in question: %s. ERP summary: %s. Investigate, then end this turn with a proposal, a question to the buyer or a letter to the vendor: never with nothing."
+        .formatted(
+            e.exceptionId(),
+            e.reasonCode(),
+            VendorReference.shown(e.invoiceNumber()),
+            e.invoiceId(),
+            e.vendorId(),
+            e.poNumber() == null
+                ? "which cites no purchase order"
+                : "against purchase order " + VendorReference.shown(e.poNumber()),
+            e.amountAtIssue().toPlainString(),
+            summary(e));
+  }
+
   /**
    * The ERP's summary is its own sentence, but it quotes the vendor's references ("No purchase
    * order X exists"): each one is shown only as a reference would be shown anywhere else.
@@ -80,8 +89,30 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
         summary = summary.replace(reference, VendorReference.shown(reference));
       }
     }
-    return summary;
+    // The ERP quotes other vendor-written text, such as an item code, in double quotes.
+    return QUOTED
+        .matcher(summary)
+        .replaceAll(m -> Matcher.quoteReplacement("\"" + VendorReference.shown(m.group(1)) + "\""));
   }
+
+  private static String stopped(String why) {
+    return switch (why) {
+      case "conflict" -> "two of their rules matched and disagree";
+      case "exhausted" -> "a fact they need did not come back in a form they can check";
+      case "refused" -> "the policy refused what they proposed";
+      case "invariant" -> "they could not compute the amount their rule needs";
+      case "person" -> "a person on the desk wrote to you about it";
+      case "declined" -> "a person declined what they proposed, and no rule says what to do next";
+      case "reply" -> "mail arrived that they did not ask for";
+      case "receipt" -> "goods arrived while their proposal waited";
+      case "unread" -> "they could not read every fact the rule needs from the ERP";
+      case "unsent" -> "they could not send their question to the vendor";
+      case "failed" -> "they failed with an error";
+      default -> "no rule covers what they know about this case";
+    };
+  }
+
+  private static final Pattern QUOTED = Pattern.compile("\"([^\"]*)\"");
 
   /** An answer settles a wait, so it always ends by asking for a move. */
   private static final String NEXT =
@@ -139,6 +170,8 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
       case GIVES_PO_NUMBER -> "names a purchase order";
       case SAYS_GOODS_COMING -> "says the goods are on the way";
       case ASKS_QUESTION -> "asks the desk a question";
+      case SUBSTITUTED_ITEM -> "says it shipped a different item than the one ordered";
+      case UNCLEAR -> "says something the reader could not make out";
       case OTHER -> "says something the reader could not classify";
     };
   }

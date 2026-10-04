@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="overlap" name="overlap" namespace="https://nessy-ap.example/decisions/overlap">
+  <description>A table with an overlap, for the conflict test.</description>
+  <inputData id="reasonCode" name="reasonCode"><variable name="reasonCode" typeRef="string"/></inputData>
+  <decision id="resolution" name="resolution">
+    <description>Two rows that disagree.</description>
+    <variable name="resolution"/>
+    <informationRequirement id="resolution-req-reasonCode"><requiredInput href="#reasonCode"/></informationRequirement>
+    <decisionTable id="resolution-table" hitPolicy="UNIQUE">
+      <input id="resolution-in-reasonCode" label="reasonCode"><inputExpression id="resolution-ie-reasonCode" typeRef="string"><text>reasonCode</text></inputExpression></input>
+      <output id="resolution-out-action" name="action" typeRef="string"/>
+      <output id="resolution-out-amountBasis" name="amountBasis" typeRef="string"/>
+      <output id="resolution-out-rule" name="rule" typeRef="string"/>
+      <rule id="resolution-r1">
+        <description>one</description>
+        <inputEntry id="resolution-r1-i0"><text>"PRICE_VARIANCE"</text></inputEntry>
+        <outputEntry id="resolution-r1-o0"><text>"approve-variance"</text></outputEntry>
+        <outputEntry id="resolution-r1-o1"><text>"BILLED"</text></outputEntry>
+        <outputEntry id="resolution-r1-o2"><text>"a"</text></outputEntry>
+      </rule>
+      <rule id="resolution-r2">
+        <description>two</description>
+        <inputEntry id="resolution-r2-i0"><text>"PRICE_VARIANCE"</text></inputEntry>
+        <outputEntry id="resolution-r2-o0"><text>"reject"</text></outputEntry>
+        <outputEntry id="resolution-r2-o1"><text>"BILLED"</text></outputEntry>
+        <outputEntry id="resolution-r2-o2"><text>"b"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

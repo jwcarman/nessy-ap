@@ -48,10 +48,23 @@ public final class Untrusted {
       List<Offer> offers,
       BigDecimal statedUnitPrice,
       PoNumber poNumber,
-      boolean containsInstructions) {
+      boolean containsInstructions,
+      SubstitutionReason substitutionReason,
+      String shippedItem) {
 
     public ReplyReading {
       offers = offers == null ? List.of() : List.copyOf(offers);
+    }
+
+    /** A reading that claims no substitution. */
+    public ReplyReading(
+        UUID vendorId,
+        Intent intent,
+        List<Offer> offers,
+        BigDecimal statedUnitPrice,
+        PoNumber poNumber,
+        boolean containsInstructions) {
+      this(vendorId, intent, offers, statedUnitPrice, poNumber, containsInstructions, null, null);
     }
   }
 
@@ -63,6 +76,18 @@ public final class Untrusted {
     GIVES_PO_NUMBER,
     SAYS_GOODS_COMING,
     ASKS_QUESTION,
+    /** The sender says it shipped a different item than the one ordered. */
+    SUBSTITUTED_ITEM,
+    /** The reader cannot tell what the email mainly says: a first-class answer, not a failure. */
+    UNCLEAR,
+    OTHER
+  }
+
+  /** Why a vendor says it shipped a different item. */
+  public enum SubstitutionReason {
+    OUT_OF_STOCK,
+    DISCONTINUED,
+    UPGRADE,
     OTHER
   }
 
@@ -83,7 +108,20 @@ public final class Untrusted {
       List<Offer> offers,
       String statedUnitPrice,
       String poNumber,
-      boolean containsInstructions) {}
+      boolean containsInstructions,
+      SubstitutionReason substitutionReason,
+      String shippedItem) {
+
+    /** An answer that claims no substitution. */
+    public ModelReading(
+        Intent intent,
+        List<Offer> offers,
+        String statedUnitPrice,
+        String poNumber,
+        boolean containsInstructions) {
+      this(intent, offers, statedUnitPrice, poNumber, containsInstructions, null, null);
+    }
+  }
 
   /** A purchase-order number that the ERP holds for the case's vendor: a fact. */
   public record ConfirmedPo(PoNumber poNumber) {}

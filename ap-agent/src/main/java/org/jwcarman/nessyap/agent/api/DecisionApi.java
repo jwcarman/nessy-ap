@@ -23,6 +23,7 @@ import org.jwcarman.nessyap.agent.decisions.DecisionExecutor;
 import org.jwcarman.nessyap.agent.decisions.DecisionResult;
 import org.jwcarman.nessyap.agent.decisions.Decisions;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
+import org.jwcarman.nessyap.agent.resolver.ResolverDesk;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -39,14 +40,27 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/decisions")
 public class DecisionApi {
 
-  public record DecideRequest(Boolean approve, String comment) {}
+  /**
+   * A decision on a proposal.
+   *
+   * @param declineReason for a declined substitution, what to do instead: {@code PAY_PO_PRICE} or
+   *     {@code RETURN_GOODS}; the desk's rules act on it
+   */
+  public record DecideRequest(Boolean approve, String comment, String declineReason) {
+
+    public DecideRequest(Boolean approve, String comment) {
+      this(approve, comment, null);
+    }
+  }
 
   public record DecideResponse(String result, String decidedBy) {}
 
   private final Decisions decisions;
   private final DecisionExecutor executor;
+  private final ResolverDesk resolverDesk;
 
-  public DecisionApi(Decisions decisions, DecisionExecutor executor) {
+  public DecisionApi(Decisions decisions, DecisionExecutor executor, ResolverDesk resolverDesk) {
+    this.resolverDesk = resolverDesk;
     this.decisions = decisions;
     this.executor = executor;
   }
@@ -78,6 +92,13 @@ public class DecisionApi {
     boolean approve = Boolean.TRUE.equals(request.approve());
     if (!approve && (request.comment() == null || request.comment().isBlank())) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A denial needs a reason");
+    }
+    if (request.declineReason() != null) {
+      if (approve || !ResolverDesk.DECLINE_REASONS.contains(request.declineReason())) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "A decline reason is one of " + ResolverDesk.DECLINE_REASONS);
+      }
+      resolverDesk.declinedWith(d, request.declineReason(), me.getName());
     }
     return switch (executor.decide(
         decisionId, me.getName(), approve, request.comment(), me.getToken().getTokenValue())) {

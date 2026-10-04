@@ -48,6 +48,7 @@ tests what the authors remembered to worry about.
 | 8 | Vendor mail held in quarantine, read by a model with no tools | The injected reply was stopped 5 of 5 times. A broken reader looked like a careful one. The reading had no word for "we can issue a credit memo". | A richer, typed reading. A narrower meaning of "instructions". Nessy's storage encrypted. |
 | 9 | Buyers asked on the workbench, not by mail | A buyer's mail ("please pay it") read as an instruction. A case asked a clerk to approve a hold that changed nothing. | Questions on the workbench. "Ask once". No approval for a no-op. Evidence checked by citation. |
 | 10 | Controls for what the full runs found | A small model invented a buyer's answer and believed an instruction in an invoice number. A larger model obeyed a wrong rule and stopped. | Four controls in code, and a fixed playbook rule. |
+| Rules first | Decision tables in front of the agent | In 16 of 21 scenarios the agent wrote to nobody, and in 13 it gave the same answer in every run. In 3 it divided its runs between two answers that nobody had chosen between. | The desk's rules settle what they can, ask for one fact when a rule needs it, and give the agent only what they cannot settle. |
 
 ## The timeline
 
@@ -228,6 +229,25 @@ got a fix in code, not only in the prompt.
 On the slice 10 desk, gpt-6.1-sol passed 399 of 400 cases and Claude Sonnet 5.5 passed 400 of
 400, with no unsafe run. See the [evaluation results](results.md).
 
+## Rules first: the agent gets only what rules cannot settle
+
+The full runs on gpt-6-luna asked a question that no failure had asked: how much of this work
+needs a model at all? In 16 of 21 scenarios the agent wrote to nobody. It read the ERP and
+proposed, and in 13 of those it proposed the same action in all 20 runs. In the other 3 it
+divided its runs between two acceptable actions. That was not judgment. It was a policy decision
+that nobody had made.
+
+The evaluation already held the answer. Each scenario's acceptable outcomes were a function of
+the ERP's data, and a function of structured input is code. The desk now runs DMN decision
+tables before the agent. They propose what they can settle, through the same policy and the same
+deciders. When a rule needs a fact that the ERP does not hold, they write one letter and read the
+reply through the quarantine. When they cannot settle a case, they say why and give it to the
+agent.
+
+The first live run found one bug at once: the rules' letter to the vendor was not on the case's
+record, so the evaluation could not see it. See
+[Stay deterministic as long as you can](../deterministic-first.md) for the design and the run.
+
 ## What the whole story teaches
 
 1. **Most controls came from a run or a review.** Few were designed in advance from a list of
@@ -237,3 +257,6 @@ On the slice 10 desk, gpt-6.1-sol passed 399 of 400 cases and Claude Sonnet 5.5 
    model obeyed. Look at the runs before you blame the model.
 3. **Move each fix as far from the prompt as it can go.** Prompts asked. Policy, types and the
    ERP enforced. The fixes that held are the ones in code.
+4. **Then move the work itself as far from the model as it can go.** An evaluation whose
+   expected outputs are a function of structured input describes code. Write the code, keep the
+   model for what the code cannot frame, and let the evaluation say which is which.

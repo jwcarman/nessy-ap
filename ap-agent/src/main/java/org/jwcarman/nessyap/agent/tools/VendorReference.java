@@ -37,6 +37,11 @@ public final class VendorReference {
     if (written == null) {
       return null;
     }
-    return SHAPE.matcher(written).matches() ? written : WITHHELD;
+    return looksLikeOne(written) ? written : WITHHELD;
+  }
+
+  /** Whether a vendor-written string is shaped like a reference. */
+  public static boolean looksLikeOne(String written) {
+    return written != null && SHAPE.matcher(written).matches();
   }
 }

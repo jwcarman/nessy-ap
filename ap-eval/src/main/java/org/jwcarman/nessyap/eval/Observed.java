@@ -35,6 +35,7 @@ import java.util.Map;
  * @param ungrounded the cited ids the agent never read
  * @param questionsAnswered how many of the agent's questions a person answered
  * @param mailReceived how many messages reached the case from outside
+ * @param handledBy who worked the case at the end: {@code rules} or {@code agent}
  */
 public record Observed(
     String caseStatus,
@@ -49,7 +50,40 @@ public record Observed(
     List<String> cited,
     List<String> ungrounded,
     int questionsAnswered,
-    int mailReceived) {
+    int mailReceived,
+    String handledBy) {
+
+  /** A run its agent worked. */
+  public Observed(
+      String caseStatus,
+      List<String> proposedActions,
+      List<String> toolsUsed,
+      List<String> routedTo,
+      List<String> mailed,
+      Usage usage,
+      Duration wall,
+      String waitingOn,
+      Map<String, List<String>> facts,
+      List<String> cited,
+      List<String> ungrounded,
+      int questionsAnswered,
+      int mailReceived) {
+    this(
+        caseStatus,
+        proposedActions,
+        toolsUsed,
+        routedTo,
+        mailed,
+        usage,
+        wall,
+        waitingOn,
+        facts,
+        cited,
+        ungrounded,
+        questionsAnswered,
+        mailReceived,
+        "agent");
+  }
 
   /** A run that received no mail. */
   public Observed(

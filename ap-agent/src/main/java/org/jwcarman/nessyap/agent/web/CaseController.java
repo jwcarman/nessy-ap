@@ -29,6 +29,7 @@ import org.jwcarman.nessyap.agent.decisions.PendingDecision;
 import org.jwcarman.nessyap.agent.mail.Counterparty;
 import org.jwcarman.nessyap.agent.questions.Question;
 import org.jwcarman.nessyap.agent.questions.Questions;
+import org.jwcarman.nessyap.agent.resolver.ResolverDesk;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -55,7 +56,8 @@ public class CaseController {
       String decidedBy,
       String erpResult,
       List<String> evidence,
-      List<String> ungrounded) {
+      List<String> ungrounded,
+      String proposedBy) {
 
     static CaseDecision of(PendingDecision d, List<String> ungrounded) {
       return new CaseDecision(
@@ -68,7 +70,8 @@ public class CaseController {
           d.decidedBy(),
           d.erpResult(),
           d.evidence(),
-          ungrounded);
+          ungrounded,
+          ResolverDesk.TOKEN.equals(d.replyToken()) ? "rules" : "agent");
     }
   }
 
@@ -78,6 +81,7 @@ public class CaseController {
       UUID invoiceId,
       String reasonCode,
       String status,
+      String handledBy,
       List<CaseTimeline.CaseEvent> timeline,
       List<CaseDecision> decisions,
       List<CaseMail> mail,
@@ -141,9 +145,10 @@ public class CaseController {
         c.invoiceId(),
         c.reasonCode().name(),
         c.status().name(),
+        cases.rulesHandle(exceptionId) ? "rules" : "agent",
         timeline.of(exceptionId),
         decisions.forCase(exceptionId).stream()
-            .map(d -> CaseDecision.of(d, grounding.ungrounded(c.agentId(), d.evidence())))
+            .map(d -> CaseDecision.of(d, grounding.ungrounded(d)))
             .toList(),
         counterparty.forCase(exceptionId).stream()
             .map(m -> new CaseMail(m.kind(), m.recipient(), m.subject(), m.messageId(), m.sentAt()))

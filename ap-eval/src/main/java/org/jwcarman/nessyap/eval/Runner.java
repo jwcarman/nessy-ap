@@ -191,6 +191,14 @@ final class Runner {
     return Optional.ofNullable(scenario.denials().get(action));
   }
 
+  /** A denial, with the structured reason the scenario gives for it, if it gives one. */
+  static Map<String, Object> denial(Scenario scenario, String action, String comment) {
+    String declineReason = scenario.declineReasons().get(action);
+    return declineReason == null
+        ? Map.of("approve", false, "comment", comment)
+        : Map.of("approve", false, "comment", comment, "declineReason", declineReason);
+  }
+
   /**
    * Each person decides what the policy sent them: they approve it, unless the scenario has them
    * deny that action.
@@ -214,7 +222,8 @@ final class Runner {
               agentUrl + "/api/decisions/" + decision.path("id").asString(),
               keycloak.tokenFor(person),
               verdictFor(scenario, decision.path("action").asString())
-                  .<Map<String, Object>>map(reason -> Map.of("approve", false, "comment", reason))
+                  .<Map<String, Object>>map(
+                      reason -> denial(scenario, decision.path("action").asString(), reason))
                   .orElse(
                       Map.of(
                           "approve", true, "comment", "approved by the evaluation as " + person)));
@@ -369,7 +378,8 @@ final class Runner {
         cited,
         ungrounded,
         answeredQuestions(view),
-        received);
+        received,
+        view.path("handledBy").isString() ? view.path("handledBy").asString() : "agent");
   }
 
   private static int answeredQuestions(JsonNode view) {

@@ -299,6 +299,25 @@ A run that breaks (the desk is unreachable, or the evaluation throws) is scored 
 and the other runs continue. Start each full run on a fresh database with nothing else in
 flight, and record the jar, the models and the settings with the results.
 
+## 15. Read your evaluation as a specification
+
+Look at what the evaluation expects. When the right outcome of a scenario is a function of
+structured input (a reason code, a percentage, a count of receipts), the evaluation has written
+down a decision table. That function is code, and a model that computes it costs money and varies
+from run to run.
+
+- **Look for scenarios with one answer that the agent always gives.** In the full runs on
+  gpt-6-luna, 13 of 21 scenarios got the same action in all 20 runs, with no correspondence.
+- **Look for scenarios where the runs divide between two acceptable answers.** That is a policy
+  that nobody chose. Choose it, and write it down as a rule.
+- **Then measure who settles each run.** This desk records `settledBy` for each run (`rules`,
+  `rules+facts` or `agent`) and reports the agent's share.
+- **Hold the rules to a stricter standard than the model.** A model may pass 19 of 20. Rules must
+  give the same action in every run of a scenario. The report names any scenario where they do
+  not, because a difference is a bug, not a rate.
+
+See [Stay deterministic as long as you can](../deterministic-first.md).
+
 ## Run it yourself
 
 ```bash

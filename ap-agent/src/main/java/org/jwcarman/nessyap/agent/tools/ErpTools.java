@@ -207,8 +207,9 @@ public class ErpTools {
         editable.put(
             "description", "(withheld: written by the vendor; people can read it in the ERP)");
       }
-      // The numbers a vendor wrote on its invoice are shown only when they look like numbers.
-      for (String reference : new String[] {"invoiceNumber", "poNumber"}) {
+      // The references a vendor wrote on its invoice (numbers, item codes) are shown only when
+      // they look like references.
+      for (String reference : new String[] {"invoiceNumber", "poNumber", "itemCode"}) {
         if (node instanceof ObjectNode editable && node.path(reference).isString()) {
           editable.put(reference, VendorReference.shown(node.get(reference).asString()));
         }

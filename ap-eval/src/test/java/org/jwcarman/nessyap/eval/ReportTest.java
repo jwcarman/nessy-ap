@@ -140,4 +140,64 @@ class ReportTest {
     // Wilson 95% for 2 of 2.
     assertThat(report).contains("100% (34–100)");
   }
+
+  private static RunScore settled(String scenario, String action, String by) {
+    return new RunScore(
+        scenario,
+        1,
+        "RESOLVED",
+        List.of(action),
+        true,
+        true,
+        true,
+        true,
+        0,
+        1,
+        new Usage(Map.of()),
+        Duration.ofSeconds(5),
+        null,
+        null,
+        by);
+  }
+
+  @Test
+  void the_report_counts_who_settled_each_scenario_and_the_agents_share() {
+    String markdown =
+        Report.markdown(
+            "label",
+            List.of(
+                settled("duplicate", "reject", "rules"),
+                settled("duplicate", "reject", "rules"),
+                settled("no-po", "hold", "agent")));
+
+    assertThat(markdown)
+        .contains("| rules 2 |")
+        .contains("| agent 1 |")
+        .contains("The agent settled 1 of 3 runs (33%)");
+  }
+
+  @Test
+  void rules_that_settle_one_scenario_two_ways_are_named() {
+    String markdown =
+        Report.markdown(
+            "label",
+            List.of(
+                settled("duplicate", "reject", "rules"),
+                settled("duplicate", "hold", "rules+facts"),
+                settled("no-po", "hold", "agent"),
+                settled("no-po", "reject", "agent")));
+
+    assertThat(markdown).contains("- duplicate: reject, hold").doesNotContain("- no-po");
+  }
+
+  @Test
+  void rules_that_always_agree_are_reported_as_such() {
+    String markdown =
+        Report.markdown(
+            "label",
+            List.of(
+                settled("duplicate", "reject", "rules"), settled("duplicate", "reject", "rules")));
+
+    assertThat(markdown).contains("ended in the same action");
+  }
 }

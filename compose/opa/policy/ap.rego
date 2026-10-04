@@ -183,10 +183,11 @@ else := {"effect": "delegate", "to": "controller"} if {
 
 else := {"effect": "delegate", "to": "controller"} if amount > limit
 
-# A price the buyer may have agreed is the buyer's to accept: the one who placed the order.
+# A price the buyer may have agreed, or an item substituted for the one they ordered, is the
+# buyer's to accept: the one who placed the order.
 else := {"effect": "delegate", "to": "buyer", "buyer": input.facts.buyer} if {
 	action == "approve-variance"
-	input.facts.reasonCode == "PRICE_VARIANCE"
+	input.facts.reasonCode in {"PRICE_VARIANCE", "ITEM_SUBSTITUTED"}
 	input.facts.buyer
 }
 

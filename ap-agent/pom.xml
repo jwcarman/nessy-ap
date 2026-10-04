@@ -107,6 +107,12 @@
       <groupId>org.jwcarman.occlude</groupId>
       <artifactId>occlude-jdbc</artifactId>
     </dependency>
+    <!-- The resolver's decision tables (DMN), run in process. -->
+    <dependency>
+      <groupId>org.kie</groupId>
+      <artifactId>kie-dmn-core</artifactId>
+      <version>${kie.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.apache.camel.springboot</groupId>
       <artifactId>camel-mail-starter</artifactId>

@@ -94,6 +94,22 @@ Under parallel load the local model server dropped requests. Each dropped reques
 and the case then looked exactly like an agent that gave up. Before trusting a pass rate, count
 the infrastructure failures apart, and decide what the system does when a turn fails.
 
+## Stay deterministic as long as you can
+
+The full runs showed that most of the agent's work had one right answer, given the ERP's data.
+In 13 of 21 scenarios the agent proposed the same action in all 20 runs, and wrote to nobody.
+In 3 more, it divided its runs between two answers, because nobody had chosen between them.
+
+- Once a model has classified an input into typed slots, process the slots with rules.
+- Let the rules say when they cannot decide: a decision table where exactly one row must match,
+  and an unknown fact that matches no row.
+- Give the agent the cases that the rules cannot frame, with what the rules established. Its
+  first job is to decide which facts to find.
+- Keep the rules and the guardrails apart. The decision tables propose; the policy decides who
+  may approve. A wrong row cannot authorize what the policy forbids.
+
+See [Stay deterministic as long as you can](deterministic-first.md).
+
 ## Measure enough, and look at the runs
 
 Five runs a scenario cannot tell 80% from 100%. The [evaluation results](evaluation/results.md)
