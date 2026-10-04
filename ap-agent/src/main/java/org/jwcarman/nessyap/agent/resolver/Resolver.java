@@ -50,6 +50,8 @@ public final class Resolver {
   private static final String NEEDS = "needs";
   private static final String RESOLUTION = "resolution";
 
+  private static final String ACTION = "action";
+
   /** The resolution table's default action, when no row matches. */
   private static final String NO_RULE = "escalate";
 
@@ -109,12 +111,12 @@ public final class Resolver {
     }
     // No row matched: the table's default action says so, and the agent takes the case.
     if (!(resolution.getResult() instanceof Map<?, ?> row)
-        || row.get("action") == null
-        || NO_RULE.equals(text(row.get("action")))) {
+        || row.get(ACTION) == null
+        || NO_RULE.equals(text(row.get(ACTION)))) {
       return new Outcome.Escalate("unhandled");
     }
     return new Outcome.Resolved(
-        text(row.get("action")), text(row.get("amountBasis")), text(row.get("rule")));
+        text(row.get(ACTION)), text(row.get("amountBasis")), text(row.get("rule")));
   }
 
   private static Object first(Object collected) {

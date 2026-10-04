@@ -159,7 +159,7 @@ public class CaseFactsEnricher implements ApprovalEnricher {
     Set<String> ids = new HashSet<>();
     ids.add(c.vendorId().toString());
     for (JsonNode account : vendor.path("bankAccounts")) {
-      if (PENDING.equals(account.path("status").asString()) && account.hasNonNull("id")) {
+      if (PENDING.equals(account.path(STATUS).asString()) && account.hasNonNull("id")) {
         ids.add(account.get("id").asString());
       }
     }
