@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/" id="resolution" name="resolution" namespace="https://nessy-ap.example/decisions/resolution">
-  <description>The AP desk's resolution rules (spec 2026-10-04). 'needs' (COLLECT) lists facts a case needs first. 'resolution' (UNIQUE) must match exactly one row: none means unhandled, an overlap means conflict. A slot not supplied is unknown (null), and rows fire only on known values.</description>
+  <description>The AP desk's resolution rules (spec 2026-10-04). 'needs' (COLLECT) lists facts a case needs first. 'resolution' (UNIQUE) must match exactly one row: an overlap means conflict, and none gives the table's default, action "escalate", which means unhandled. A slot not supplied is unknown (null), and rows fire only on known values.</description>
   <inputData id="reasonCode" name="reasonCode"><variable name="reasonCode" typeRef="string"/></inputData>
   <inputData id="variancePercent" name="variancePercent"><variable name="variancePercent" typeRef="number"/></inputData>
   <inputData id="declinedAction" name="declinedAction"><variable name="declinedAction" typeRef="string"/></inputData>
@@ -48,9 +48,9 @@
       <input id="resolution-in-originalFound" label="originalFound"><inputExpression id="resolution-ie-originalFound" typeRef="boolean"><text>originalFound</text></inputExpression></input>
       <input id="resolution-in-receiptsCoverBoth" label="receiptsCoverBoth"><inputExpression id="resolution-ie-receiptsCoverBoth" typeRef="boolean"><text>receiptsCoverBoth</text></inputExpression></input>
       <input id="resolution-in-substitutionReason" label="substitutionReason"><inputExpression id="resolution-ie-substitutionReason" typeRef="string"><text>substitutionReason</text></inputExpression></input>
-      <output id="resolution-out-action" name="action" typeRef="string"/>
-      <output id="resolution-out-amountBasis" name="amountBasis" typeRef="string"/>
-      <output id="resolution-out-rule" name="rule" typeRef="string"/>
+      <output id="resolution-out-action" name="action" typeRef="string"><defaultOutputEntry id="resolution-default-action"><text>"escalate"</text></defaultOutputEntry></output>
+      <output id="resolution-out-amountBasis" name="amountBasis" typeRef="string"><defaultOutputEntry id="resolution-default-amountBasis"><text>"NONE"</text></defaultOutputEntry></output>
+      <output id="resolution-out-rule" name="rule" typeRef="string"><defaultOutputEntry id="resolution-default-rule"><text>"no-rule"</text></defaultOutputEntry></output>
       <rule id="resolution-r1">
         <description>A variance the buyer can approve: the buyer decides.</description>
         <inputEntry id="resolution-r1-i0"><text>"PRICE_VARIANCE"</text></inputEntry>

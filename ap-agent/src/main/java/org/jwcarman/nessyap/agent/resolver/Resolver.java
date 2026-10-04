@@ -50,6 +50,9 @@ public final class Resolver {
   private static final String NEEDS = "needs";
   private static final String RESOLUTION = "resolution";
 
+  /** The resolution table's default action, when no row matches. */
+  private static final String NO_RULE = "escalate";
+
   private final DMNRuntime runtime;
   private final DMNModel model;
 
@@ -104,7 +107,10 @@ public final class Resolver {
     if (resolution.getEvaluationStatus() == DecisionEvaluationStatus.FAILED) {
       return new Outcome.Escalate("unhandled");
     }
-    if (!(resolution.getResult() instanceof Map<?, ?> row) || row.get("action") == null) {
+    // No row matched: the table's default action says so, and the agent takes the case.
+    if (!(resolution.getResult() instanceof Map<?, ?> row)
+        || row.get("action") == null
+        || NO_RULE.equals(text(row.get("action")))) {
       return new Outcome.Escalate("unhandled");
     }
     return new Outcome.Resolved(

@@ -22,6 +22,9 @@ import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 /**
  * The resolver's decision tables, row by row. No model, no Spring, no container: the same slots
@@ -172,12 +175,20 @@ class ResolverTest {
   }
 
   @Nested
+  @ExtendWith(OutputCaptureExtension.class)
   class When_the_rules_cannot_converge {
 
     @Test
     void a_case_no_row_covers_escalates_as_unhandled() {
       assertThat(RESOLVER.resolve(slots("reasonCode", "NO_PO")))
           .isEqualTo(new Outcome.Escalate("unhandled"));
+    }
+
+    @Test
+    void a_case_no_row_covers_is_the_tables_own_default_and_logs_no_warning(CapturedOutput log) {
+      RESOLVER.resolve(slots("reasonCode", "NO_PO"));
+
+      assertThat(log.getOut()).doesNotContain("No rule matched");
     }
 
     @Test
