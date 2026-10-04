@@ -4,6 +4,20 @@
 <body>
 <header th:replace="~{workbench/layout :: header}"></header>
 <main>
+  <section class="flash warn" th:if="${agentsPaused}">
+    <strong>The agents are paused.</strong> The rules keep working; anything an agent would be
+    told is held, and its case waits for a person.
+    <form th:if="${roles.contains('controller')}" th:action="@{/workbench/oversight/agents}"
+          method="post" class="verdict">
+      <input type="hidden" name="pause" value="false">
+      <button class="approve">Resume the agents</button>
+    </form>
+  </section>
+  <form th:if="${!agentsPaused and roles.contains('controller')}"
+        th:action="@{/workbench/oversight/agents}" method="post" class="verdict">
+    <input type="hidden" name="pause" value="true">
+    <button class="deny">Pause the agents</button>
+  </form>
   <section>
     <h1>Needs your decision</h1>
     <p class="muted" th:if="${waiting.isEmpty()}">Nothing is waiting on you.</p>

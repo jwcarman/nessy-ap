@@ -26,16 +26,26 @@ import org.jwcarman.nessy.api.QueuedHarnessFactory;
 import org.jwcarman.nessy.approval.policy.PolicyApprover;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseInputRenderer;
+import org.jwcarman.nessyap.agent.cases.CaseTimeline;
+import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.CaseFactsEnricher;
 import org.jwcarman.nessyap.agent.decisions.ProposeResolution;
+import org.jwcarman.nessyap.agent.oversight.AgentBudget;
+import org.jwcarman.nessyap.agent.oversight.GuardedAgents;
+import org.jwcarman.nessyap.agent.oversight.Switches;
 import org.jwcarman.nessyap.agent.questions.QuestionTools;
 import org.jwcarman.nessyap.agent.tools.ErpTools;
 import org.jwcarman.nessyap.agent.tools.MailTools;
 import org.jwcarman.nessyap.agent.tools.ProposeResolutionTool;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.Resource;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.json.JsonMapper;
 
 /** The AP exception agent: one agent type, one agent per case. */
 @Configuration(proxyBeanMethods = false)
@@ -49,8 +59,27 @@ public class AgentConfiguration {
     return Clock.tick(Clock.systemUTC(), Duration.ofNanos(1_000));
   }
 
+  /**
+   * The door everything uses to tell a case's agent something: people's oversight (a pause, a spent
+   * budget) applies there. The harness it wraps is used by nothing else.
+   */
   @Bean
-  public QueuedHarness<CaseInput> apAgent(
+  @Primary
+  public GuardedAgents apAgent(
+      @Qualifier("apAgentHarness") QueuedHarness<CaseInput> agents,
+      Switches switches,
+      AgentBudget budget,
+      Cases cases,
+      CaseTimeline timeline,
+      JdbcClient jdbc,
+      JsonMapper json,
+      Clock clock,
+      TransactionTemplate tx) {
+    return new GuardedAgents(agents, switches, budget, cases, timeline, jdbc, json, clock, tx);
+  }
+
+  @Bean
+  public QueuedHarness<CaseInput> apAgentHarness(
       QueuedHarnessFactory factory,
       ErpTools erpTools,
       ProposeResolutionTool propose,

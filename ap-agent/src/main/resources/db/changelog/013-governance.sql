@@ -26,7 +26,7 @@ create table oversight_change (
 create table held_input (
     id          uuid        not null primary key,
     agent_id    uuid        not null,
-    exception_id uuid       not null,
+    exception_id uuid,
     reason      text        not null,
     input       text        not null,
     held_at     timestamptz not null,

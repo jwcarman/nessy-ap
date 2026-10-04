@@ -22,7 +22,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.jwcarman.nessy.api.QueuedHarness;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
@@ -39,6 +38,7 @@ import org.jwcarman.nessyap.agent.decisions.Provenance;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
 import org.jwcarman.nessyap.agent.erp.ErpOutcome;
 import org.jwcarman.nessyap.agent.mail.UnmatchedMail;
+import org.jwcarman.nessyap.agent.oversight.GuardedAgents;
 import org.jwcarman.nessyap.agent.quarantine.Quarantine;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.agent.questions.Answers;
@@ -75,7 +75,7 @@ public class WorkbenchController {
   private final Decisions decisions;
   private final DecisionExecutor executor;
   private final ErpClient erp;
-  private final QueuedHarness<CaseInput> agent;
+  private final GuardedAgents agent;
   private final UnmatchedMail unmatched;
   private final Quarantine quarantine;
   private final Questions questions;
@@ -89,7 +89,7 @@ public class WorkbenchController {
       Decisions decisions,
       DecisionExecutor executor,
       ErpClient erp,
-      QueuedHarness<CaseInput> agent,
+      GuardedAgents agent,
       UnmatchedMail unmatched,
       Quarantine quarantine,
       Questions questions,
@@ -125,6 +125,7 @@ public class WorkbenchController {
             : decisions.pendingFor(roles, me.getName());
     model.addAttribute("me", me.getName());
     model.addAttribute("roles", roles);
+    model.addAttribute("agentsPaused", agent.paused());
     model.addAttribute(
         "waiting",
         mine.stream()
@@ -304,6 +305,25 @@ public class WorkbenchController {
     return result instanceof Answers.Answered.Told(Question q)
         ? "redirect:/workbench/cases/" + q.exceptionId()
         : "redirect:/workbench";
+  }
+
+  /** A controller pauses the case agents, or resumes them. */
+  @PostMapping("/oversight/agents")
+  public String oversee(
+      @RequestParam boolean pause, Authentication me, RedirectAttributes redirect) {
+    if (!RealmRoles.of(me).contains(Deciders.CONTROLLER)) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, "Only a controller may pause or resume the agents");
+    }
+    if (pause) {
+      agent.pause(me.getName());
+      redirect.addFlashAttribute("message", "The agents are paused.");
+    } else {
+      int released = agent.resume(me.getName());
+      redirect.addFlashAttribute(
+          "message", "The agents are resumed; " + released + " held inputs went to them.");
+    }
+    return "redirect:/workbench";
   }
 
   @PostMapping("/cases/{exceptionId}/notes")
