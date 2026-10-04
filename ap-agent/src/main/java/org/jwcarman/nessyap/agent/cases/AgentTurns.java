@@ -36,11 +36,12 @@ public class AgentTurns {
   /**
    * One turn, as an auditor reads it.
    *
+   * @param input what started the turn, as Nessy labels its input (the input's kind)
    * @param exchanges how many times the model asked for tools in the turn
    * @param ended how the turn ended ({@code Answered}, {@code TurnFailed}, ...), or null while it
    *     runs
    */
-  public record Summary(long turn, boolean complete, int exchanges, String ended) {}
+  public record Summary(long turn, String input, boolean complete, int exchanges, String ended) {}
 
   private final AgentStories stories;
 
@@ -85,18 +86,24 @@ public class AgentTurns {
                     new LinkedHashMap<TurnId, Summary>(),
                     (Map<TurnId, Summary> soFar, Narrated told) -> {
                       switch (told.event()) {
-                        case Narration.TurnStarted(TurnId turn) ->
-                            soFar.put(turn, new Summary(turn.value(), false, 0, null));
+                        case Narration.TurnStarted started ->
+                            soFar.put(
+                                started.turn(),
+                                new Summary(
+                                    started.turn().value(), started.label(), false, 0, null));
                         case Narration.ActionsRequested(TurnId turn, var calls, var usage) ->
                             soFar.computeIfPresent(
                                 turn,
-                                (t, s) -> new Summary(s.turn(), false, s.exchanges() + 1, null));
+                                (t, s) ->
+                                    new Summary(
+                                        s.turn(), s.input(), false, s.exchanges() + 1, null));
                         case Narration.TurnEnding ending ->
                             soFar.computeIfPresent(
                                 ending.turn(),
                                 (t, s) ->
                                     new Summary(
                                         s.turn(),
+                                        s.input(),
                                         true,
                                         s.exchanges(),
                                         ending.getClass().getSimpleName()));

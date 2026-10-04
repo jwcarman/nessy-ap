@@ -24,6 +24,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import org.jwcarman.nessy.api.Awaited;
+import org.jwcarman.nessy.api.EmptyInput;
 import org.jwcarman.nessy.api.block.Block;
 import org.jwcarman.nessy.api.tool.Tool;
 import org.jwcarman.nessy.api.tool.ToolCallRequest;
@@ -62,9 +63,6 @@ public class ErpTools {
               "Leave out to read this case's purchase order. Give a number only to read another"
                   + " one, e.g. PO-3F9A12BC")
           String poNumber) {}
-
-  /** The input of a tool that reads only this case's own record. */
-  public record NoInput() {}
 
   public record SimilarQuery(
       @JsonPropertyDescription(
@@ -134,13 +132,13 @@ public class ErpTools {
         UnaryOperator.identity());
   }
 
-  public Tool<NoInput> getVendor() {
+  public Tool<EmptyInput> getVendor() {
     return new Read<>(
         "get_vendor",
         "Read this case's vendor: contact of record, payment terms, and every bank account it"
             + " has had, including any change still awaiting verification. Account numbers are"
             + " masked.",
-        NoInput.class,
+        EmptyInput.class,
         (c, in) -> erp.vendor(c.vendorId()),
         ErpTools::maskAccounts);
   }
@@ -160,11 +158,11 @@ public class ErpTools {
         VENDOR_TEXT);
   }
 
-  public Tool<NoInput> vendorInvoiceHistory() {
+  public Tool<EmptyInput> vendorInvoiceHistory() {
     return new Read<>(
         "get_vendor_invoice_history",
         "List this case's vendor's invoices, newest first, with their statuses.",
-        NoInput.class,
+        EmptyInput.class,
         (c, in) -> erp.vendorInvoices(c.vendorId()),
         ErpTools::withholdVendorText,
         VENDOR_TEXT);

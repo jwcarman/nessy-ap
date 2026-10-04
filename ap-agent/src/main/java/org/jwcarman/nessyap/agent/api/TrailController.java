@@ -43,10 +43,11 @@ public class TrailController {
   private static final int MAX_TURNS = 200;
 
   /** One agent turn, as the trail shows it. */
-  public record TurnView(long turn, boolean complete, int exchanges, String ended) {
+  public record TurnView(long turn, String input, boolean complete, int exchanges, String ended) {
 
     static TurnView of(AgentTurns.Summary turn) {
-      return new TurnView(turn.turn(), turn.complete(), turn.exchanges(), turn.ended());
+      return new TurnView(
+          turn.turn(), turn.input(), turn.complete(), turn.exchanges(), turn.ended());
     }
   }
 

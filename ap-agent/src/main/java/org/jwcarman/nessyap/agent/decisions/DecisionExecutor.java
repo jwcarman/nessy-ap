@@ -165,12 +165,12 @@ public class DecisionExecutor {
               + (d.decisionComment() == null ? "" : ": " + d.decisionComment())
               + ". This proposal is closed and the turn is still yours: check what the reason"
               + " points at, then propose again now.";
-      answer(d, ApprovalResult.deniedBy(reason, d.id().toString()), "declined", false);
+      answer(d, ApprovalResult.deniedBy(reason, decider(d)), "declined", false);
       return;
     }
     if (d.expectedVersion() == null) {
       if (d.erpResult() != null) {
-        answer(d, ApprovalResult.deniedBy(d.erpResult(), d.id().toString()), d.erpResult(), false);
+        answer(d, ApprovalResult.deniedBy(d.erpResult(), decider(d)), d.erpResult(), false);
       }
       // Otherwise the ERP could not be read yet; the sweeper comes back for it.
       return;
@@ -187,8 +187,7 @@ public class DecisionExecutor {
                 "Decided by " + d.decidedBy() + ": " + d.rationale(),
                 accessToken);
     switch (outcome) {
-      case ErpOutcome.Ok _ ->
-          answer(d, ApprovalResult.approvedBy(d.id().toString()), "applied", true);
+      case ErpOutcome.Ok _ -> answer(d, ApprovalResult.approvedBy(decider(d)), "applied", true);
       case ErpOutcome.Refused(int s, _, _) when accessToken == null && (s == 401 || s == 403) -> {
         // The ERP wants a person and none is lending their authority (the sweeper, or someone
         // arriving after the decision). That is not the decider saying no: keep it for them.
@@ -206,10 +205,15 @@ public class DecisionExecutor {
     }
   }
 
+  /** Who decided, as Nessy records it on the call: the person who decided on the workbench. */
+  private static String decider(PendingDecision d) {
+    return d.decidedBy() == null ? "the desk" : d.decidedBy();
+  }
+
   private void refused(PendingDecision d, String code, String detail) {
     answer(
         d,
-        ApprovalResult.deniedBy(ERP_REFUSED + code + ": " + detail, d.id().toString()),
+        ApprovalResult.deniedBy(ERP_REFUSED + code + ": " + detail, decider(d)),
         ERP_REFUSED + code,
         false);
   }
