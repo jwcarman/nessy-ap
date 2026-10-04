@@ -55,6 +55,7 @@
     <testcontainers.version>2.0.5</testcontainers.version>
     <camel.version>4.22.1</camel.version>
     <occlude.version>0.2.0</occlude.version>
+    <kie.version>10.2.0</kie.version>
     <codec.version>0.10.0</codec.version>
     <!-- Boot 4.1.1 manages JUnit 6.0.3; 6.1.3 is the latest GA. -->
     <junit-jupiter.version>6.1.3</junit-jupiter.version>
