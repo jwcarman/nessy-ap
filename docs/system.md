@@ -228,6 +228,8 @@ money safe, because a model can be persuaded.
 | A vendor's answer becomes a fact only from the vendor the desk wrote to, and only when it names the invoice line's item | `ResolverDesk` and `DeskMail` | A reply from someone else, or about a different item, supplying a fact | `ResolverDeskTest` |
 | The rules propose only on facts the desk read | `CaseSlots` (`complete`), `ResolverDesk` | A hold or short-pay proposed after a failed ERP read | `ResolverDeskTest` |
 | Vendor-written text the rules pass on is shaped like a reference | `ResolverDesk` (the billed item), `CaseInputRenderer` (text the ERP quotes in its summary) | An instruction in an item code reaching the agent | `ResolverDeskTest`, `CaseInputRendererTest` |
+| Every proposal records what produced it: proposer, models, desk build, playbook, rules and policy versions | `Provenance`, stored with the decision | A decision nobody can explain later | `DecisionFlowTest`, `ResolverDeskTest` |
+| A controller can pause the agents; each case's agent has a budget | `GuardedAgents`, the one door to the agents | A runaway agent, or one nobody can stop | `OversightTest` |
 | Every run the rules settle of one scenario ends in the same action | The evaluation's determinism check | Rules that depend on something they should not | `ReportTest`; the evaluation report |
 
 ### The desk's inbox route
@@ -254,6 +256,9 @@ flowchart LR
   marked seen, so it does not block the inbox.
 - Camel's thread pools use virtual threads. camel-spring-boot copies Boot's
   `spring.threads.virtual.enabled` into Camel's own setting.
+
+For each control's place in SOX, NIST AI RMF, ISO/IEC 42001 and the OWASP LLM Top 10, and for
+the metrics and alerts that watch the desk run, see [Controls and governance](governance.md).
 
 ## 6. Rulings that a person may change
 

@@ -40,6 +40,8 @@ untrusted input and a measured evaluation.
 - [How it works](system.md): the parts, a case from start to end, and every control.
 - [Stay deterministic as long as you can](deterministic-first.md): why the rules come first, and
   how they know when to stop.
+- [Controls and governance](governance.md): each control mapped to SOX, NIST AI RMF, ISO/IEC 42001
+  and the OWASP LLM Top 10; provenance, the pause, budgets and alerts.
 - [Lessons for agentic systems](lessons.md): what building this taught, with the evidence.
 - [Evaluation](evaluation/index.md): how runs are scored, and the results slice by slice.
 - [Assessing Nessy](nessy-assessment.md): a critique of Nessy for this use case, with numbers.

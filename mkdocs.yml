@@ -75,6 +75,7 @@ nav:
   - Home: index.md
   - Getting started: getting-started.md
   - How it works: system.md
+  - Controls and governance: governance.md
   - Stay deterministic as long as you can: deterministic-first.md
   - Lessons for agentic systems: lessons.md
   - Evaluation:
