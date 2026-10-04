@@ -162,13 +162,7 @@ public class CaseSlots {
       boolean priced) {}
 
   private static Lines lines(JsonNode invoice, JsonNode po) {
-    Map<Integer, BigDecimal> poPrices = new HashMap<>();
-    for (JsonNode line : po.path("lines")) {
-      BigDecimal price = decimal(line.path("unitPrice"));
-      if (price != null) {
-        poPrices.put(line.path("lineNo").asInt(), price);
-      }
-    }
+    Map<Integer, BigDecimal> poPrices = poPrices(po);
     BigDecimal worst = null;
     String billedItem = null;
     BigDecimal atPoPrice = null;
@@ -183,9 +177,8 @@ public class CaseSlots {
         // A line the desk cannot price makes every amount from these lines untrustworthy.
         return new Lines(null, null, ZERO, billedItem, false);
       }
-      BigDecimal poPrice =
-          line.hasNonNull("poLineNo") ? poPrices.get(line.path("poLineNo").asInt()) : null;
-      if (poPrice == null || poPrice.signum() == 0) {
+      BigDecimal poPrice = poPriceOf(line, poPrices);
+      if (poPrice == null) {
         offPo = offPo.add(billed.multiply(quantity));
         continue;
       }
@@ -195,6 +188,25 @@ public class CaseSlots {
       worst = worst == null ? percent : worst.max(percent);
     }
     return new Lines(worst, atPoPrice, offPo, billedItem, true);
+  }
+
+  /** The unit price of each PO line that has one, by line number. */
+  private static Map<Integer, BigDecimal> poPrices(JsonNode po) {
+    Map<Integer, BigDecimal> poPrices = new HashMap<>();
+    for (JsonNode line : po.path("lines")) {
+      BigDecimal price = decimal(line.path("unitPrice"));
+      if (price != null) {
+        poPrices.put(line.path("lineNo").asInt(), price);
+      }
+    }
+    return poPrices;
+  }
+
+  /** The PO price a billed line answers to, or null when it names no PO line or the price is 0. */
+  private static BigDecimal poPriceOf(JsonNode line, Map<Integer, BigDecimal> poPrices) {
+    BigDecimal poPrice =
+        line.hasNonNull("poLineNo") ? poPrices.get(line.path("poLineNo").asInt()) : null;
+    return poPrice == null || poPrice.signum() == 0 ? null : poPrice;
   }
 
   private void readReceipts(CaseRecord c, Map<String, Object> slots, Set<String> evidence) {
