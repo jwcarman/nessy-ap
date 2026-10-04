@@ -57,6 +57,7 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
   private final JsonMapper json;
   private final Clock clock;
   private final TransactionTemplate tx;
+  private final DeskMetrics metrics;
 
   public GuardedAgents(
       QueuedHarness<CaseInput> agents,
@@ -67,7 +68,9 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
       JdbcClient jdbc,
       JsonMapper json,
       Clock clock,
-      TransactionTemplate tx) {
+      TransactionTemplate tx,
+      DeskMetrics metrics) {
+    this.metrics = metrics;
     this.agents = agents;
     this.switches = switches;
     this.budget = budget;
@@ -156,6 +159,7 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
   private record Held(UUID id, AgentId agentId, String input) {}
 
   private void hold(AgentId agentId, CaseInput input, String reason, String why) {
+    metrics.held(reason);
     CaseRecord c = cases.forAgent(agentId).orElse(null);
     UUID exceptionId = c == null ? null : c.exceptionId();
     jdbc.sql(

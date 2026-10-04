@@ -35,6 +35,7 @@ import org.jwcarman.nessyap.agent.AgentConfiguration;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
+import org.jwcarman.nessyap.agent.oversight.DeskMetrics;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReasonCode;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,7 @@ class WorkbenchDeskTest extends ApAgentIntegrationTest {
   @Autowired JsonMapper json;
   @Autowired Clock clock;
   @Autowired Provenance provenance;
+  @Autowired DeskMetrics metrics;
 
   @Test
   void a_buyers_desk_with_no_buyer_named_refuses_rather_than_letting_any_buyer_decide() {
@@ -67,7 +69,7 @@ class WorkbenchDeskTest extends ApAgentIntegrationTest {
             BigDecimal.TEN));
     AgentId agentId = cases.agentFor(exceptionId);
     WorkbenchDesk buyers =
-        new WorkbenchDesk("buyer", decisions, cases, timeline, json, clock, provenance);
+        new WorkbenchDesk("buyer", decisions, cases, timeline, json, clock, provenance, metrics);
     ApprovalRequest request =
         new ApprovalRequest(
             AgentConfiguration.AGENT_TYPE,

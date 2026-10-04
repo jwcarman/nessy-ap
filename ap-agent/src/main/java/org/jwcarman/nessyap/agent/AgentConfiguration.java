@@ -31,6 +31,7 @@ import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.CaseFactsEnricher;
 import org.jwcarman.nessyap.agent.decisions.ProposeResolution;
 import org.jwcarman.nessyap.agent.oversight.AgentBudget;
+import org.jwcarman.nessyap.agent.oversight.DeskMetrics;
 import org.jwcarman.nessyap.agent.oversight.GuardedAgents;
 import org.jwcarman.nessyap.agent.oversight.Switches;
 import org.jwcarman.nessyap.agent.questions.QuestionTools;
@@ -74,8 +75,10 @@ public class AgentConfiguration {
       JdbcClient jdbc,
       JsonMapper json,
       Clock clock,
-      TransactionTemplate tx) {
-    return new GuardedAgents(agents, switches, budget, cases, timeline, jdbc, json, clock, tx);
+      TransactionTemplate tx,
+      DeskMetrics metrics) {
+    return new GuardedAgents(
+        agents, switches, budget, cases, timeline, jdbc, json, clock, tx, metrics);
   }
 
   @Bean

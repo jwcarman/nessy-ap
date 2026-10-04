@@ -15,6 +15,7 @@
  */
 package org.jwcarman.nessyap.agent.quarantine;
 
+import org.jwcarman.nessyap.agent.oversight.DeskMetrics;
 import org.jwcarman.occlude.RefusalEvent;
 import org.jwcarman.occlude.RefusalReason;
 import org.slf4j.Logger;
@@ -37,8 +38,15 @@ public class RefusalLog {
 
   private static final Logger log = LoggerFactory.getLogger(RefusalLog.class);
 
+  private final DeskMetrics metrics;
+
+  public RefusalLog(DeskMetrics metrics) {
+    this.metrics = metrics;
+  }
+
   @EventListener
   public void on(RefusalEvent refusal) {
+    metrics.refused(refusal.reason().name());
     if (refusal.reason() == RefusalReason.DECLINED) {
       // A check that answered no, such as a PO the ERP does not hold: expected, and no alarm.
       log.info(

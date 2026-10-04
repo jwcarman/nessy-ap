@@ -26,6 +26,7 @@ import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
+import org.jwcarman.nessyap.agent.oversight.DeskMetrics;
 import org.jwcarman.nessyap.agent.support.Ids;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -45,6 +46,7 @@ public class WorkbenchDesk implements Approver {
   private final Clock clock;
   private final String role;
   private final Provenance provenance;
+  private final DeskMetrics metrics;
 
   public WorkbenchDesk(
       String role,
@@ -53,8 +55,10 @@ public class WorkbenchDesk implements Approver {
       CaseTimeline timeline,
       JsonMapper json,
       Clock clock,
-      Provenance provenance) {
+      Provenance provenance,
+      DeskMetrics metrics) {
     this.provenance = provenance;
+    this.metrics = metrics;
     this.role = role;
     this.decisions = decisions;
     this.cases = cases;
@@ -110,8 +114,9 @@ public class WorkbenchDesk implements Approver {
             clock.instant(),
             role,
             requiredUser));
-    decisions.rememberProvenance(
-        decisionId, json.writeValueAsString(provenance.stamp(request.agentType())));
+    Provenance.Stamp stamp = provenance.stamp(request.agentType());
+    decisions.rememberProvenance(decisionId, json.writeValueAsString(stamp));
+    metrics.proposed(stamp.proposer(), proposal.action());
     cases.setStatus(c.exceptionId(), CaseStatus.AWAITING_DECISION);
     timeline.record(c.exceptionId(), "proposal", request.action() + " (for " + role + ")");
     return Awaited.deferred();

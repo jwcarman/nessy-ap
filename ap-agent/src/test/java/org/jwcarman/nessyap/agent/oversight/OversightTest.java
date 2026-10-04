@@ -56,6 +56,7 @@ class OversightTest extends ApAgentIntegrationTest {
   @Autowired TransactionTemplate tx;
   @Autowired JsonMapper json;
   @Autowired Clock clock;
+  @Autowired DeskMetrics metrics;
 
   @Autowired
   @Qualifier("apAgentHarness")
@@ -126,7 +127,8 @@ class OversightTest extends ApAgentIntegrationTest {
             jdbc,
             json,
             clock,
-            tx);
+            tx,
+            metrics);
     UUID exceptionId = openCase();
     AgentId agentId = caseIndex.agentFor(exceptionId);
     oneTurn.tell(agentId, new CaseInput.PersonNote("clara", "first"));

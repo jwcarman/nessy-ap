@@ -46,6 +46,7 @@ import org.jwcarman.nessyap.agent.decisions.PendingDecision;
 import org.jwcarman.nessyap.agent.decisions.ProposeResolution;
 import org.jwcarman.nessyap.agent.mail.MailSent;
 import org.jwcarman.nessyap.agent.mail.Mailer;
+import org.jwcarman.nessyap.agent.oversight.DeskMetrics;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
 import org.jwcarman.nessyap.agent.tools.VendorReference;
@@ -105,6 +106,7 @@ public class ResolverDesk {
   private final Duration approvalTimeout;
   private final Decisions decisions;
   private final ApplicationEventPublisher events;
+  private final DeskMetrics metrics;
   private final Duration stalledAfter;
 
   public ResolverDesk(
@@ -120,7 +122,9 @@ public class ResolverDesk {
       @Value("${ap.approval.timeout}") Duration approvalTimeout,
       Decisions decisions,
       ApplicationEventPublisher events,
-      @Value("${ap.rules.stalled-after:PT2M}") Duration stalledAfter) {
+      @Value("${ap.rules.stalled-after:PT2M}") Duration stalledAfter,
+      DeskMetrics metrics) {
+    this.metrics = metrics;
     this.decisions = decisions;
     this.events = events;
     this.stalledAfter = stalledAfter;
@@ -236,6 +240,7 @@ public class ResolverDesk {
     if (event.applied()) {
       CaseStatus status = CaseStatus.afterApplied(d.action());
       cases.setStatus(d.exceptionId(), status);
+      metrics.settled(cases.rulesHandle(d.exceptionId()) ? BY_RULES : "agent", status.name());
       timeline.record(
           d.exceptionId(), status.timelineKind(), d.action() + " applied, proposed by the rules");
     }
@@ -408,6 +413,7 @@ public class ResolverDesk {
 
   private void escalate(CaseRecord c, String why, CaseInput then) {
     cases.handToAgent(c.exceptionId());
+    metrics.escalated(why);
     withdrawProposals(c);
     timeline.record(
         c.exceptionId(), BY_RULES, "the rules stopped (" + why + "): the agent takes it");

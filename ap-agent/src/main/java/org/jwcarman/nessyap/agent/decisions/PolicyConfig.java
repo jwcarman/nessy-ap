@@ -21,6 +21,7 @@ import org.jwcarman.nessy.approval.policy.PolicyApprover;
 import org.jwcarman.nessy.approval.policy.opa.OpaPolicyEngine;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
+import org.jwcarman.nessyap.agent.oversight.DeskMetrics;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -51,13 +52,16 @@ public class PolicyConfig {
       CaseTimeline timeline,
       JsonMapper json,
       Clock clock,
-      Provenance provenance) {
+      Provenance provenance,
+      DeskMetrics metrics) {
     return PolicyApprover.of(
         config -> {
           config.engine(engine);
           for (String role : DECIDING_ROLES) {
             config.delegate(
-                role, new WorkbenchDesk(role, decisions, cases, timeline, json, clock, provenance));
+                role,
+                new WorkbenchDesk(
+                    role, decisions, cases, timeline, json, clock, provenance, metrics));
           }
         });
   }

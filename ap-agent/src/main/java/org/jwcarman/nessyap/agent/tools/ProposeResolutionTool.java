@@ -31,6 +31,7 @@ import org.jwcarman.nessyap.agent.decisions.PendingDecision;
 import org.jwcarman.nessyap.agent.decisions.ProposeResolution;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
 import org.jwcarman.nessyap.agent.erp.ErpOutcome;
+import org.jwcarman.nessyap.agent.oversight.DeskMetrics;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -48,9 +49,11 @@ public class ProposeResolutionTool implements Tool<ProposeResolution> {
   private final ErpClient erp;
   private final Cases cases;
   private final CaseTimeline timeline;
+  private final DeskMetrics metrics;
 
   public ProposeResolutionTool(
-      Decisions decisions, ErpClient erp, Cases cases, CaseTimeline timeline) {
+      Decisions decisions, ErpClient erp, Cases cases, CaseTimeline timeline, DeskMetrics metrics) {
+    this.metrics = metrics;
     this.decisions = decisions;
     this.erp = erp;
     this.cases = cases;
@@ -95,6 +98,7 @@ public class ProposeResolutionTool implements Tool<ProposeResolution> {
         };
     CaseStatus status = CaseStatus.afterApplied(d.action());
     cases.setStatus(d.exceptionId(), status);
+    metrics.settled("agent", status.name());
     timeline.record(
         d.exceptionId(), status.timelineKind(), d.action() + " approved by " + d.decidedBy());
     String next =

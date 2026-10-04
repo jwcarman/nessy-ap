@@ -18,6 +18,7 @@ package org.jwcarman.nessyap.agent.resolver;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.mail.Message;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -64,6 +65,7 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
   @Autowired DecisionExecutor executor;
   @Autowired CaseTimeline timeline;
   @Autowired CaseController caseController;
+  @Autowired MeterRegistry meters;
   @Autowired RabbitTemplate rabbit;
   @Autowired JsonMapper json;
 
@@ -162,6 +164,14 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
     PendingDecision proposal = awaitProposal(1);
     assertThat(proposal.action()).isEqualTo("approve-variance");
     assertThat(proposal.replyToken()).isEqualTo(ResolverDesk.TOKEN);
+    assertThat(
+            meters
+                .get("ap.proposals")
+                .tag("proposer", "rules")
+                .tag("action", "approve-variance")
+                .counter()
+                .count())
+        .isPositive();
     assertThat(caseIndex.rulesHandle(exceptionId)).isTrue();
     assertThat(narration.count(agent(), Narration.TurnStarted.class)).isZero();
   }
@@ -218,6 +228,9 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
     // The turn starts before its first model request is recorded: wait for the request itself.
     await().atMost(PATIENCE).until(() -> !model.requests().isEmpty());
     assertThat(caseIndex.rulesHandle(exceptionId)).isFalse();
+    assertThat(meters.get("ap.rules.escalated").tag("why", "unhandled").counter().count())
+        .isPositive();
+    assertThat(meters.get("ap.agents.paused").gauge().value()).isZero();
     assertThat(model.requests().getFirst().context().turns().getLast().input().toString())
         .contains("rules worked this case first and stopped")
         .contains("reasonCode=NO_PO")

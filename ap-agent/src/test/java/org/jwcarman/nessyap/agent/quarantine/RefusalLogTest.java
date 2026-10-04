@@ -17,9 +17,11 @@ package org.jwcarman.nessyap.agent.quarantine;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.jwcarman.nessyap.agent.oversight.DeskMetrics;
 import org.jwcarman.occlude.AccessContext;
 import org.jwcarman.occlude.RefusalEvent;
 import org.jwcarman.occlude.RefusalReason;
@@ -33,7 +35,7 @@ class RefusalLogTest {
 
   @Test
   void a_refusal_is_logged_with_its_gate_its_reason_and_the_value_id(CapturedOutput log) {
-    new RefusalLog()
+    new RefusalLog(new DeskMetrics(new SimpleMeterRegistry()))
         .on(
             new RefusalEvent(
                 Instant.now(),
@@ -53,7 +55,7 @@ class RefusalLogTest {
 
   @Test
   void a_check_that_answers_no_is_logged_as_information_not_as_an_alarm(CapturedOutput log) {
-    new RefusalLog()
+    new RefusalLog(new DeskMetrics(new SimpleMeterRegistry()))
         .on(
             new RefusalEvent(
                 Instant.now(),
