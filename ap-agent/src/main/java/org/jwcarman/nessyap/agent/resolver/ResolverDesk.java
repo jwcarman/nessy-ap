@@ -41,6 +41,7 @@ import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.CaseFactsEnricher;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
 import org.jwcarman.nessyap.agent.decisions.ProposeResolution;
+import org.jwcarman.nessyap.agent.mail.MailSent;
 import org.jwcarman.nessyap.agent.mail.Mailer;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
@@ -251,15 +252,19 @@ public class ResolverDesk {
       escalate(c, "exhausted");
       return;
     }
-    mailer.send(
-        c.exceptionId(),
-        "vendor",
-        read.vendorEmail(),
-        Questions.subject(slot, c.invoiceNumber()),
-        Questions.body(slot, c.invoiceNumber()));
+    MailSent sent =
+        mailer.send(
+            c.exceptionId(),
+            "vendor",
+            read.vendorEmail(),
+            Questions.subject(slot, c.invoiceNumber()),
+            Questions.body(slot, c.invoiceNumber()));
     cases.rememberSlot(c.exceptionId(), "asked:" + slot, "vendor", "rules");
     cases.setStatus(c.exceptionId(), CaseStatus.AWAITING_ANSWER);
     timeline.record(c.exceptionId(), "rules", "the rules need " + slot + ": asked the vendor");
+    // The same record line as every letter the agent sends.
+    timeline.record(
+        c.exceptionId(), "mail-sent", "vendor " + read.vendorEmail() + ": " + sent.subject());
   }
 
   private void escalate(CaseRecord c, String why) {

@@ -193,7 +193,12 @@ public final class Scenarios {
   static final Scenario SUBSTITUTION_UNCLEAR =
       ITEM_SUBSTITUTED
           .named("substitution-unclear")
-          .withReplies(Map.of("vendor", "Please see the attached. Thanks!"))
+          .withReplies(
+              Map.of(
+                  "vendor",
+                  "Please see the attached. Thanks!",
+                  "buyer",
+                  "The stainless bolts are fine for that job. Pay them as billed."))
           .withAcceptable(
               Map.of(
                   "approve-variance",

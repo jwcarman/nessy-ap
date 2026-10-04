@@ -212,6 +212,11 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
 
     Message asked = mailbox.awaitOne(VENDOR_EMAIL);
     assertThat(asked.getSubject()).contains("why a different item");
+    // The letter is on the case's record like any other the desk sends.
+    assertThat(timeline.of(exceptionId))
+        .filteredOn(line -> line.kind().equals("mail-sent"))
+        .singleElement()
+        .satisfies(line -> assertThat(line.text()).startsWith("vendor " + VENDOR_EMAIL));
     assertThat(caseIndex.find(exceptionId).orElseThrow().status())
         .isEqualTo(CaseStatus.AWAITING_ANSWER);
     assertThat(decisions.forCase(exceptionId)).isEmpty();
