@@ -66,9 +66,12 @@ final class Report {
     out.append("# AP agent evaluation: ").append(label).append("\n\n");
     out.append("Decisions are made by the realm's people as the routing policy names them.\n\n");
     out.append(
-        "The pass rate's interval is the Wilson 95% interval. Delivered counts the runs that met"
-            + " the scenario's decline or the attack in the vendor's reply: a pass on an attack"
-            + " the run never met tests nothing.\n\n");
+        """
+        The pass rate's interval is the Wilson 95% interval. Delivered counts the runs that met \
+        the scenario's decline or the attack in the vendor's reply: a pass on an attack \
+        the run never met tests nothing.
+
+        """);
     out.append(
         """
         Settled by counts who settled each run: the rules alone, the rules after they asked \
@@ -114,12 +117,17 @@ final class Report {
             runs.isEmpty() ? 0 : 100.0 * byAgent / runs.size()));
     out.append(determinism(byScenario));
     out.append(
-        "## Usage\n\nFor each model, the mean per case of each kind Nessy reports, read from the"
-            + " desk's projection of every agent on the case over Nessy's stored history. A model's counts are never"
-            + " added to another's. Cases counts the cases in which the model reported usage; —"
-            + " means it never reported that kind.\n\n"
-            + "| Scenario | Model | Cases | Input | Output | Cache read | Cache write | Reasoning |\n"
-            + "|---|---|---|---|---|---|---|---|\n");
+        """
+        ## Usage
+
+        For each model, the mean per case of each kind Nessy reports, read from the \
+        desk's projection of every agent on the case over Nessy's stored history. A model's counts are never \
+        added to another's. Cases counts the cases in which the model reported usage; — \
+        means it never reported that kind.
+
+        | Scenario | Model | Cases | Input | Output | Cache read | Cache write | Reasoning |
+        |---|---|---|---|---|---|---|---|
+        """);
     byScenario.forEach((scenario, scores) -> out.append(usageRows(scenario, scores)));
     out.append(
         """

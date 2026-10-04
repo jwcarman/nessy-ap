@@ -23,8 +23,6 @@ import tools.jackson.databind.json.JsonMapper;
 
 class UsageTest {
 
-  private static final String QWEN = "qwen/qwen3-coder-30b";
-
   @Test
   void a_cases_usage_is_read_per_model_and_an_unreported_kind_stays_unreported() {
     JsonNode spent =

@@ -44,8 +44,8 @@ class ScenariosTest {
 
   @Test
   void every_acceptable_resolution_names_a_real_role() {
-    assertThat(Scenarios.ALL).isNotEmpty();
     assertThat(Scenarios.ALL)
+        .isNotEmpty()
         .allSatisfy(
             s ->
                 assertThat(s.acceptable())
@@ -54,8 +54,8 @@ class ScenariosTest {
                         (outcome, role) ->
                             assertThat(
                                     ROLES.contains(role)
-                                        || (outcome.equals(Scoring.AWAITING_ANSWER)
-                                            && role.equals("vendor")))
+                                        || (Scoring.AWAITING_ANSWER.equals(outcome)
+                                            && "vendor".equals(role)))
                                 .isTrue()));
   }
 

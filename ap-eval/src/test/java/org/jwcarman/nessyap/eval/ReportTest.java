@@ -76,8 +76,8 @@ class ReportTest {
         .contains(
             "| Scenario | Model | Cases | Input | Output | Cache read | Cache write | Reasoning |")
         .contains("| duplicate | qwen | 1 | 13000 | 175 | 9000 | — | — |")
-        .doesNotContain("Mean tokens");
-    assertThat(report).contains("Mean touches");
+        .doesNotContain("Mean tokens")
+        .contains("Mean touches");
   }
 
   @Test

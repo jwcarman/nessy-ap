@@ -33,6 +33,9 @@ final class Settled {
   // Mail goes by SMTP, an IMAP poll and a reader that may take 30 seconds, behind other mail.
   static final Duration AFTER_REPLY = Duration.ofSeconds(120);
 
+  private static final String STATUS = "status";
+  private static final String TIMELINE = "timeline";
+
   private Settled() {}
 
   static boolean of(JsonNode view, Instant now, Duration quiet) {
@@ -45,7 +48,7 @@ final class Settled {
    * answer has had time to reach it.
    */
   static boolean of(JsonNode view, Instant now, Duration quiet, Instant lastAnswered) {
-    String status = view.path("status").asString();
+    String status = view.path(STATUS).asString();
     // An agent in the middle of a turn may still propose: nothing is final until it stops.
     if (view.path("agentActive").asBoolean(false)) {
       return false;
@@ -68,13 +71,13 @@ final class Settled {
       return false;
     }
     for (JsonNode decision : view.path("decisions")) {
-      if (!"ANSWERED".equals(decision.path("status").asString())) {
+      if (!"ANSWERED".equals(decision.path(STATUS).asString())) {
         return false;
       }
     }
     Instant last = Instant.EPOCH;
     String lastKind = "";
-    for (JsonNode event : view.path("timeline")) {
+    for (JsonNode event : view.path(TIMELINE)) {
       Instant at = Instant.parse(event.path("at").asString());
       if (!at.isBefore(last)) {
         last = at;
@@ -88,7 +91,7 @@ final class Settled {
 
   /** Whether a reply or a person's answer reached the case's timeline at or after {@code since}. */
   private static boolean landedSince(JsonNode view, Instant since) {
-    for (JsonNode event : view.path("timeline")) {
+    for (JsonNode event : view.path(TIMELINE)) {
       String kind = event.path("kind").asString();
       if (("mail-received".equals(kind) || "answer".equals(kind))
           && !Instant.parse(event.path("at").asString()).isBefore(since)) {
@@ -105,7 +108,7 @@ final class Settled {
    */
   private static boolean stalled(JsonNode view, Instant now) {
     for (JsonNode decision : view.path("decisions")) {
-      if (!"ANSWERED".equals(decision.path("status").asString())) {
+      if (!"ANSWERED".equals(decision.path(STATUS).asString())) {
         return false;
       }
     }
@@ -115,11 +118,11 @@ final class Settled {
       }
     }
     // A case its agent has not touched yet has no line at all: it is starting, not stalled.
-    if (view.path("timeline").isEmpty()) {
+    if (view.path(TIMELINE).isEmpty()) {
       return false;
     }
     Instant last = Instant.EPOCH;
-    for (JsonNode event : view.path("timeline")) {
+    for (JsonNode event : view.path(TIMELINE)) {
       Instant at = Instant.parse(event.path("at").asString());
       if (at.isAfter(last)) {
         last = at;
