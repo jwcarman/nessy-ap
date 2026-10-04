@@ -489,4 +489,19 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
 
     assertThat(awaitProposal(1).action()).isEqualTo("approve-variance");
   }
+
+  @Test
+  void an_applied_credit_memo_request_leaves_the_case_on_hold() {
+    invoiceBills("M8-HEX-ZN-100", "11.60");
+    erp.on("POST", "/api/invoices/" + invoiceId + "/request-credit-memo", 200, "{}");
+    raise(ReasonCode.PRICE_VARIANCE);
+    PendingDecision memo = awaitProposal(1);
+    assertThat(memo.action()).isEqualTo("request-credit-memo");
+
+    executor.decide(memo.id(), "clara", true, "ask them for it");
+
+    await()
+        .atMost(PATIENCE)
+        .until(() -> caseIndex.find(exceptionId).orElseThrow().status() == CaseStatus.ON_HOLD);
+  }
 }

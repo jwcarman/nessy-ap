@@ -135,9 +135,10 @@ sequenceDiagram
    buyer's own word. If the agent needs the vendor, it writes to the vendor's contact of record.
    The reply comes back by mail, is held by Occlude, and is read by a model with no tools into
    a typed reading. The agent gets the reading, never the text. While it waits, the case is
-   `AWAITING_ANSWER`, and the invoice stays stopped by its exception. A hold that a person
-   approves leaves the case `ON_HOLD`: the invoice is parked, the exception is still open, and
-   new goods, a reply or the agent's next proposal moves it on.
+   `AWAITING_ANSWER`, and the invoice stays stopped by its exception. A hold or a credit-memo
+   request that a person approves leaves the case `ON_HOLD`: the invoice is parked in the ERP,
+   the exception is still open, and new goods, a credit memo, a reply or the agent's next proposal
+   moves it on.
 6. The agent proposes a resolution: approve-variance, short-pay, hold, reject or
    request-credit-memo.
 7. OPA routes the proposal to a role (clerk, buyer, AP manager or controller), or refuses it.
@@ -224,6 +225,7 @@ money safe, because a model can be persuaded.
 | Vendor-written text reaches the agent only as a checked reference, or not at all | The desk: `VendorReference` for invoice and PO numbers, also where the ERP's summary quotes them; line descriptions and the address a bank change came from are withheld | An instruction hidden in a field nobody reads as instructions | `VendorReferenceTest`, `CaseInputRendererTest`, `InvestigateToolsTest` |
 | A case that stops with nothing in motion goes to a person | The desk (`NeedsPerson`, on turn narration) | A case nobody is acting on | `NeedsPersonTest` |
 | The rules settle a case only when exactly one row matches known facts | DMN hit policies (UNIQUE for the resolution, COLLECT for the facts needed); an unknown fact matches no row | A guess where the rules do not apply; two rules that disagree | `ResolverTest` |
+| Nothing pays an invoice after a credit memo was requested for it | OPA (`creditMemoRequested`) | Paying in full while a credit against the same invoice is still owed | `ap_test.rego`, `ResolverDeskTest` |
 | A proposal from the rules goes through the same policy and the same decider as the agent's | `ResolverDesk` uses the routing approver and the facts enricher | A wrong decision-table row authorizing what the policy forbids | `ResolverDeskTest` |
 | A vendor's answer becomes a fact only from the vendor the desk wrote to, and only when it names the invoice line's item | `ResolverDesk` and `DeskMail` | A reply from someone else, or about a different item, supplying a fact | `ResolverDeskTest` |
 | The rules propose only on facts the desk read | `CaseSlots` (`complete`), `ResolverDesk` | A hold or short-pay proposed after a failed ERP read | `ResolverDeskTest` |

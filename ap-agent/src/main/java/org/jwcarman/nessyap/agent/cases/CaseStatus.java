@@ -26,15 +26,17 @@ public enum CaseStatus {
    */
   NEEDS_PERSON,
   /**
-   * A hold was applied: the invoice is parked, and the exception is still open. The case waits for
-   * goods, a fact or its agent's next proposal.
+   * A hold or a credit-memo request was applied: the invoice is parked in the ERP, and the
+   * exception is still open. The case waits for goods, a credit memo, a fact or its agent's next
+   * proposal.
    */
   ON_HOLD,
   RESOLVED;
 
   /** The status a case takes when a decision on this action is applied in the ERP. */
   public static CaseStatus afterApplied(String action) {
-    return "hold".equals(action) ? ON_HOLD : RESOLVED;
+    // A credit-memo request leaves the invoice on hold in the ERP until the memo arrives.
+    return "hold".equals(action) || "request-credit-memo".equals(action) ? ON_HOLD : RESOLVED;
   }
 
   /** The timeline kind for that moment. */

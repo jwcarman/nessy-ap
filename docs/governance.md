@@ -19,6 +19,7 @@ run.
 | The ERP checks the decider's authority again, with the decider's own token | ERP authority matrix | `AuthorityMatrixTest` | Segregation of duties; authorization limits | Manage | Use of AI systems | LLM06 |
 | A bank change needs a call-back and a second person | ERP vendor master | `BankChangeVerificationTest`; `bank-change-fraud` | Segregation of duties; fraud prevention | Manage | Use of AI systems | LLM06 |
 | Nothing pays a vendor with an unverified bank change, or a repeated invoice number | OPA and the ERP | `bank-change-fraud`, `injected-invoice` | Fraud prevention | Manage | Use of AI systems | LLM01 Prompt Injection |
+| Nothing pays an invoice after a credit memo was requested for it | OPA (`creditMemoRequested`) | `ap_test.rego` | Authorization; fraud and error prevention | Manage | Use of AI systems | LLM06 |
 | A tool the policy does not name is refused | OPA allowlist | `ap_test.rego` | IT general controls: change management | Govern | AI system life cycle | LLM06 |
 | Mail never reaches the agent; a model with no tools reads it into a typed reading | Occlude quarantine; the reader | `QuarantineDeclarationsTest`, `ReaderWiredTest`; the injection scenarios | Information integrity | Measure, Manage | Data for AI systems | LLM01 |
 | A case whose mail tried to give instructions cannot move money | OPA (`instructionsSeen`) | `injected-reply` | Information integrity | Manage | Data for AI systems | LLM01 |

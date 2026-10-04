@@ -170,6 +170,16 @@ else := {
 	action in moves_money
 }
 
+# A credit memo was requested for this invoice: the vendor owes a credit against it. Paying the
+# invoice now would pay what the credit is meant to take back, so a person settles it in the ERP.
+else := {
+	"effect": "deny",
+	"reason": "a credit memo was already requested for this invoice: settle that in the ERP before paying it",
+} if {
+	object.get(input.facts, "creditMemoRequested", false) == true
+	action in {"approve-variance", "short-pay"}
+}
+
 else := {"effect": "delegate", "to": "ap-clerk"} if {
 	action in {"hold", "request-credit-memo"}
 }

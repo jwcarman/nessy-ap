@@ -103,8 +103,9 @@ public class ProposeResolutionTool implements Tool<ProposeResolution> {
         d.exceptionId(), status.timelineKind(), d.action() + " approved by " + d.decidedBy());
     String next =
         status == CaseStatus.ON_HOLD
-            ? " A hold parks the invoice; the case stays open. Propose the final resolution when"
-                + " you know it, or end your turn: new goods or a reply will wake you."
+            ? " The invoice is now on hold in the ERP, and the case stays open. Propose the final"
+                + " resolution when you know it, or end your turn: new goods or a reply will wake"
+                + " you. After a credit-memo request, the policy will not let you pay the invoice."
             : "";
     return Awaited.ready(
         ToolResult.ok(
