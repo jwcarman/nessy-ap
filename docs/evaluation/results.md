@@ -5,6 +5,12 @@ This is the full evaluation of the desk: every scenario in the
 (Wilson), because a rate from a few runs says less than it seems: 20 passes out of 20 only shows
 a true rate above 84%.
 
+!!! note "These results are from before the rules came first"
+    Every run on this page had the agent settle every case. Since then, the desk's decision
+    tables settle most scenarios before the agent sees them. One run of 13 scenarios on the new
+    desk is in [Stay deterministic as long as you can](../deterministic-first.md#the-first-run).
+    No full run has used the new desk yet.
+
 [Writing an evaluation](writing-evaluations.md) explains the method and the mistakes it
 corrected. [The scenarios](scenarios.md) gives the result of each scenario in each run.
 
