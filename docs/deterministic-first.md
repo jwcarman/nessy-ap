@@ -256,6 +256,37 @@ its turn. Two fixes followed:
 - The case view says whether the case's agent is in a turn (`agentActive`), and the evaluation
   does not score a case until it is not.
 
+## The second full run
+
+The first run led to four fixes: the `ON_HOLD` status, the `agentActive` check, a reply that now
+tells the agent the vendor's reason for a substitution, and rules that hold no database connection
+across a call. Five scenarios were added where the agent had never been tested: a decline in
+words, a decline with goods returned, a vendor's second answer that is clear, a vendor that names
+the real PO, and goods that arrive while a hold stands. The run had 29 scenarios, 20 runs each,
+the two fault scenarios 5 runs each: 550 cases, 16 side by side, all on `gpt-6-luna`.
+
+**549 of 550 passed.** The agent settled 202 runs (37%), because four of the new scenarios are
+the agent's. Every scenario that the rules settled ended the same way in every run.
+
+- `vendor-names-the-po` passed 20 of 20. It is the first scenario in which a vendor's claim
+  becomes a fact the desk trusts: the ERP confirmed the PO, and the agent paid against it.
+- `goods-arrive` passed 20 of 20: the receipt reached a case on hold, the agent took it, and paid.
+- `substitute-declined-in-words` passed 20 of 20: the agent turned the buyer's words into a
+  short-pay at the PO price.
+- The one failure, `substitution-clarified` #7, was the evaluation's. The agent wrote to the
+  vendor and parked the invoice on hold in the same turn. The evaluation scored the case before
+  the vendor's reply arrived. When it did, the agent proposed the right answer. The evaluation
+  now waits until any answer it gave has reached the case.
+
+Usage per case for the new agent scenarios, all `gpt-6-luna`:
+
+| Scenario | Input | Output | Cache read | Cache write | Reasoning |
+|---|---|---|---|---|---|
+| substitute-declined-in-words | 12,256 | 655 | 8,924 | 2,588 | 238 |
+| substitution-clarified | 33,226 | 1,447 | 27,617 | 3,603 | 668 |
+| vendor-names-the-po | 26,338 | 1,232 | 21,062 | 4,533 | 597 |
+| goods-arrive | 16,605 | 614 | 13,318 | 3,273 | 228 |
+
 ## What is not done
 
 - **A second reading for facts that move money.** The design reads a reply twice for such a fact
