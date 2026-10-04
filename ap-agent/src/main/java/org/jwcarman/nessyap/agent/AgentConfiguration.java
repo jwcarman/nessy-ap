@@ -33,6 +33,7 @@ import org.jwcarman.nessyap.agent.decisions.ProposeResolution;
 import org.jwcarman.nessyap.agent.oversight.AgentBudget;
 import org.jwcarman.nessyap.agent.oversight.DeskMetrics;
 import org.jwcarman.nessyap.agent.oversight.GuardedAgents;
+import org.jwcarman.nessyap.agent.oversight.HeldInputs;
 import org.jwcarman.nessyap.agent.oversight.Switches;
 import org.jwcarman.nessyap.agent.questions.QuestionTools;
 import org.jwcarman.nessyap.agent.tools.ErpTools;
@@ -44,9 +45,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.Resource;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.transaction.support.TransactionTemplate;
-import tools.jackson.databind.json.JsonMapper;
 
 /** The AP exception agent: one agent type, one agent per case. */
 @Configuration(proxyBeanMethods = false)
@@ -72,13 +70,9 @@ public class AgentConfiguration {
       AgentBudget budget,
       Cases cases,
       CaseTimeline timeline,
-      JdbcClient jdbc,
-      JsonMapper json,
-      Clock clock,
-      TransactionTemplate tx,
+      HeldInputs held,
       DeskMetrics metrics) {
-    return new GuardedAgents(
-        agents, switches, budget, cases, timeline, jdbc, json, clock, tx, metrics);
+    return new GuardedAgents(agents, switches, budget, cases, timeline, held, metrics);
   }
 
   @Bean
