@@ -90,7 +90,7 @@ public class InvoiceIntake {
             now,
             incoming.lines());
     invoices.insert(received);
-    audit.record(
+    audit.append(
         actor,
         "invoice",
         id,
@@ -125,7 +125,7 @@ public class InvoiceIntake {
             now,
             null);
     exceptions.insert(exception);
-    audit.record(
+    audit.append(
         actor,
         "match_exception",
         exception.id(),

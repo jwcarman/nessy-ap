@@ -86,7 +86,7 @@ public class FaultInjectionFilter extends OncePerRequestFilter {
     }
     try {
       Thread.sleep(Duration.ofMillis(millis));
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
     }
   }

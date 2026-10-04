@@ -29,6 +29,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class VendorRepository {
 
+  private static final String VENDOR_ID = "vendorId";
+  private static final String STATUS = "status";
+
   private final JdbcClient jdbc;
 
   public VendorRepository(JdbcClient jdbc) {
@@ -62,10 +65,10 @@ public class VendorRepository {
                     :proposedByEmail)
             """)
         .param("id", account.id())
-        .param("vendorId", vendorId)
+        .param(VENDOR_ID, vendorId)
         .param("accountNumber", account.accountNumber())
         .param("routingNumber", account.routingNumber())
-        .param("status", account.status().name())
+        .param(STATUS, account.status().name())
         .param("proposedAt", Timestamp.from(account.proposedAt()))
         .param("proposedByEmail", account.proposedByEmail(), Types.VARCHAR)
         .update();
@@ -81,12 +84,12 @@ public class VendorRepository {
             select status, call_back_by, call_back_confirmed from vendor_bank_account
             where vendor_id = :vendorId and id = :accountId
             """)
-        .param("vendorId", vendorId)
+        .param(VENDOR_ID, vendorId)
         .param("accountId", accountId)
         .query(
             (rs, row) ->
                 new Verification(
-                    BankAccountStatus.valueOf(rs.getString("status")),
+                    BankAccountStatus.valueOf(rs.getString(STATUS)),
                     rs.getString("call_back_by"),
                     rs.getObject("call_back_confirmed", Boolean.class)))
         .optional();
@@ -125,7 +128,7 @@ public class VendorRepository {
             .param("by", by)
             .param("at", Timestamp.from(at))
             .param("id", accountId)
-            .param("vendorId", vendorId)
+            .param(VENDOR_ID, vendorId)
             .update();
     if (activated == 0) {
       return false;
@@ -135,7 +138,7 @@ public class VendorRepository {
             update vendor_bank_account set status = 'SUPERSEDED'
             where vendor_id = :vendorId and status = 'ACTIVE' and id <> :id
             """)
-        .param("vendorId", vendorId)
+        .param(VENDOR_ID, vendorId)
         .param("id", accountId)
         .update();
     return true;
@@ -155,14 +158,14 @@ public class VendorRepository {
             where vendor_id = :vendorId
             order by proposed_at, id
             """)
-        .param("vendorId", vendorId)
+        .param(VENDOR_ID, vendorId)
         .query(
             (rs, row) ->
                 new BankAccount(
                     rs.getObject("id", UUID.class),
                     rs.getString("account_number"),
                     rs.getString("routing_number"),
-                    BankAccountStatus.valueOf(rs.getString("status")),
+                    BankAccountStatus.valueOf(rs.getString(STATUS)),
                     rs.getTimestamp("proposed_at").toInstant(),
                     rs.getString("proposed_by_email")))
         .list();

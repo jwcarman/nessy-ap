@@ -33,6 +33,7 @@ import org.jwcarman.nessyap.erp.po.PurchaseOrder;
  */
 public final class MatchEngine {
 
+  private static final String LINE = "Line ";
   private static final BigDecimal HUNDRED = new BigDecimal("100");
 
   private final Tolerances tolerances;
@@ -141,7 +142,7 @@ public final class MatchEngine {
         impact = impact.add(over.multiply(line.quantity()));
         BigDecimal percent = over.multiply(HUNDRED).divide(poPrice, 2, RoundingMode.HALF_UP);
         notes.add(
-            "Line "
+            LINE
                 + line.lineNo()
                 + " billed "
                 + line.unitPrice().toPlainString()
@@ -181,7 +182,7 @@ public final class MatchEngine {
       if (line.quantity().compareTo(received) > 0) {
         impact = impact.add(line.quantity().subtract(received).multiply(line.unitPrice()));
         notes.add(
-            "Line "
+            LINE
                 + line.lineNo()
                 + " billed "
                 + plain(line.quantity())
@@ -203,7 +204,7 @@ public final class MatchEngine {
     for (MatchLine line : in.lines()) {
       if (poLineFor(line, po).isEmpty()) {
         charge = charge.add(extended(line));
-        notes.add("Line " + line.lineNo() + " matches no purchase-order line");
+        notes.add(LINE + line.lineNo() + " matches no purchase-order line");
       }
     }
     return finding(ReasonCode.UNPLANNED_CHARGE, notes, charge);
@@ -231,7 +232,7 @@ public final class MatchEngine {
             impact.add(
                 line.unitPrice().subtract(poPrice).max(BigDecimal.ZERO).multiply(line.quantity()));
         notes.add(
-            "Line "
+            LINE
                 + line.lineNo()
                 + " billed item \""
                 + line.itemCode()

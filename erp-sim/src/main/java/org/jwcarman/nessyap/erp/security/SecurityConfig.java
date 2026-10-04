@@ -43,7 +43,7 @@ import org.springframework.security.web.access.intercept.RequestAuthorizationCon
 public class SecurityConfig {
 
   @Bean
-  public SecurityFilterChain api(HttpSecurity http) throws Exception {
+  public SecurityFilterChain api(HttpSecurity http) {
     http.authorizeHttpRequests(
             requests ->
                 requests

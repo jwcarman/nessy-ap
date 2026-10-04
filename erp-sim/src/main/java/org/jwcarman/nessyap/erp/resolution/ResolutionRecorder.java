@@ -43,13 +43,13 @@ class ResolutionRecorder {
     return clock.instant();
   }
 
-  void record(
+  void write(
       Actor actor,
       UUID invoiceId,
       ResolutionAction action,
       ResolutionCommand command,
       Instant now) {
-    audit.record(
+    audit.append(
         actor,
         "invoice",
         invoiceId,

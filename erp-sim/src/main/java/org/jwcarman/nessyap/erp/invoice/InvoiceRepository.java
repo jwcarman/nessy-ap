@@ -32,6 +32,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class InvoiceRepository {
 
+  private static final String VENDOR_ID = "vendorId";
+  private static final String TOTAL = "total";
+  private static final String STATUS = "status";
+
   private final JdbcClient jdbc;
 
   public InvoiceRepository(JdbcClient jdbc) {
@@ -48,15 +52,15 @@ public class InvoiceRepository {
                     :approved, :status, :version, :receivedAt)
             """)
         .param("id", invoice.id())
-        .param("vendorId", invoice.vendorId())
+        .param(VENDOR_ID, invoice.vendorId())
         .param("number", invoice.invoiceNumber())
         .param("poNumber", invoice.poNumber(), Types.VARCHAR)
         .param("invoiceDate", invoice.invoiceDate())
         .param("tax", invoice.tax())
         .param("freight", invoice.freight())
-        .param("total", invoice.total())
+        .param(TOTAL, invoice.total())
         .param("approved", invoice.approvedAmount(), Types.NUMERIC)
-        .param("status", invoice.status().name())
+        .param(STATUS, invoice.status().name())
         .param("version", invoice.version())
         .param("receivedAt", Timestamp.from(invoice.receivedAt()))
         .update();
@@ -92,7 +96,7 @@ public class InvoiceRepository {
   public List<Invoice> findByVendor(UUID vendorId) {
     return jdbc
         .sql("select * from invoice where vendor_id = :vendorId order by received_at desc, id desc")
-        .param("vendorId", vendorId)
+        .param(VENDOR_ID, vendorId)
         .query(InvoiceRepository::header)
         .list()
         .stream()
@@ -106,7 +110,7 @@ public class InvoiceRepository {
             select id, invoice_number, po_number, invoice_date, total from invoice
             where vendor_id = :vendorId and id <> :excluding and status <> 'REJECTED'
             """)
-        .param("vendorId", vendorId)
+        .param(VENDOR_ID, vendorId)
         .param("excluding", excluding)
         .query(
             (rs, row) ->
@@ -115,7 +119,7 @@ public class InvoiceRepository {
                     rs.getString("invoice_number"),
                     rs.getString("po_number"),
                     rs.getObject("invoice_date", LocalDate.class),
-                    rs.getBigDecimal("total")))
+                    rs.getBigDecimal(TOTAL)))
         .list();
   }
 
@@ -132,7 +136,7 @@ public class InvoiceRepository {
                 set status = :status, approved_amount = :approved, version = version + 1
                 where id = :id and version = :expected
                 """)
-            .param("status", status.name())
+            .param(STATUS, status.name())
             .param("approved", approvedAmount, Types.NUMERIC)
             .param("id", id)
             .param("expected", expectedVersion)
@@ -164,9 +168,9 @@ public class InvoiceRepository {
         rs.getObject("invoice_date", LocalDate.class),
         rs.getBigDecimal("tax"),
         rs.getBigDecimal("freight"),
-        rs.getBigDecimal("total"),
+        rs.getBigDecimal(TOTAL),
         rs.getBigDecimal("approved_amount"),
-        InvoiceStatus.valueOf(rs.getString("status")),
+        InvoiceStatus.valueOf(rs.getString(STATUS)),
         rs.getLong("version"),
         rs.getTimestamp("received_at").toInstant(),
         List.of());

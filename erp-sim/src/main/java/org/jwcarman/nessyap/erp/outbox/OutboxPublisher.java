@@ -50,6 +50,14 @@ public class OutboxPublisher {
 
   private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);
   private static final int BATCH = 50;
+  private static final String LOCK_PENDING =
+      """
+      select id, event_type, payload::text as payload from outbox
+      where published_at is null
+      order by created_at, id
+      limit :limit
+      for update skip locked
+      """;
 
   private final JdbcClient jdbc;
   private final RabbitTemplate rabbit;
@@ -79,45 +87,36 @@ public class OutboxPublisher {
 
   private int publishBatch() {
     // The callback always returns a count, so the transaction's result is never null.
-    Integer published =
-        Objects.requireNonNull(
-            tx.execute(
-                status -> {
-                  List<Pending> pending =
-                      jdbc.sql(
-                              """
-                          select id, event_type, payload::text as payload from outbox
-                          where published_at is null
-                          order by created_at, id
-                          limit :limit
-                          for update skip locked
-                          """)
-                          .param("limit", BATCH)
-                          .query(
-                              (rs, row) ->
-                                  new Pending(
-                                      rs.getObject("id", UUID.class),
-                                      rs.getString("event_type"),
-                                      rs.getString("payload")))
-                          .list();
-                  if (pending.isEmpty()) {
-                    return 0;
-                  }
-                  rabbit.invoke(
-                      operations -> {
-                        for (Pending event : pending) {
-                          operations.send(ErpEvents.EXCHANGE, event.type(), message(event));
-                        }
-                        operations.waitForConfirmsOrDie(5_000);
-                        return null;
-                      });
-                  jdbc.sql("update outbox set published_at = :now where id in (:ids)")
-                      .param("now", Timestamp.from(clock.instant()))
-                      .param("ids", pending.stream().map(Pending::id).toList())
-                      .update();
-                  return pending.size();
-                }));
-    return published;
+    return Objects.requireNonNull(
+        tx.execute(
+            status -> {
+              List<Pending> pending =
+                  jdbc.sql(LOCK_PENDING)
+                      .param("limit", BATCH)
+                      .query(
+                          (rs, row) ->
+                              new Pending(
+                                  rs.getObject("id", UUID.class),
+                                  rs.getString("event_type"),
+                                  rs.getString("payload")))
+                      .list();
+              if (pending.isEmpty()) {
+                return 0;
+              }
+              rabbit.invoke(
+                  operations -> {
+                    for (Pending event : pending) {
+                      operations.send(ErpEvents.EXCHANGE, event.type(), message(event));
+                    }
+                    operations.waitForConfirmsOrDie(5_000);
+                    return null;
+                  });
+              jdbc.sql("update outbox set published_at = :now where id in (:ids)")
+                  .param("now", Timestamp.from(clock.instant()))
+                  .param("ids", pending.stream().map(Pending::id).toList())
+                  .update();
+              return pending.size();
+            }));
   }
 
   private static Message message(Pending event) {

@@ -67,7 +67,7 @@ public class GoodsReceipts {
     Instant now = clock.instant();
     GoodsReceipt posted = new GoodsReceipt(Ids.next(), order.id(), now, receipt.lines());
     receipts.insert(posted);
-    audit.record(actor, "goods_receipt", posted.id(), "received", order.poNumber());
+    audit.append(actor, "goods_receipt", posted.id(), "received", order.poNumber());
     outbox.append(new ReceiptPosted(Ids.next(), now, posted.id(), order.poNumber()));
     return posted;
   }

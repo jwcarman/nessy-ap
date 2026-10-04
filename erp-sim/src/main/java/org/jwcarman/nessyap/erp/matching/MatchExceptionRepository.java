@@ -29,6 +29,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class MatchExceptionRepository {
 
+  private static final String INVOICE_ID = "invoiceId";
+  private static final String STATUS = "status";
+
   private final JdbcClient jdbc;
 
   public MatchExceptionRepository(JdbcClient jdbc) {
@@ -43,11 +46,11 @@ public class MatchExceptionRepository {
             values (:id, :invoiceId, :reasonCode, :summary, :amount, :status, :raisedAt)
             """)
         .param("id", exception.id())
-        .param("invoiceId", exception.invoiceId())
+        .param(INVOICE_ID, exception.invoiceId())
         .param("reasonCode", exception.reasonCode().name())
         .param("summary", exception.summary())
         .param("amount", exception.amountAtIssue())
-        .param("status", exception.status().name())
+        .param(STATUS, exception.status().name())
         .param("raisedAt", Timestamp.from(exception.raisedAt()))
         .update();
   }
@@ -62,14 +65,14 @@ public class MatchExceptionRepository {
   public List<MatchException> findByInvoice(UUID invoiceId) {
     return jdbc.sql(
             "select * from match_exception where invoice_id = :invoiceId order by raised_at, id")
-        .param("invoiceId", invoiceId)
+        .param(INVOICE_ID, invoiceId)
         .query(MatchExceptionRepository::exception)
         .list();
   }
 
   public List<MatchException> findByStatus(ExceptionStatus status) {
     return jdbc.sql("select * from match_exception where status = :status order by raised_at, id")
-        .param("status", status.name())
+        .param(STATUS, status.name())
         .query(MatchExceptionRepository::exception)
         .list();
   }
@@ -81,7 +84,7 @@ public class MatchExceptionRepository {
             where invoice_id = :invoiceId and status = 'OPEN'
             """)
         .param("at", Timestamp.from(at))
-        .param("invoiceId", invoiceId)
+        .param(INVOICE_ID, invoiceId)
         .update();
   }
 
@@ -93,7 +96,7 @@ public class MatchExceptionRepository {
         ReasonCode.valueOf(rs.getString("reason_code")),
         rs.getString("summary"),
         rs.getBigDecimal("amount_at_issue"),
-        ExceptionStatus.valueOf(rs.getString("status")),
+        ExceptionStatus.valueOf(rs.getString(STATUS)),
         rs.getTimestamp("raised_at").toInstant(),
         resolvedAt == null ? null : resolvedAt.toInstant());
   }

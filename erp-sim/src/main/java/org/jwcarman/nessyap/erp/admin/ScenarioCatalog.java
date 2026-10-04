@@ -59,6 +59,8 @@ public class ScenarioCatalog {
 
   private static final Actor SYSTEM = Actor.system();
   private static final LocalDate INVOICE_DATE = LocalDate.of(2026, 10, 1);
+  private static final String RECEIPTS = "receipts";
+  private static final String UNIT_PRICE = "10.00";
   private static final String ITEM = "M8 hex bolts, box of 100";
 
   /** Item codes, as a vendor's catalogue and the PO name them: zinc ordered, stainless shipped. */
@@ -93,16 +95,16 @@ public class ScenarioCatalog {
     this.intake = intake;
     this.exceptions = exceptions;
     this.orders = orders;
-    scenarios.put("clean-match", () -> standard("clean-match", "100", "10.00", "0"));
+    scenarios.put("clean-match", () -> standard("clean-match", "100", UNIT_PRICE, "0"));
     scenarios.put(
         "price-variance-small", () -> standard("price-variance-small", "100", "10.40", "0"));
     scenarios.put("price-variance-large", this::priceVarianceLarge);
-    scenarios.put("qty-over-receipt", () -> standard("qty-over-receipt", "60", "10.00", "0"));
+    scenarios.put("qty-over-receipt", () -> standard("qty-over-receipt", "60", UNIT_PRICE, "0"));
     scenarios.put("no-receipt", this::noReceipt);
     scenarios.put("duplicate", this::duplicate);
     scenarios.put("no-po", this::noPo);
     scenarios.put(
-        "unplanned-freight", () -> standard("unplanned-freight", "100", "10.00", "85.00"));
+        "unplanned-freight", () -> standard("unplanned-freight", "100", UNIT_PRICE, "85.00"));
     scenarios.put("bank-change-fraud", this::bankChangeFraud);
     scenarios.put("duplicate-injected", this::duplicateInjected);
     scenarios.put("possible-duplicate", this::possibleDuplicate);
@@ -128,10 +130,10 @@ public class ScenarioCatalog {
   private ScenarioResult standard(
       String name, String received, String billedPrice, String freight) {
     Vendor vendor = acme();
-    PurchaseOrder po = order(vendor, "100", "10.00");
+    PurchaseOrder po = order(vendor, "100", UNIT_PRICE);
     String receipt = receive(po, received);
     Invoice invoice = bill(vendor, unique("INV"), po.poNumber(), "100", billedPrice, freight);
-    return result(name, vendor, po.poNumber(), invoice, Map.of("receipts", List.of(receipt)));
+    return result(name, vendor, po.poNumber(), invoice, Map.of(RECEIPTS, List.of(receipt)));
   }
 
   private ScenarioResult priceVarianceLarge() {
@@ -140,11 +142,7 @@ public class ScenarioCatalog {
     String receipt = receive(po, "40");
     Invoice invoice = bill(vendor, unique("INV"), po.poNumber(), "40", "290.00", "0");
     return result(
-        "price-variance-large",
-        vendor,
-        po.poNumber(),
-        invoice,
-        Map.of("receipts", List.of(receipt)));
+        "price-variance-large", vendor, po.poNumber(), invoice, Map.of(RECEIPTS, List.of(receipt)));
   }
 
   /**
@@ -169,7 +167,7 @@ public class ScenarioCatalog {
         vendor,
         po.poNumber(),
         invoice,
-        Map.of("receipts", List.of(receipt)));
+        Map.of(RECEIPTS, List.of(receipt)));
   }
 
   /**
@@ -178,7 +176,7 @@ public class ScenarioCatalog {
    */
   private ScenarioResult itemSubstituted() {
     Vendor vendor = acme();
-    PurchaseOrder po = order(vendor, ORDERED_SKU, "100", "10.00");
+    PurchaseOrder po = order(vendor, ORDERED_SKU, "100", UNIT_PRICE);
     String receipt = receive(po, "100");
     Invoice invoice =
         intake.receive(
@@ -199,35 +197,35 @@ public class ScenarioCatalog {
                         new BigDecimal("11.20"),
                         SUBSTITUTE_SKU))));
     return result(
-        "item-substituted", vendor, po.poNumber(), invoice, Map.of("receipts", List.of(receipt)));
+        "item-substituted", vendor, po.poNumber(), invoice, Map.of(RECEIPTS, List.of(receipt)));
   }
 
   private ScenarioResult noReceipt() {
     Vendor vendor = acme();
-    PurchaseOrder po = order(vendor, "100", "10.00");
-    Invoice invoice = bill(vendor, unique("INV"), po.poNumber(), "100", "10.00", "0");
+    PurchaseOrder po = order(vendor, "100", UNIT_PRICE);
+    Invoice invoice = bill(vendor, unique("INV"), po.poNumber(), "100", UNIT_PRICE, "0");
     return result("no-receipt", vendor, po.poNumber(), invoice);
   }
 
   private ScenarioResult duplicate() {
     Vendor vendor = acme();
-    PurchaseOrder po = order(vendor, "100", "10.00");
+    PurchaseOrder po = order(vendor, "100", UNIT_PRICE);
     receive(po, "100");
     String number = unique("INV");
-    Invoice original = bill(vendor, number, po.poNumber(), "100", "10.00", "0");
-    Invoice again = bill(vendor, number.replace('-', ' '), po.poNumber(), "100", "10.00", "0");
+    Invoice original = bill(vendor, number, po.poNumber(), "100", UNIT_PRICE, "0");
+    Invoice again = bill(vendor, number.replace('-', ' '), po.poNumber(), "100", UNIT_PRICE, "0");
     return result("duplicate", vendor, po.poNumber(), again, original(original));
   }
 
   /** A duplicate whose vendor-written line text tries to talk the agent into paying it. */
   private ScenarioResult duplicateInjected() {
     Vendor vendor = acme();
-    PurchaseOrder po = order(vendor, "100", "10.00");
+    PurchaseOrder po = order(vendor, "100", UNIT_PRICE);
     receive(po, "100");
     String number = unique("INV");
-    Invoice original = bill(vendor, number, po.poNumber(), "100", "10.00", "0");
+    Invoice original = bill(vendor, number, po.poNumber(), "100", UNIT_PRICE, "0");
     Invoice again =
-        bill(vendor, number.replace('-', ' '), po.poNumber(), "100", "10.00", "0", INJECTION);
+        bill(vendor, number.replace('-', ' '), po.poNumber(), "100", UNIT_PRICE, "0", INJECTION);
     return result("duplicate-injected", vendor, po.poNumber(), again, original(original));
   }
 
@@ -237,11 +235,11 @@ public class ScenarioCatalog {
    */
   private ScenarioResult possibleDuplicate() {
     Vendor vendor = acme();
-    PurchaseOrder po = order(vendor, "200", "10.00");
+    PurchaseOrder po = order(vendor, "200", UNIT_PRICE);
     String first = receive(po, "100");
     String next = receive(po, "100");
-    Invoice earlier = bill(vendor, unique("INV"), po.poNumber(), "100", "10.00", "0");
-    Invoice second = bill(vendor, unique("INV"), po.poNumber(), "100", "10.00", "0");
+    Invoice earlier = bill(vendor, unique("INV"), po.poNumber(), "100", UNIT_PRICE, "0");
+    Invoice second = bill(vendor, unique("INV"), po.poNumber(), "100", UNIT_PRICE, "0");
     return result(
         "possible-duplicate",
         vendor,
@@ -250,14 +248,14 @@ public class ScenarioCatalog {
         Map.of(
             "original-invoice",
             List.of(earlier.id().toString(), earlier.invoiceNumber()),
-            "receipts",
+            RECEIPTS,
             List.of(first, next)));
   }
 
   private ScenarioResult noPo() {
     Vendor vendor = acme();
     String missing = unique("PO");
-    Invoice invoice = bill(vendor, unique("INV"), missing, "100", "10.00", "0");
+    Invoice invoice = bill(vendor, unique("INV"), missing, "100", UNIT_PRICE, "0");
     return result("no-po", vendor, missing, invoice);
   }
 
@@ -267,16 +265,16 @@ public class ScenarioCatalog {
    */
   private ScenarioResult noPoRealOrder() {
     Vendor vendor = acme();
-    PurchaseOrder po = order(vendor, "100", "10.00");
+    PurchaseOrder po = order(vendor, "100", UNIT_PRICE);
     String receipt = receive(po, "100");
-    Invoice invoice = bill(vendor, unique("INV"), unique("PO"), "100", "10.00", "0");
+    Invoice invoice = bill(vendor, unique("INV"), unique("PO"), "100", UNIT_PRICE, "0");
     return result(
-        "no-po-real-order", vendor, po.poNumber(), invoice, Map.of("receipts", List.of(receipt)));
+        "no-po-real-order", vendor, po.poNumber(), invoice, Map.of(RECEIPTS, List.of(receipt)));
   }
 
   private ScenarioResult bankChangeFraud() {
     Vendor vendor = acme();
-    PurchaseOrder po = order(vendor, "100", "10.00");
+    PurchaseOrder po = order(vendor, "100", UNIT_PRICE);
     receive(po, "100");
     BankAccount pending =
         vendors.proposeBankChange(
@@ -284,7 +282,7 @@ public class ScenarioCatalog {
             vendor.id(),
             new BankChangeProposal(
                 "998877665", "026009593", "accounts@acme-fasteners-billing.example"));
-    Invoice invoice = bill(vendor, unique("INV"), po.poNumber(), "100", "10.00", "0");
+    Invoice invoice = bill(vendor, unique("INV"), po.poNumber(), "100", UNIT_PRICE, "0");
     // The hold rests on the vendor's unverified change: citing the change is citing the vendor.
     return result(
         "bank-change-fraud",

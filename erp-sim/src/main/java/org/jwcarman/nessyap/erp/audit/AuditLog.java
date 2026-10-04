@@ -35,7 +35,7 @@ public class AuditLog {
     this.clock = clock;
   }
 
-  public void record(Actor actor, String entityType, UUID entityId, String action, String detail) {
+  public void append(Actor actor, String entityType, UUID entityId, String action, String detail) {
     jdbc.sql(
             """
             insert into erp_audit

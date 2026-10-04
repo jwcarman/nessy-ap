@@ -115,7 +115,7 @@ public class Resolutions {
     if (action.target() == InvoiceStatus.APPROVED || action.target() == InvoiceStatus.REJECTED) {
       exceptions.resolveOpenForInvoice(invoiceId, now);
     }
-    recorder.record(actor, invoiceId, action, command, now);
+    recorder.write(actor, invoiceId, action, command, now);
     return invoices.find(invoiceId).orElseThrow();
   }
 
