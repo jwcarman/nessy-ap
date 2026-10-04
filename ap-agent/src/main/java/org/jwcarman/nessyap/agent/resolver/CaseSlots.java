@@ -120,9 +120,8 @@ public class CaseSlots {
     }
     evidence.add(c.invoiceId().toString());
     BigDecimal total = decimal(invoice.path("total"));
-    BigDecimal freight = decimal(invoice.path("freight"));
-    BigDecimal beforeCharges =
-        total == null ? null : total.subtract(freight == null ? ZERO : freight);
+    BigDecimal freight = Optional.ofNullable(decimal(invoice.path("freight"))).orElse(ZERO);
+    BigDecimal beforeCharges = total == null ? null : total.subtract(freight);
     if (c.poNumber() == null) {
       return new Amounts(total, null, beforeCharges, true);
     }

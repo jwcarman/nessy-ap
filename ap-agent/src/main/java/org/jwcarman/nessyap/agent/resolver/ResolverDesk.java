@@ -74,8 +74,11 @@ public class ResolverDesk {
   /** Who a proposal made by the rules comes from, for the policy and the record. */
   public static final AgentType RULES = new AgentType("ap-rules");
 
+  /** The timeline kind, and the source of a slot, for what the rules did. */
+  private static final String BY_RULES = "rules";
+
   /** The reply token of every proposal the rules make: no agent waits on it. */
-  public static final ReplyToken TOKEN = new ReplyToken("rules");
+  public static final ReplyToken TOKEN = new ReplyToken(BY_RULES);
 
   private static final Logger log = LoggerFactory.getLogger(ResolverDesk.class);
   private static final ToolName PROPOSE = new ToolName("propose_resolution");
@@ -85,9 +88,6 @@ public class ResolverDesk {
 
   private static final String ASKED = "asked:";
   private static final String VENDOR = "vendor";
-
-  /** The timeline kind, and the source of a slot, for what the rules did. */
-  private static final String BY_RULES = "rules";
 
   private static final String WITHDRAWN = "withdrawn: the agent took the case";
 
