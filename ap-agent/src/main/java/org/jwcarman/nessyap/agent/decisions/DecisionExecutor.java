@@ -215,7 +215,7 @@ public class DecisionExecutor {
   }
 
   private void answer(PendingDecision d, ApprovalResult result, String erpResult, boolean applied) {
-    if (ResolverDesk.TOKEN.equals(d.replyToken())) {
+    if (d.byRules()) {
       // No agent waits on what the rules proposed: the rules hear of it once this commits.
       decisions.markAnswered(d.id(), erpResult);
       targets.timeline().append(d.exceptionId(), DECISION, decided(d) + " -> " + erpResult);

@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.UUID;
 import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.tool.ReplyToken;
+import org.jwcarman.nessyap.agent.resolver.ResolverDesk;
 
 /**
  * A proposal waiting on, or answered by, a decider.
@@ -57,5 +58,13 @@ public record PendingDecision(
 
   public PendingDecision {
     evidence = List.copyOf(evidence);
+  }
+
+  /**
+   * Whether the desk's rules made this proposal, not an agent. The one place that decides it: the
+   * rules' proposals carry a reply token no agent waits on.
+   */
+  public boolean byRules() {
+    return ResolverDesk.TOKEN.equals(replyToken);
   }
 }

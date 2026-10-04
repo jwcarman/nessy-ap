@@ -432,7 +432,7 @@ public class ResolverDesk {
   /** A proposal the rules made and nobody has decided yet: the agent proposes from now on. */
   private void withdrawProposals(CaseRecord c) {
     for (PendingDecision d : decisions.forCase(c.exceptionId())) {
-      if (d.status() == DecisionStatus.PENDING && TOKEN.equals(d.replyToken())) {
+      if (d.status() == DecisionStatus.PENDING && d.byRules()) {
         decisions.markAnswered(d.id(), WITHDRAWN);
         timeline.append(c.exceptionId(), "decision", d.action() + " " + WITHDRAWN);
       }

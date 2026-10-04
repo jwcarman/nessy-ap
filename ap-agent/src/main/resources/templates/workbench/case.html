@@ -38,7 +38,7 @@
   </section>
 
   <section class="decide" th:each="d : ${decidable}">
-    <h2><span th:text="${d.replyToken().value() == 'rules'} ? 'The desk rules propose:' : 'The agent proposes:'">The agent proposes:</span> <span th:text="${d.action}">approve-variance</span>
+    <h2><span th:text="${d.byRules()} ? 'The desk rules propose:' : 'The agent proposes:'">The agent proposes:</span> <span th:text="${d.action}">approve-variance</span>
       <span th:if="${d.amount != null}" th:text="${d.amount}">950.00</span></h2>
     <p class="rationale" th:text="${d.rationale}">Why.</p>
     <p class="muted provenance" th:with="p=${provenance.get(d.id)}" th:if="${p != null}">

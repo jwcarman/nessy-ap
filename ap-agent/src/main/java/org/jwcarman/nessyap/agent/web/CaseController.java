@@ -31,7 +31,6 @@ import org.jwcarman.nessyap.agent.decisions.Provenance;
 import org.jwcarman.nessyap.agent.mail.Counterparty;
 import org.jwcarman.nessyap.agent.questions.Question;
 import org.jwcarman.nessyap.agent.questions.Questions;
-import org.jwcarman.nessyap.agent.resolver.ResolverDesk;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -75,7 +74,7 @@ public class CaseController {
           d.erpResult(),
           d.evidence(),
           ungrounded,
-          ResolverDesk.TOKEN.equals(d.replyToken()) ? "rules" : "agent",
+          d.byRules() ? "rules" : "agent",
           provenance);
     }
   }

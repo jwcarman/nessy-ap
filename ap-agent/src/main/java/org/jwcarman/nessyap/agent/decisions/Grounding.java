@@ -26,7 +26,6 @@ import org.jwcarman.nessy.api.turn.ToolOutcome;
 import org.jwcarman.nessy.api.turn.Turn;
 import org.jwcarman.nessy.engine.store.TurnHistories;
 import org.jwcarman.nessyap.agent.AgentConfiguration;
-import org.jwcarman.nessyap.agent.resolver.ResolverDesk;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -57,9 +56,7 @@ public class Grounding {
    * from the ERP themselves, so their proposals are grounded by construction.
    */
   public List<String> ungrounded(PendingDecision proposal) {
-    return ResolverDesk.TOKEN.equals(proposal.replyToken())
-        ? List.of()
-        : ungrounded(proposal.agentId(), proposal.evidence());
+    return proposal.byRules() ? List.of() : ungrounded(proposal.agentId(), proposal.evidence());
   }
 
   /** The cited ids the agent never read, in the order cited. */

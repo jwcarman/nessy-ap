@@ -163,7 +163,7 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
 
     PendingDecision proposal = awaitProposal(1);
     assertThat(proposal.action()).isEqualTo("approve-variance");
-    assertThat(proposal.replyToken()).isEqualTo(ResolverDesk.TOKEN);
+    assertThat(proposal.byRules()).isTrue();
     assertThat(
             meters
                 .get("ap.proposals")
