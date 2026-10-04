@@ -26,7 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A stand-in ERP: canned responses per method and path, every request recorded. A real HTTP server
@@ -125,8 +127,9 @@ public final class ErpStub implements AutoCloseable {
     }
     if (!canned.delay().isZero()) {
       try {
-        Thread.sleep(canned.delay());
-      } catch (InterruptedException e) {
+        // Nothing counts the latch down: waiting on it is a delay that an interrupt can cut short.
+        new CountDownLatch(1).await(canned.delay().toNanos(), TimeUnit.NANOSECONDS);
+      } catch (InterruptedException _) {
         Thread.currentThread().interrupt();
       }
     }

@@ -292,8 +292,9 @@ class DecisionFlowTest extends ApAgentIntegrationTest {
             when (new.kind = 'decision') execute function fail_decision_events()
             """)
         .update();
+    UUID proposalId = proposal.id();
     try {
-      assertThatThrownBy(() -> executor.decide(proposal.id(), "connie", true, "fine"))
+      assertThatThrownBy(() -> executor.decide(proposalId, "connie", true, "fine"))
           .isInstanceOf(RuntimeException.class);
     } finally {
       jdbc.sql("drop trigger fail_decision_events on case_event").update();
