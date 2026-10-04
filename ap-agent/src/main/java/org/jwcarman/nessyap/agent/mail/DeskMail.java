@@ -143,11 +143,7 @@ public class DeskMail {
     timeline.record(
         exceptionId, "mail-received", from + ": " + summary(reading), reading.reply().id());
     // A reply to the rules' own question is theirs to read; any other reply is the agent's.
-    if (resolverDesk.replied(exceptionId, claim, from.equals(FROM_VENDOR))) {
-      return;
-    }
-    agent.tell(
-        kase.agentId(),
+    CaseInput.CounterpartyReply forAgent =
         new CaseInput.CounterpartyReply(
             from,
             claim.intent(),
@@ -157,7 +153,10 @@ public class DeskMail {
             reading.confirmedPo().orElse(null),
             claim.containsInstructions(),
             claim.substitutionReason(),
-            claim.shippedItem()));
+            claim.shippedItem());
+    if (!resolverDesk.replied(exceptionId, claim, from.equals(FROM_VENDOR), forAgent)) {
+      agent.tell(kase.agentId(), forAgent);
+    }
   }
 
   /** Who sent it, as the desk knows them: by whom it wrote to, never by what the sender wrote. */

@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -52,12 +53,12 @@ import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.mail.MailException;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.event.TransactionalEventListener;
-import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -103,7 +104,8 @@ public class ResolverDesk {
   private final Clock clock;
   private final Duration approvalTimeout;
   private final Decisions decisions;
-  private final TransactionTemplate afterCommit;
+  private final ApplicationEventPublisher events;
+  private final Duration stalledAfter;
 
   public ResolverDesk(
       CaseSlots slots,
@@ -117,11 +119,11 @@ public class ResolverDesk {
       Clock clock,
       @Value("${ap.approval.timeout}") Duration approvalTimeout,
       Decisions decisions,
-      PlatformTransactionManager transactions) {
+      ApplicationEventPublisher events,
+      @Value("${ap.rules.stalled-after:PT2M}") Duration stalledAfter) {
     this.decisions = decisions;
-    // After a commit, Spring runs listeners outside any transaction: their work needs its own.
-    this.afterCommit = new TransactionTemplate(transactions);
-    this.afterCommit.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    this.events = events;
+    this.stalledAfter = stalledAfter;
     this.resolver = Resolver.fromClasspath(Resolver.TABLES);
     this.slots = slots;
     this.cases = cases;
@@ -138,48 +140,41 @@ public class ResolverDesk {
   /** What a decider may say to do instead of a substitution they decline. */
   public static final Set<String> DECLINE_REASONS = Set.of("PAY_PO_PRICE", "RETURN_GOODS");
 
-  /** A new case: the rules look first. */
+  // Every entry point below runs inside its caller's transaction, and only records what is due:
+  // database writes, no HTTP. The rules read the ERP and call the policy after that commit, on
+  // a thread of their own and with no transaction, so no connection is held across a remote call.
+  // A case left with nothing in motion, by a crash between the two, is found by sweep().
+
+  /** A new case: the rules look first, once it is committed. */
   public void opened(MatchExceptionRaised raised) {
     cases.handToRules(raised.exceptionId());
     // The ERP's own sentence about the case, kept for the agent if the rules hand it over later.
     if (raised.summary() != null) {
       cases.rememberSlot(raised.exceptionId(), ERP_SUMMARY, raised.summary(), "erp");
     }
-    cases.find(raised.exceptionId()).ifPresent(this::work);
+    events.publishEvent(new RulesDue(raised.exceptionId()));
   }
 
   /**
-   * A reply on a case. The rules read it only when they asked the vendor a question and the vendor
-   * they wrote to answers. A reply that confirms the fact they asked for becomes a slot. Any other
-   * reply on a case the rules work hands the case to its agent.
+   * A reply on a case. The rules use it only when they asked the vendor a question and the vendor
+   * they wrote to answers with the fact they asked for. Any other reply on a case the rules work
+   * hands the case to its agent, which is then told of the reply.
    *
    * @param fromVendor whether the reply came from the vendor address the desk wrote to
-   * @return true when the rules took the reply; false when the case's agent must be told of it
+   * @param forAgent the reply as the agent would be told of it
+   * @return true when the rules take the reply, and with it the duty to tell the agent; false when
+   *     the case is its agent's, and the caller must tell it
    */
-  public boolean replied(UUID exceptionId, ReplyReading reading, boolean fromVendor) {
+  public boolean replied(
+      UUID exceptionId,
+      ReplyReading reading,
+      boolean fromVendor,
+      CaseInput.CounterpartyReply forAgent) {
     if (!cases.rulesHandle(exceptionId)) {
       return false;
     }
-    CaseRecord c = cases.find(exceptionId).orElseThrow();
-    boolean asked = cases.slots(exceptionId).keySet().stream().anyMatch(k -> k.startsWith(ASKED));
-    if (!asked || !fromVendor) {
-      escalate(c, "reply");
-      return false;
-    }
-    if (reading.intent() == Intent.SUBSTITUTED_ITEM
-        && !reading.containsInstructions()
-        && reading.substitutionReason() != null
-        && billedItem(c).equalsIgnoreCase(String.valueOf(reading.shippedItem()))) {
-      cases.rememberSlot(
-          exceptionId, "substitutionReason", reading.substitutionReason().name(), "vendor-reply");
-      cases.setStatus(exceptionId, CaseStatus.INVESTIGATING);
-      work(c);
-      return true;
-    }
-    // The fact the rules asked for did not come back in a form they can check: they are done, and
-    // the agent reads the reply.
-    escalate(c, "exhausted");
-    return false;
+    events.publishEvent(new RulesReply(exceptionId, reading, fromVendor, forAgent));
+    return true;
   }
 
   /**
@@ -197,23 +192,46 @@ public class ResolverDesk {
     }
   }
 
-  /** Hands a case the rules still work to its agent, for a reason outside the rules. */
-  public void handOver(UUID exceptionId, String why) {
-    if (cases.rulesHandle(exceptionId)) {
-      cases.find(exceptionId).ifPresent(c -> escalate(c, why));
+  /**
+   * Hands a case the rules still work to its agent, for a reason outside the rules.
+   *
+   * @param then what the agent is told right after the handover, or null
+   * @return true when the rules had the case, and will tell the agent {@code then}; false when the
+   *     case is already its agent's, and the caller must tell it
+   */
+  public boolean handOver(UUID exceptionId, String why, CaseInput then) {
+    if (!cases.rulesHandle(exceptionId)) {
+      return false;
     }
+    events.publishEvent(new RulesHandOver(exceptionId, why, then));
+    return true;
   }
 
-  /**
-   * A proposal the rules made was decided and carried out. This runs after that commit, in a
-   * transaction of its own.
-   */
+  /** The rules run on a case that is due, after the commit that made it due. */
+  @Async
+  @TransactionalEventListener(fallbackExecution = true)
+  public void onDue(RulesDue due) {
+    ruled(due.exceptionId()).ifPresent(this::work);
+  }
+
+  /** The rules read a reply on their case, after the commit that received it. */
+  @Async
+  @TransactionalEventListener(fallbackExecution = true)
+  public void onReply(RulesReply event) {
+    ruled(event.exceptionId()).ifPresent(c -> read(c, event));
+  }
+
+  /** The rules give a case to its agent, after the commit that asked for it. */
+  @Async
+  @TransactionalEventListener(fallbackExecution = true)
+  public void onHandOver(RulesHandOver event) {
+    ruled(event.exceptionId()).ifPresent(c -> escalate(c, event.why(), event.then()));
+  }
+
+  /** A proposal the rules made was decided and carried out: the rules act after that commit. */
+  @Async
   @TransactionalEventListener
   public void decided(RulesDecided event) {
-    afterCommit.executeWithoutResult(status -> carryOn(event));
-  }
-
-  private void carryOn(RulesDecided event) {
     PendingDecision d = event.decision();
     if (event.applied()) {
       CaseStatus status = CaseStatus.afterApplied(d.action());
@@ -240,6 +258,49 @@ public class ResolverDesk {
       }
       cases.find(d.exceptionId()).ifPresent(this::work);
     }
+  }
+
+  /**
+   * Runs the rules again on each case of theirs with nothing in motion: no proposal waiting, nobody
+   * asked, no hold, and no change for a while. A process that stopped between a commit and the
+   * rules' next step leaves such a case.
+   */
+  @Scheduled(fixedDelayString = "${ap.rules.sweep-interval-ms:30000}")
+  public void sweep() {
+    for (UUID exceptionId : cases.rulesStalled(clock.instant().minus(stalledAfter))) {
+      log.info("Case {} had nothing in motion; the rules look again", exceptionId);
+      ruled(exceptionId).ifPresent(this::work);
+    }
+  }
+
+  private Optional<CaseRecord> ruled(UUID exceptionId) {
+    return cases.rulesHandle(exceptionId) ? cases.find(exceptionId) : Optional.empty();
+  }
+
+  private void read(CaseRecord c, RulesReply event) {
+    boolean asked =
+        cases.slots(c.exceptionId()).keySet().stream().anyMatch(k -> k.startsWith(ASKED));
+    if (!asked || !event.fromVendor()) {
+      escalate(c, "reply", event.forAgent());
+      return;
+    }
+    ReplyReading reading = event.reading();
+    if (reading.intent() == Intent.SUBSTITUTED_ITEM
+        && !reading.containsInstructions()
+        && reading.substitutionReason() != null
+        && billedItem(c).equalsIgnoreCase(String.valueOf(reading.shippedItem()))) {
+      cases.rememberSlot(
+          c.exceptionId(),
+          "substitutionReason",
+          reading.substitutionReason().name(),
+          "vendor-reply");
+      cases.setStatus(c.exceptionId(), CaseStatus.INVESTIGATING);
+      work(c);
+      return;
+    }
+    // The fact the rules asked for did not come back in a form they can check: they are done, and
+    // the agent reads the reply.
+    escalate(c, "exhausted", event.forAgent());
   }
 
   /** Runs the rules once. Whatever goes wrong, the case ends with someone acting on it. */
@@ -342,6 +403,10 @@ public class ResolverDesk {
   }
 
   private void escalate(CaseRecord c, String why) {
+    escalate(c, why, null);
+  }
+
+  private void escalate(CaseRecord c, String why, CaseInput then) {
     cases.handToAgent(c.exceptionId());
     withdrawProposals(c);
     timeline.record(
@@ -353,6 +418,9 @@ public class ResolverDesk {
     // The billed item is vendor-written: the agent sees it only shaped like a reference.
     known.computeIfPresent("billedItem", (name, item) -> VendorReference.shown(item.toString()));
     agent.tell(c.agentId(), new CaseInput.RulesStopped(raised(c, summary), why, known.toString()));
+    if (then != null) {
+      agent.tell(c.agentId(), then);
+    }
   }
 
   /** A proposal the rules made and nobody has decided yet: the agent proposes from now on. */
@@ -387,4 +455,17 @@ public class ResolverDesk {
 
   /** A proposal the rules made has been decided and carried out. */
   public record RulesDecided(PendingDecision decision, boolean applied) {}
+
+  /** A case the rules must work, once the transaction that made it due commits. */
+  public record RulesDue(UUID exceptionId) {}
+
+  /** A reply on a case the rules work, with what the agent is told if they hand it over. */
+  public record RulesReply(
+      UUID exceptionId,
+      ReplyReading reading,
+      boolean fromVendor,
+      CaseInput.CounterpartyReply forAgent) {}
+
+  /** A case the rules must give to its agent, and what the agent is told next, or null. */
+  public record RulesHandOver(UUID exceptionId, String why, CaseInput then) {}
 }

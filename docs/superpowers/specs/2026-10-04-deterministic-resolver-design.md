@@ -219,6 +219,9 @@ The build and its final review changed these points. James has not ruled on them
   for, and a person's note each hand the case over.
 - **§11 settledBy.** Three values: `rules`, `rules+facts`, `agent`. A case in `NEEDS_PERSON` is
   scored as the agent's.
+- **No transaction around the rules.** Every entry point records only what is due; the rules run
+  after the commit, asynchronously, with no transaction, and a sweep re-runs a rules case left
+  with nothing in motion.
 - **The playbook** keeps its reason-code rows, aligned with the tables, because the agent sees
   those codes after a handoff.
 

@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -124,6 +125,26 @@ public class Cases {
                 Map.entry(
                     new AgentType(rs.getString("agent_type")),
                     new AgentId(rs.getObject("agent_id", UUID.class))))
+        .list();
+  }
+
+  /**
+   * The cases the rules work with nothing in motion since {@code before}: no decision waiting or
+   * being carried out, nobody asked, not on hold or resolved.
+   */
+  public List<UUID> rulesStalled(Instant before) {
+    return jdbc.sql(
+            """
+            select c.exception_id from ap_case c
+            where c.handled_by = 'rules'
+              and c.status not in ('RESOLVED', 'ON_HOLD', 'AWAITING_ANSWER')
+              and c.updated_at < :before
+              and not exists (
+                select 1 from pending_decision d
+                where d.exception_id = c.exception_id and d.status in ('PENDING', 'DECIDED'))
+            """)
+        .param("before", Timestamp.from(before))
+        .query(UUID.class)
         .list();
   }
 

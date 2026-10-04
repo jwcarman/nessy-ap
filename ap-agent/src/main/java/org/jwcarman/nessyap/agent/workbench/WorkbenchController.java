@@ -316,8 +316,10 @@ public class WorkbenchController {
     if (!text.isBlank()) {
       timeline.record(exceptionId, "note", me.getName() + ": " + text);
       // A note is for the agent: a case the rules work becomes the agent's first.
-      resolverDesk.handOver(exceptionId, "person");
-      agent.tell(c.agentId(), new CaseInput.PersonNote(me.getName(), text));
+      CaseInput.PersonNote note = new CaseInput.PersonNote(me.getName(), text);
+      if (!resolverDesk.handOver(exceptionId, "person", note)) {
+        agent.tell(c.agentId(), note);
+      }
       redirect.addFlashAttribute("message", "Sent to the agent.");
     }
     return "redirect:/workbench/cases/" + exceptionId;

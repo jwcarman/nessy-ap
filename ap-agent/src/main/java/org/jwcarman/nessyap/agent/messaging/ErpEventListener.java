@@ -154,10 +154,14 @@ public class ErpEventListener {
         resolverDesk.opened(raised);
       }
       case ReceiptPosted receipt -> {
-        // Goods change what the rules proposed: their cases on the PO go to the agents first.
+        // Goods change what the rules proposed: their cases on the PO go to the agents, which
+        // are then told of the receipt.
         cases
             .rulesCasesForPo(receipt.poNumber())
-            .forEach(exceptionId -> resolverDesk.handOver(exceptionId, "receipt"));
+            .forEach(
+                exceptionId ->
+                    resolverDesk.handOver(
+                        exceptionId, "receipt", new CaseInput.ReceiptArrived(receipt)));
         cases
             .openCasesForPo(receipt.poNumber())
             .forEach(agentId -> agent.tell(agentId, new CaseInput.ReceiptArrived(receipt)));

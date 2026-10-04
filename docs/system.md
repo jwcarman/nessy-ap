@@ -284,10 +284,8 @@ flowchart LR
   the ERP's own data decides belong in the ERP. The simulator keeps them in the desk.
 - **The reader reads a money-moving fact once.** The design reads it twice and treats a
   disagreement as unknown. Today the only cross-check is the ERP's.
-- **A crash between a decision and the rules' next step leaves the case with nobody acting.** The
-  rules act after the decision commits; no sweeper finds a case that stopped between the two.
-- **The rules' letter to a vendor is sent inside the event's transaction.** A rollback after the
-  send, and the redelivery that follows, sends it twice.
+- **A reply lost in a crash.** The rules read a reply after the inbox commits it. If the process
+  stops between the two, the sweep runs the rules again, but the reply does not reach the agent.
 - **KIE DMN warns at startup on Java 25.** XStream, which KIE uses, calls a deprecated
   `sun.misc.Unsafe` method, and the JVM prints a warning.
 - **Not tested yet:** an approval that expires during a decision, a restart between proposal and

@@ -127,6 +127,14 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
           caseIndex.open(raised);
           resolverDesk.opened(raised);
         });
+    // The rules act after that commit, on their own thread: wait until they have.
+    await()
+        .atMost(PATIENCE)
+        .until(
+            () ->
+                !caseIndex.rulesHandle(exceptionId)
+                    || caseIndex.find(exceptionId).orElseThrow().status()
+                        != CaseStatus.INVESTIGATING);
   }
 
   private AgentId agent() {
@@ -238,7 +246,10 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
 
     boolean taken =
         resolverDesk.replied(
-            exceptionId, substitution(SubstitutionReason.OUT_OF_STOCK, "m8-hex-ss-100"), true);
+            exceptionId,
+            substitution(SubstitutionReason.OUT_OF_STOCK, "m8-hex-ss-100"),
+            true,
+            null);
 
     assertThat(taken).isTrue();
     assertThat(awaitProposal(1).action()).isEqualTo("approve-variance");
@@ -251,7 +262,7 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
     raise(ReasonCode.ITEM_SUBSTITUTED);
 
     resolverDesk.replied(
-        exceptionId, substitution(SubstitutionReason.OUT_OF_STOCK, "M10-HEX-SS-100"), true);
+        exceptionId, substitution(SubstitutionReason.OUT_OF_STOCK, "M10-HEX-SS-100"), true, null);
 
     await()
         .atMost(PATIENCE)
@@ -265,7 +276,7 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
     invoiceBills("M8-HEX-SS-100", "11.20");
     raise(ReasonCode.ITEM_SUBSTITUTED);
     resolverDesk.replied(
-        exceptionId, substitution(SubstitutionReason.OUT_OF_STOCK, "M8-HEX-SS-100"), true);
+        exceptionId, substitution(SubstitutionReason.OUT_OF_STOCK, "M8-HEX-SS-100"), true, null);
     PendingDecision offered = awaitProposal(1);
     caseIndex.rememberSlot(exceptionId, "declineReason", "PAY_PO_PRICE", "bob");
 
@@ -322,11 +333,12 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
         resolverDesk.replied(
             exceptionId,
             new ReplyReading(vendorId, Intent.OTHER, List.of(), null, null, false),
-            true);
+            true,
+            null);
 
-    assertThat(taken).isFalse();
-    assertThat(caseIndex.rulesHandle(exceptionId)).isFalse();
+    assertThat(taken).isTrue();
     assertThat(firstAgentInput()).contains("mail arrived that they did not ask for");
+    assertThat(caseIndex.rulesHandle(exceptionId)).isFalse();
   }
 
   @Test
@@ -336,11 +348,14 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
 
     boolean taken =
         resolverDesk.replied(
-            exceptionId, substitution(SubstitutionReason.OUT_OF_STOCK, "M8-HEX-SS-100"), false);
+            exceptionId,
+            substitution(SubstitutionReason.OUT_OF_STOCK, "M8-HEX-SS-100"),
+            false,
+            null);
 
-    assertThat(taken).isFalse();
+    assertThat(taken).isTrue();
+    await().atMost(PATIENCE).until(() -> !caseIndex.rulesHandle(exceptionId));
     assertThat(caseIndex.slots(exceptionId)).doesNotContainKey("substitutionReason");
-    assertThat(caseIndex.rulesHandle(exceptionId)).isFalse();
   }
 
   @Test
@@ -349,10 +364,12 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
     raise(ReasonCode.PRICE_VARIANCE);
     PendingDecision proposal = awaitProposal(1);
 
-    resolverDesk.handOver(exceptionId, "person");
+    resolverDesk.handOver(exceptionId, "person", null);
 
-    assertThat(decisions.find(proposal.id()).orElseThrow().status())
-        .isEqualTo(DecisionStatus.ANSWERED);
+    await()
+        .atMost(PATIENCE)
+        .until(
+            () -> decisions.find(proposal.id()).orElseThrow().status() == DecisionStatus.ANSWERED);
     assertThat(decisions.allPending())
         .extracting(PendingDecision::id)
         .doesNotContain(proposal.id());
@@ -363,7 +380,7 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
     invoiceBills("M8-HEX-SS-100", "11.20");
     raise(ReasonCode.ITEM_SUBSTITUTED);
     resolverDesk.replied(
-        exceptionId, substitution(SubstitutionReason.OUT_OF_STOCK, "M8-HEX-SS-100"), true);
+        exceptionId, substitution(SubstitutionReason.OUT_OF_STOCK, "M8-HEX-SS-100"), true, null);
     PendingDecision offered = awaitProposal(1);
 
     executor.decide(offered.id(), "bob", false, "not this vendor's steel again");
@@ -428,5 +445,32 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
             "connie", "n/a", List.of(new SimpleGrantedAuthority("ROLE_controller")));
 
     assertThat(caseController.get(exceptionId, connie).agentActive()).isFalse();
+  }
+
+  @Test
+  void a_rules_case_left_with_nothing_in_motion_is_picked_up_by_the_sweep() {
+    invoiceBills("M8-HEX-ZN-100", "10.40");
+    MatchExceptionRaised raised =
+        new MatchExceptionRaised(
+            UUID.randomUUID(),
+            Instant.now(),
+            exceptionId,
+            invoiceId,
+            "INV-" + exceptionId.toString().substring(0, 8),
+            vendorId,
+            poNumber,
+            ReasonCode.PRICE_VARIANCE,
+            "Line 1 does not match",
+            new BigDecimal("40.00"));
+    // As after a crash between the commit and the rules: the case is theirs, and nothing ran.
+    caseIndex.open(raised);
+    caseIndex.handToRules(exceptionId);
+    jdbc.sql("update ap_case set updated_at = now() - interval '1 hour' where exception_id = :id")
+        .param("id", exceptionId)
+        .update();
+
+    resolverDesk.sweep();
+
+    assertThat(awaitProposal(1).action()).isEqualTo("approve-variance");
   }
 }

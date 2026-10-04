@@ -170,6 +170,18 @@ The differences:
   grounding check has nothing to catch: the rules' proposals are grounded by construction.
 - The workbench says "The desk rules propose" instead of "The agent proposes".
 
+## No connection held across a call
+
+The rules read the ERP and call the policy over HTTP. They never do it inside a transaction.
+Each moment that makes the rules due (an ERP event, a reply, a decision, a receipt, a note)
+records only that, in its own transaction, and the rules run after it commits, on a thread of
+their own. Each database write they make is a short statement of its own. A sweep finds any
+case of theirs left with nothing in motion, for example by a process that stopped between the
+commit and the rules, and runs the rules again.
+
+The first version ran the rules inside the ERP event's transaction. At 16 cases side by side,
+the desk's 10 database connections were all held across HTTP calls, and the run stalled.
+
 ## The handoff to the agent
 
 When the rules stop, the desk gives the case to its agent for good. The agent's first input is
@@ -252,10 +264,6 @@ its turn. Two fixes followed:
 - **Asking the buyer for a fact.** No rule needs one yet, so the rules ask only the vendor.
 - **The agent as a fact finder.** In phase 2, an agent that the rules call returns facts, and the
   rules decide. The question is whether that beats the agent proposing.
-- **A crash between a decision and the rules' next step.** When a person decides a proposal from
-  the rules, the rules act after that decision commits, in a transaction of their own. A failure
-  there gives the case to its agent. A process that stops between the two leaves the case with
-  nobody acting, and no sweeper looks for it yet.
-- **A letter sent twice.** The rules send their letter inside the transaction that handles the
-  ERP's event. If that transaction rolls back after the send, the redelivered event sends it
-  again. An outbox would send it once.
+- **A reply lost in a crash.** A reply that arrives while the rules work a case is read after the
+  inbox commits it. If the process stops between the two, the sweep runs the rules again, but the
+  reply itself does not reach the agent.

@@ -17,10 +17,12 @@ package org.jwcarman.nessyap.agent;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /** The AP exception desk: one Nessy agent per ERP match exception. */
 @SpringBootApplication
+@EnableAsync
 @EnableScheduling
 public class ApAgentApplication {
 
