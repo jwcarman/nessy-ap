@@ -15,10 +15,10 @@
  */
 package org.jwcarman.nessyap.agent.decisions;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.StreamSupport;
 import org.jwcarman.nessy.api.tool.ApprovalEnricher;
 import org.jwcarman.nessy.api.tool.ApprovalRequest;
 import org.jwcarman.nessy.api.tool.ToolName;
@@ -44,6 +44,9 @@ public class CaseFactsEnricher implements ApprovalEnricher {
 
   private static final ToolName PROPOSE = new ToolName("propose_resolution");
   private static final String PENDING = "PENDING_VERIFICATION";
+  private static final String BUYER = "buyer";
+  private static final String INVOICE = "invoice";
+  private static final String STATUS = "status";
 
   private final Cases cases;
   private final ErpClient erp;
@@ -70,61 +73,76 @@ public class CaseFactsEnricher implements ApprovalEnricher {
     request.fact("influencedByUnendorsed", nodes.booleanNode(integrity.influencedByUnendorsed()));
     request.fact("instructionsSeen", nodes.booleanNode(integrity.instructionsSeen()));
     request.fact("amountAtIssue", nodes.numberNode(c.amount()));
-    // A citation counts only if a tool returned it; the policy refuses a proposal that cites
-    // anything else, naming it, so the agent corrects it before a person sees it.
     // The rules cite only what CaseSlots read from the ERP; no agent tool call grounds them.
     boolean byRules = ResolverDesk.RULES.equals(request.agentType());
-    if (PROPOSE.equals(request.toolName()) && !byRules) {
-      ArrayNode ungrounded = nodes.arrayNode();
-      grounding.ungrounded(request.agentId(), cited(request)).forEach(ungrounded::add);
-      request.fact("ungroundedCitations", ungrounded);
+    if (!byRules) {
+      citationFacts(request, nodes);
     }
     // An agent that asked someone in this turn has not seen the answer: it proposes nothing yet.
     request.fact(
         "askedThisTurn",
         nodes.booleanNode(!byRules && cases.askedInTurn(c.exceptionId(), request.turn().value())));
     // The ERP measures authority against the invoice total, so routing must see it too.
-    // The ERP's invoice view is {"invoice": {...}, "exceptions": [...]}.
     if (erp.invoice(c.invoiceId()) instanceof ErpOutcome.Ok(JsonNode view)) {
-      // A proposal that would change nothing (a hold on a held invoice) goes to nobody.
-      request.fact("invoiceStatus", view.path("invoice").path("status").asString());
-      if (view.path("invoice").path("total").isNumber()) {
-        request.fact("invoiceTotal", view.path("invoice").get("total"));
-      }
-      // Every exception still open on the invoice, so the policy sees a repeat through any case.
-      ArrayNode open = nodes.arrayNode();
-      for (JsonNode exception : view.path("exceptions")) {
-        if ("OPEN".equals(exception.path("status").asString())) {
-          open.add(exception.path("reasonCode").asString());
-        }
-      }
-      request.fact("openReasonCodes", open);
+      invoiceFacts(request, view, nodes);
     }
     if (c.poNumber() != null
         && erp.purchaseOrder(c.poNumber()) instanceof ErpOutcome.Ok(JsonNode po)
-        && po.hasNonNull("buyer")) {
-      request.fact("buyer", po.get("buyer").asString());
+        && po.hasNonNull(BUYER)) {
+      request.fact(BUYER, po.get(BUYER).asString());
     }
     // One read of the vendor answers both: is a bank change waiting, and does a proposal cite the
     // vendor (its id, or a pending change's id). Left out when the vendor could not be read.
     if (erp.vendor(c.vendorId()) instanceof ErpOutcome.Ok(JsonNode vendor)) {
-      request.fact("bankChangeUnverified", nodes.booleanNode(bankChangeUnverified(vendor)));
-      if (PROPOSE.equals(request.toolName())) {
-        Set<String> vendorIds = vendorIds(c, vendor);
-        request.fact(
-            "citesVendor",
-            nodes.booleanNode(cited(request).stream().anyMatch(vendorIds::contains)));
+      vendorFacts(request, c, vendor, nodes);
+    }
+  }
+
+  /**
+   * A citation counts only if a tool returned it; the policy refuses a proposal that cites anything
+   * else, naming it, so the agent corrects it before a person sees it.
+   */
+  private void citationFacts(ApprovalRequest request, JsonNodeFactory nodes) {
+    if (PROPOSE.equals(request.toolName())) {
+      ArrayNode ungrounded = nodes.arrayNode();
+      grounding.ungrounded(request.agentId(), cited(request)).forEach(ungrounded::add);
+      request.fact("ungroundedCitations", ungrounded);
+    }
+  }
+
+  /** The ERP's invoice view is {"invoice": {...}, "exceptions": [...]}. */
+  private static void invoiceFacts(ApprovalRequest request, JsonNode view, JsonNodeFactory nodes) {
+    // A proposal that would change nothing (a hold on a held invoice) goes to nobody.
+    request.fact("invoiceStatus", view.path(INVOICE).path(STATUS).asString());
+    if (view.path(INVOICE).path("total").isNumber()) {
+      request.fact("invoiceTotal", view.path(INVOICE).get("total"));
+    }
+    // Every exception still open on the invoice, so the policy sees a repeat through any case.
+    ArrayNode open = nodes.arrayNode();
+    for (JsonNode exception : view.path("exceptions")) {
+      if ("OPEN".equals(exception.path(STATUS).asString())) {
+        open.add(exception.path("reasonCode").asString());
       }
+    }
+    request.fact("openReasonCodes", open);
+  }
+
+  private void vendorFacts(
+      ApprovalRequest request, CaseRecord c, JsonNode vendor, JsonNodeFactory nodes) {
+    request.fact("bankChangeUnverified", nodes.booleanNode(bankChangeUnverified(vendor)));
+    if (PROPOSE.equals(request.toolName())) {
+      Set<String> vendorIds = vendorIds(c, vendor);
+      request.fact(
+          "citesVendor", nodes.booleanNode(cited(request).stream().anyMatch(vendorIds::contains)));
     }
   }
 
   /** The ids a proposal cites as its evidence. */
   private List<String> cited(ApprovalRequest request) {
-    List<String> cited = new ArrayList<>();
-    for (JsonNode id : json.readTree(request.arguments()).path("evidence")) {
-      cited.add(id.asString());
-    }
-    return cited;
+    return StreamSupport.stream(
+            json.readTree(request.arguments()).path("evidence").spliterator(), false)
+        .map(JsonNode::asString)
+        .toList();
   }
 
   private static boolean bankChangeUnverified(JsonNode vendor) {
