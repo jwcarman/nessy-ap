@@ -15,9 +15,7 @@
  */
 package org.jwcarman.nessyap.agent.decisions;
 
-import java.time.Clock;
 import java.util.Optional;
-import java.util.UUID;
 import org.jwcarman.nessy.api.Awaited;
 import org.jwcarman.nessy.api.tool.ApprovalRequest;
 import org.jwcarman.nessy.api.tool.ApprovalResult;
@@ -26,8 +24,6 @@ import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
-import org.jwcarman.nessyap.agent.oversight.DeskMetrics;
-import org.jwcarman.nessyap.agent.support.Ids;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -39,32 +35,19 @@ import tools.jackson.databind.json.JsonMapper;
  */
 public class WorkbenchDesk implements Approver {
 
-  private final Decisions decisions;
   private final Cases cases;
   private final CaseTimeline timeline;
   private final JsonMapper json;
-  private final Clock clock;
   private final String role;
-  private final Provenance provenance;
-  private final DeskMetrics metrics;
+  private final Proposals proposals;
 
-  public WorkbenchDesk(
-      String role,
-      Decisions decisions,
-      Cases cases,
-      CaseTimeline timeline,
-      JsonMapper json,
-      Clock clock,
-      Provenance provenance,
-      DeskMetrics metrics) {
-    this.provenance = provenance;
-    this.metrics = metrics;
+  WorkbenchDesk(
+      String role, Cases cases, CaseTimeline timeline, JsonMapper json, Proposals proposals) {
     this.role = role;
-    this.decisions = decisions;
     this.cases = cases;
     this.timeline = timeline;
     this.json = json;
-    this.clock = clock;
+    this.proposals = proposals;
   }
 
   @Override
@@ -90,33 +73,7 @@ public class WorkbenchDesk implements Approver {
           ApprovalResult.denied("The policy sent this to a buyer but named none; it cannot wait."));
     }
     CaseRecord c = found.get();
-    UUID decisionId = Ids.next();
-    decisions.insert(
-        new PendingDecision(
-            decisionId,
-            request.agentId(),
-            request.idempotencyKey().value(),
-            request.replyToken(),
-            c.exceptionId(),
-            c.invoiceId(),
-            proposal.action(),
-            proposal.amount(),
-            proposal.rationale() == null ? "" : proposal.rationale(),
-            proposal.evidence(),
-            request.deadline(),
-            DecisionStatus.PENDING,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            clock.instant(),
-            role,
-            requiredUser));
-    Provenance.Stamp stamp = provenance.stamp(request.agentType());
-    decisions.rememberProvenance(decisionId, json.writeValueAsString(stamp));
-    metrics.proposed(stamp.proposer(), proposal.action());
+    proposals.file(c, request, proposal, role, requiredUser);
     cases.setStatus(c.exceptionId(), CaseStatus.AWAITING_DECISION);
     timeline.append(c.exceptionId(), "proposal", request.action() + " (for " + role + ")");
     return Awaited.deferred();
