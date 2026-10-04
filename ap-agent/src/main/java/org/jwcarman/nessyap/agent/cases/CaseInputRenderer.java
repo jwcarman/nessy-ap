@@ -139,6 +139,8 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
       case GIVES_PO_NUMBER -> "names a purchase order";
       case SAYS_GOODS_COMING -> "says the goods are on the way";
       case ASKS_QUESTION -> "asks the desk a question";
+      case SUBSTITUTED_ITEM -> "says it shipped a different item than the one ordered";
+      case UNCLEAR -> "says something the reader could not make out";
       case OTHER -> "says something the reader could not classify";
     };
   }
