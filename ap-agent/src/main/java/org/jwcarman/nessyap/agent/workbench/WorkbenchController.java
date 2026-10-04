@@ -167,10 +167,7 @@ public class WorkbenchController {
     // What the approver should know: citations the agent never actually read.
     model.addAttribute(
         "ungrounded",
-        all.stream()
-            .collect(
-                Collectors.toMap(
-                    PendingDecision::id, d -> grounding.ungrounded(c.agentId(), d.evidence()))));
+        all.stream().collect(Collectors.toMap(PendingDecision::id, grounding::ungrounded)));
     model.addAttribute(
         "decidable",
         all.stream()
@@ -207,6 +204,7 @@ public class WorkbenchController {
       @PathVariable UUID decisionId,
       @RequestParam String verdict,
       @RequestParam(required = false) String comment,
+      @RequestParam(required = false) String declineReason,
       Authentication me,
       @RegisteredOAuth2AuthorizedClient OAuth2AuthorizedClient client,
       RedirectAttributes redirect) {
@@ -224,6 +222,9 @@ public class WorkbenchController {
       redirect.addFlashAttribute(
           "message", "Say why: a denial needs a reason the agent can act on.");
       return "redirect:/workbench/cases/" + d.exceptionId();
+    }
+    if (!approve && declineReason != null && !declineReason.isBlank()) {
+      resolverDesk.declinedWith(d, declineReason, me.getName());
     }
     DecisionResult result =
         executor.decide(

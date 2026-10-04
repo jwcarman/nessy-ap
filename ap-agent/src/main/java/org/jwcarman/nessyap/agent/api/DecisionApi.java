@@ -18,12 +18,12 @@ package org.jwcarman.nessyap.agent.api;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.Deciders;
 import org.jwcarman.nessyap.agent.decisions.DecisionExecutor;
 import org.jwcarman.nessyap.agent.decisions.DecisionResult;
 import org.jwcarman.nessyap.agent.decisions.Decisions;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
+import org.jwcarman.nessyap.agent.resolver.ResolverDesk;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -53,17 +53,14 @@ public class DecisionApi {
     }
   }
 
-  /** What a decider may say instead of a substitution they decline. */
-  private static final Set<String> DECLINE_REASONS = Set.of("PAY_PO_PRICE", "RETURN_GOODS");
-
   public record DecideResponse(String result, String decidedBy) {}
 
   private final Decisions decisions;
   private final DecisionExecutor executor;
-  private final Cases cases;
+  private final ResolverDesk resolverDesk;
 
-  public DecisionApi(Decisions decisions, DecisionExecutor executor, Cases cases) {
-    this.cases = cases;
+  public DecisionApi(Decisions decisions, DecisionExecutor executor, ResolverDesk resolverDesk) {
+    this.resolverDesk = resolverDesk;
     this.decisions = decisions;
     this.executor = executor;
   }
@@ -97,13 +94,11 @@ public class DecisionApi {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A denial needs a reason");
     }
     if (request.declineReason() != null) {
-      if (approve || !DECLINE_REASONS.contains(request.declineReason())) {
+      if (approve || !ResolverDesk.DECLINE_REASONS.contains(request.declineReason())) {
         throw new ResponseStatusException(
-            HttpStatus.BAD_REQUEST, "A decline reason is one of " + DECLINE_REASONS);
+            HttpStatus.BAD_REQUEST, "A decline reason is one of " + ResolverDesk.DECLINE_REASONS);
       }
-      if (d.approved() == null) {
-        cases.rememberSlot(d.exceptionId(), "declineReason", request.declineReason(), me.getName());
-      }
+      resolverDesk.declinedWith(d, request.declineReason(), me.getName());
     }
     return switch (executor.decide(
         decisionId, me.getName(), approve, request.comment(), me.getToken().getTokenValue())) {

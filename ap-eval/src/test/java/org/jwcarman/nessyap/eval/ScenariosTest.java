@@ -88,6 +88,28 @@ class ScenariosTest {
   }
 
   @Test
+  void a_denial_carries_the_structured_reason_its_scenario_gives() {
+    assertThat(
+            Runner.denial(
+                Scenarios.named("substitute-at-po-price"), "approve-variance", "at the PO price"))
+        .containsEntry("approve", false)
+        .containsEntry("declineReason", "PAY_PO_PRICE");
+    assertThat(Runner.denial(Scenarios.named("buyer-denies"), "approve-variance", "no"))
+        .doesNotContainKey("declineReason");
+  }
+
+  @Test
+  void the_long_tail_is_seeded_by_the_erps_substitution() {
+    assertThat(
+            List.of(
+                Scenarios.named("item-substituted"),
+                Scenarios.named("substitution-unclear"),
+                Scenarios.named("substitute-at-po-price")))
+        .hasSize(3)
+        .allSatisfy(s -> assertThat(s.erpScenario()).isEqualTo("item-substituted"));
+  }
+
+  @Test
   void a_scripted_denial_is_given_with_its_reason_and_everything_else_is_approved() {
     Scenario denies = Scenarios.named("buyer-denies");
 

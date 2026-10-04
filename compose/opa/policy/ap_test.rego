@@ -72,6 +72,18 @@ test_an_unknown_action_is_denied if {
 	ap.decision.effect == "deny" with input as proposal("pay-twice", price_variance)
 }
 
+test_a_substituted_item_goes_to_the_pos_buyer if {
+	ap.decision == {"effect": "delegate", "to": "buyer", "buyer": "bob"} with input as proposal("approve-variance", object.union(price_variance, {"reasonCode": "ITEM_SUBSTITUTED"}))
+}
+
+test_a_short_pay_at_the_po_price_for_a_substitute_goes_to_the_ap_manager if {
+	ap.decision == {"effect": "delegate", "to": "ap-manager"} with input as {
+		"toolName": "propose_resolution",
+		"arguments": {"action": "short-pay", "amount": 1000, "rationale": "r", "evidence": []},
+		"facts": object.union(price_variance, {"reasonCode": "ITEM_SUBSTITUTED"}),
+	}
+}
+
 test_a_missing_buyer_falls_back_to_the_ap_manager if {
 	ap.decision.to == "ap-manager" with input as proposal("approve-variance", {"reasonCode": "PRICE_VARIANCE", "amountAtIssue": 40, "invoiceTotal": 5000, "bankChangeUnverified": false})
 }

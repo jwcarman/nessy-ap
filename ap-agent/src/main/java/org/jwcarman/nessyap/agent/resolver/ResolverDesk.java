@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import org.jwcarman.nessy.api.AgentType;
@@ -145,6 +146,24 @@ public class ResolverDesk {
     cases.setStatus(exceptionId, CaseStatus.INVESTIGATING);
     work(c);
     return true;
+  }
+
+  /** What a decider may say to do instead of a substitution they decline. */
+  public static final Set<String> DECLINE_REASONS = Set.of("PAY_PO_PRICE", "RETURN_GOODS");
+
+  /**
+   * Keeps a decider's structured reason for declining a proposal, for the rules to act on. A
+   * decision already decided keeps what it had.
+   *
+   * @throws IllegalArgumentException for a reason the rules do not know
+   */
+  public void declinedWith(PendingDecision proposal, String reason, String decider) {
+    if (!DECLINE_REASONS.contains(reason)) {
+      throw new IllegalArgumentException("A decline reason is one of " + DECLINE_REASONS);
+    }
+    if (proposal.approved() == null) {
+      cases.rememberSlot(proposal.exceptionId(), "declineReason", reason, decider);
+    }
   }
 
   /** Hands a case the rules still work to its agent, for a reason outside the rules. */

@@ -37,9 +37,12 @@ import org.jwcarman.nessyap.agent.decisions.PendingDecision;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.SubstitutionReason;
+import org.jwcarman.nessyap.agent.web.CaseController;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReasonCode;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /** The rules work a case first: what they settle alone, what they ask, and what they hand over. */
@@ -53,6 +56,7 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
   @Autowired Decisions decisions;
   @Autowired DecisionExecutor executor;
   @Autowired CaseTimeline timeline;
+  @Autowired CaseController caseController;
 
   private UUID invoiceId;
   private UUID vendorId;
@@ -146,6 +150,28 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void the_case_view_shows_a_rules_proposal_as_made_by_the_rules_and_grounded() {
+    invoiceBills("M8-HEX-ZN-100", "10.40");
+    raise(ReasonCode.PRICE_VARIANCE);
+    awaitProposal(1);
+    TestingAuthenticationToken connie =
+        new TestingAuthenticationToken(
+            "connie", "n/a", List.of(new SimpleGrantedAuthority("ROLE_controller")));
+
+    CaseController.CaseView view = caseController.get(exceptionId, connie);
+
+    assertThat(view.handledBy()).isEqualTo("rules");
+    assertThat(view.decisions())
+        .singleElement()
+        .satisfies(
+            d -> {
+              assertThat(d.proposedBy()).isEqualTo("rules");
+              assertThat(d.evidence()).contains(invoiceId.toString(), poNumber);
+              assertThat(d.ungrounded()).isEmpty();
+            });
+  }
+
+  @Test
   void an_approved_rules_proposal_is_carried_out_and_resolves_the_case() {
     invoiceBills("M8-HEX-ZN-100", "10.40");
     erp.on("POST", "/api/invoices/" + invoiceId + "/approve-variance", 200, "{}");
@@ -169,9 +195,8 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
 
     raise(ReasonCode.NO_PO);
 
-    await()
-        .atMost(PATIENCE)
-        .until(() -> narration.count(agent(), Narration.TurnStarted.class) == 1);
+    // The turn starts before its first model request is recorded: wait for the request itself.
+    await().atMost(PATIENCE).until(() -> !model.requests().isEmpty());
     assertThat(caseIndex.rulesHandle(exceptionId)).isFalse();
     assertThat(model.requests().getFirst().context().turns().getLast().input().toString())
         .contains("rules worked this case first and stopped")
