@@ -34,6 +34,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 class GoodsReceiptsTest extends ErpIntegrationTest {
 
+  private static final Actor SYSTEM = Actor.system();
+
   @Autowired VendorMaster vendors;
   @Autowired PurchaseOrders purchaseOrders;
   @Autowired GoodsReceipts receipts;
@@ -42,7 +44,7 @@ class GoodsReceiptsTest extends ErpIntegrationTest {
   void anOrder() {
     Vendor vendor =
         vendors.create(
-            Actor.system(),
+            SYSTEM,
             new NewVendor(
                 "Acme Fasteners",
                 "NET30",
@@ -50,7 +52,7 @@ class GoodsReceiptsTest extends ErpIntegrationTest {
                 "000123456",
                 "021000021"));
     purchaseOrders.create(
-        Actor.system(),
+        SYSTEM,
         new NewPurchaseOrder(
             "PO-1",
             vendor.id(),
@@ -64,7 +66,7 @@ class GoodsReceiptsTest extends ErpIntegrationTest {
 
   @Test
   void a_posted_receipt_is_listed_against_its_order() {
-    GoodsReceipt posted = receipts.post(Actor.system(), receipt("PO-1", 1, "60"));
+    GoodsReceipt posted = receipts.post(SYSTEM, receipt("PO-1", 1, "60"));
 
     assertThat(purchaseOrders.receipts("PO-1"))
         .extracting(GoodsReceipt::id)
@@ -76,7 +78,7 @@ class GoodsReceiptsTest extends ErpIntegrationTest {
 
   @Test
   void a_posted_receipt_tells_the_world() {
-    receipts.post(Actor.system(), receipt("PO-1", 1, "60"));
+    receipts.post(SYSTEM, receipt("PO-1", 1, "60"));
 
     assertThat(
             jdbc.sql("select count(*) from outbox where event_type = 'receipt.posted'")
@@ -89,7 +91,7 @@ class GoodsReceiptsTest extends ErpIntegrationTest {
   void a_line_the_order_does_not_have_is_refused() {
     NewReceipt stray = receipt("PO-1", 9, "1");
 
-    assertThatThrownBy(() -> receipts.post(Actor.system(), stray))
+    assertThatThrownBy(() -> receipts.post(SYSTEM, stray))
         .isInstanceOf(InvalidRequestException.class);
   }
 
@@ -97,7 +99,7 @@ class GoodsReceiptsTest extends ErpIntegrationTest {
   void a_non_positive_quantity_is_refused() {
     NewReceipt nothing = receipt("PO-1", 1, "0");
 
-    assertThatThrownBy(() -> receipts.post(Actor.system(), nothing))
+    assertThatThrownBy(() -> receipts.post(SYSTEM, nothing))
         .isInstanceOf(InvalidRequestException.class);
   }
 
@@ -105,7 +107,6 @@ class GoodsReceiptsTest extends ErpIntegrationTest {
   void an_unknown_order_is_not_found() {
     NewReceipt lost = receipt("PO-NOPE", 1, "1");
 
-    assertThatThrownBy(() -> receipts.post(Actor.system(), lost))
-        .isInstanceOf(NotFoundException.class);
+    assertThatThrownBy(() -> receipts.post(SYSTEM, lost)).isInstanceOf(NotFoundException.class);
   }
 }

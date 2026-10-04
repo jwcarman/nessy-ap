@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -68,12 +69,13 @@ class AuthorityMatrixTest extends ErpIntegrationTest {
         new ResolutionCommand(
             invoice.version(), amount == null ? null : new BigDecimal(amount), "c");
     Actor actor = new Actor("workbench", user);
+    UUID invoiceId = invoice.id();
 
     if (allowed) {
-      assertThat(resolutions.apply(actor, "k", invoice.id(), action, command).version())
+      assertThat(resolutions.apply(actor, "k", invoiceId, action, command).version())
           .isEqualTo(invoice.version() + 1);
     } else {
-      assertThatThrownBy(() -> resolutions.apply(actor, "k", invoice.id(), action, command))
+      assertThatThrownBy(() -> resolutions.apply(actor, "k", invoiceId, action, command))
           .isInstanceOf(NotAuthorisedException.class);
     }
   }
@@ -86,9 +88,10 @@ class AuthorityMatrixTest extends ErpIntegrationTest {
     Invoice invoice = data().invoice(acme, "INV-1", "PO-1", "100", "10.40");
     ResolutionCommand command = new ResolutionCommand(invoice.version(), null, "c");
     Actor service = new Actor("ap-agent-service", null);
+    UUID invoiceId = invoice.id();
 
     assertThatThrownBy(
-            () -> resolutions.apply(service, "k", invoice.id(), ResolutionAction.HOLD, command))
+            () -> resolutions.apply(service, "k", invoiceId, ResolutionAction.HOLD, command))
         .isInstanceOf(NotAuthorisedException.class);
   }
 }

@@ -17,6 +17,7 @@ package org.jwcarman.nessyap.erp;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.rabbitmq.client.ShutdownNotifier;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +39,7 @@ class ErpSimApplicationTest {
 
   @Test
   void boots_against_a_real_broker() {
-    Boolean open = rabbit.execute(channel -> channel.isOpen());
+    Boolean open = rabbit.execute(ShutdownNotifier::isOpen);
     assertThat(open).isTrue();
   }
 }

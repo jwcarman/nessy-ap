@@ -32,7 +32,7 @@ class AuditLogTest extends ErpIntegrationTest {
   void records_who_did_what_to_which_entity() {
     UUID entity = Ids.next();
 
-    auditLog.record(new Actor("workbench", "connie"), "invoice", entity, "hold", "waiting on PO");
+    auditLog.append(new Actor("workbench", "connie"), "invoice", entity, "hold", "waiting on PO");
 
     Map<String, Object> row =
         jdbc.sql("select * from erp_audit where entity_id = :id")
@@ -52,7 +52,7 @@ class AuditLogTest extends ErpIntegrationTest {
   void records_an_anonymous_caller_with_no_user() {
     UUID entity = Ids.next();
 
-    auditLog.record(Actor.anonymous(), "invoice", entity, "received", "d");
+    auditLog.append(Actor.anonymous(), "invoice", entity, "received", "d");
 
     Map<String, Object> row =
         jdbc.sql("select * from erp_audit where entity_id = :id")

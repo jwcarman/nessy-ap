@@ -35,6 +35,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 class InvoiceIntakeTest extends ErpIntegrationTest {
 
+  private static final Actor SYSTEM = Actor.system();
+
   @Autowired InvoiceIntake intake;
   @Autowired MatchExceptionRepository exceptions;
 
@@ -108,7 +110,7 @@ class InvoiceIntakeTest extends ErpIntegrationTest {
   void the_total_includes_tax_and_freight() {
     Invoice invoice =
         intake.receive(
-            Actor.system(),
+            SYSTEM,
             new NewInvoice(
                 acme.id(),
                 "INV-2002",
@@ -135,7 +137,6 @@ class InvoiceIntakeTest extends ErpIntegrationTest {
             BigDecimal.ZERO,
             List.of(new InvoiceLine(1, 1, "x", BigDecimal.ONE, BigDecimal.ONE)));
 
-    assertThatThrownBy(() -> intake.receive(Actor.system(), orphan))
-        .isInstanceOf(NotFoundException.class);
+    assertThatThrownBy(() -> intake.receive(SYSTEM, orphan)).isInstanceOf(NotFoundException.class);
   }
 }

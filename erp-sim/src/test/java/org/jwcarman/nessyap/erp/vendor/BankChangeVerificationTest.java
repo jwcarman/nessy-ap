@@ -42,11 +42,13 @@ class BankChangeVerificationTest extends ErpIntegrationTest {
   @Autowired VendorRepository repository;
 
   private Vendor acme;
+  private UUID acmeId;
   private UUID proposed;
 
   @BeforeEach
   void anUnverifiedChange() {
     acme = data().vendor();
+    acmeId = acme.id();
     proposed =
         vendors
             .proposeBankChange(
@@ -62,7 +64,7 @@ class BankChangeVerificationTest extends ErpIntegrationTest {
 
   @Test
   void a_call_back_must_go_to_the_contact_of_record() {
-    assertThatThrownBy(() -> vendors.recordCallBack(MARK, acme.id(), proposed, "+1-555-9999", true))
+    assertThatThrownBy(() -> vendors.recordCallBack(MARK, acmeId, proposed, "+1-555-9999", true))
         .isInstanceOf(BankChangeVerificationException.class);
   }
 
@@ -70,14 +72,14 @@ class BankChangeVerificationTest extends ErpIntegrationTest {
   void the_person_who_called_back_cannot_also_confirm() {
     vendors.recordCallBack(MARK, acme.id(), proposed, contactPhone(), true);
 
-    assertThatThrownBy(() -> vendors.confirmBankChange(MARK, acme.id(), proposed))
+    assertThatThrownBy(() -> vendors.confirmBankChange(MARK, acmeId, proposed))
         .isInstanceOf(BankChangeVerificationException.class);
     assertThat(vendors.get(acme.id()).hasUnverifiedBankChange()).isTrue();
   }
 
   @Test
   void a_change_cannot_be_confirmed_before_anyone_called() {
-    assertThatThrownBy(() -> vendors.confirmBankChange(CONNIE, acme.id(), proposed))
+    assertThatThrownBy(() -> vendors.confirmBankChange(CONNIE, acmeId, proposed))
         .isInstanceOf(BankChangeVerificationException.class);
   }
 
@@ -121,9 +123,9 @@ class BankChangeVerificationTest extends ErpIntegrationTest {
   @Test
   void only_someone_trusted_with_vendor_changes_may_call_back() {
     Actor clara = new Actor("workbench", "clara");
+    String phone = contactPhone();
 
-    assertThatThrownBy(
-            () -> vendors.recordCallBack(clara, acme.id(), proposed, contactPhone(), true))
+    assertThatThrownBy(() -> vendors.recordCallBack(clara, acmeId, proposed, phone, true))
         .isInstanceOf(NotAuthorisedException.class);
   }
 

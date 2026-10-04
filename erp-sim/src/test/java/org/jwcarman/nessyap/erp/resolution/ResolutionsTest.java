@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -88,11 +89,12 @@ class ResolutionsTest extends ErpIntegrationTest {
           .extracting(MatchException::reasonCode)
           .contains(ReasonCode.DUPLICATE, ReasonCode.PRICE_VARIANCE);
       ResolutionCommand pay = new ResolutionCommand(again.version(), null, "because");
+      UUID againId = again.id();
 
       assertThatThrownBy(
               () ->
                   resolutions.apply(
-                      CONTROLLER, "dup-1", again.id(), ResolutionAction.APPROVE_VARIANCE, pay))
+                      CONTROLLER, "dup-1", againId, ResolutionAction.APPROVE_VARIANCE, pay))
           .isInstanceOf(DuplicateOpenException.class);
       assertThat(exceptions.findByInvoice(again.id()))
           .isNotEmpty()
@@ -173,10 +175,10 @@ class ResolutionsTest extends ErpIntegrationTest {
     void a_hold_on_a_matched_invoice() {
       Invoice matched = data().invoice(acme, "INV-2002", "PO-1", "1", "10.00");
       ResolutionCommand command = new ResolutionCommand(matched.version(), null, null);
+      UUID matchedId = matched.id();
 
       assertThatThrownBy(
-              () ->
-                  resolutions.apply(CONTROLLER, "k1", matched.id(), ResolutionAction.HOLD, command))
+              () -> resolutions.apply(CONTROLLER, "k1", matchedId, ResolutionAction.HOLD, command))
           .isInstanceOf(InvalidTransitionException.class);
     }
 
@@ -189,11 +191,11 @@ class ResolutionsTest extends ErpIntegrationTest {
     @Test
     void a_command_with_no_version() {
       ResolutionCommand command = new ResolutionCommand(null, null, null);
+      UUID overpricedId = overpriced.id();
 
       assertThatThrownBy(
               () ->
-                  resolutions.apply(
-                      CONTROLLER, "k1", overpriced.id(), ResolutionAction.HOLD, command))
+                  resolutions.apply(CONTROLLER, "k1", overpricedId, ResolutionAction.HOLD, command))
           .isInstanceOf(InvalidRequestException.class);
     }
   }

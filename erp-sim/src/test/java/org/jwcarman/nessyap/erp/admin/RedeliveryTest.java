@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -44,8 +45,7 @@ class RedeliveryTest extends ErpIntegrationTest {
             """)
         .param("id", exceptionId.toString())
         .query(
-            (rs, row) ->
-                Optional.ofNullable(rs.getTimestamp("published_at")).map(t -> t.toInstant()))
+            (rs, row) -> Optional.ofNullable(rs.getTimestamp("published_at")).map(Date::toInstant))
         .single();
   }
 

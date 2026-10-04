@@ -30,11 +30,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 class VendorMasterTest extends ErpIntegrationTest {
 
+  private static final Actor SYSTEM = Actor.system();
+
   @Autowired VendorMaster vendors;
 
   private Vendor acme() {
     return vendors.create(
-        Actor.system(),
+        SYSTEM,
         new NewVendor(
             "Acme Fasteners",
             "NET30",
@@ -72,7 +74,7 @@ class VendorMasterTest extends ErpIntegrationTest {
       NewVendor blank =
           new NewVendor(" ", "NET30", new Contact("a", "b", "c"), "000123456", "021000021");
 
-      assertThatThrownBy(() -> vendors.create(Actor.system(), blank))
+      assertThatThrownBy(() -> vendors.create(SYSTEM, blank))
           .isInstanceOf(InvalidRequestException.class);
     }
   }
@@ -93,7 +95,7 @@ class VendorMasterTest extends ErpIntegrationTest {
 
       BankAccount proposed =
           vendors.proposeBankChange(
-              Actor.system(),
+              SYSTEM,
               vendor.id(),
               new BankChangeProposal("998877665", "026009593", "accounts@acme-billing.example"));
 
@@ -107,7 +109,7 @@ class VendorMasterTest extends ErpIntegrationTest {
       Vendor vendor = acme();
 
       vendors.proposeBankChange(
-          Actor.system(),
+          SYSTEM,
           vendor.id(),
           new BankChangeProposal("998877665", "026009593", "accounts@acme-billing.example"));
 

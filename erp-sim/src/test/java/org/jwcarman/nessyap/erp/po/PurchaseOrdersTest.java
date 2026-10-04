@@ -36,6 +36,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 class PurchaseOrdersTest extends ErpIntegrationTest {
 
+  private static final Actor SYSTEM = Actor.system();
+
   @Autowired VendorMaster vendors;
   @Autowired PurchaseOrders purchaseOrders;
 
@@ -45,7 +47,7 @@ class PurchaseOrdersTest extends ErpIntegrationTest {
   void aVendor() {
     vendor =
         vendors.create(
-            Actor.system(),
+            SYSTEM,
             new NewVendor(
                 "Acme Fasteners",
                 "NET30",
@@ -64,7 +66,7 @@ class PurchaseOrdersTest extends ErpIntegrationTest {
 
   @Test
   void a_created_order_reads_back_by_number() {
-    purchaseOrders.create(Actor.system(), order("PO-1", line(1, "100", "10.00")));
+    purchaseOrders.create(SYSTEM, order("PO-1", line(1, "100", "10.00")));
 
     PurchaseOrder read = purchaseOrders.get("PO-1");
 
@@ -91,7 +93,7 @@ class PurchaseOrdersTest extends ErpIntegrationTest {
     NewPurchaseOrder orphan =
         new NewPurchaseOrder("PO-2", Ids.next(), "bob", List.of(line(1, "1", "1.00")));
 
-    assertThatThrownBy(() -> purchaseOrders.create(Actor.system(), orphan))
+    assertThatThrownBy(() -> purchaseOrders.create(SYSTEM, orphan))
         .isInstanceOf(NotFoundException.class);
   }
 
@@ -100,10 +102,10 @@ class PurchaseOrdersTest extends ErpIntegrationTest {
 
     @Test
     void a_number_already_in_use() {
-      purchaseOrders.create(Actor.system(), order("PO-1", line(1, "100", "10.00")));
+      purchaseOrders.create(SYSTEM, order("PO-1", line(1, "100", "10.00")));
       NewPurchaseOrder again = order("PO-1", line(1, "5", "1.00"));
 
-      assertThatThrownBy(() -> purchaseOrders.create(Actor.system(), again))
+      assertThatThrownBy(() -> purchaseOrders.create(SYSTEM, again))
           .isInstanceOf(InvalidRequestException.class);
     }
 
@@ -111,7 +113,7 @@ class PurchaseOrdersTest extends ErpIntegrationTest {
     void an_order_with_no_lines() {
       NewPurchaseOrder empty = order("PO-1");
 
-      assertThatThrownBy(() -> purchaseOrders.create(Actor.system(), empty))
+      assertThatThrownBy(() -> purchaseOrders.create(SYSTEM, empty))
           .isInstanceOf(InvalidRequestException.class);
     }
 
@@ -119,7 +121,7 @@ class PurchaseOrdersTest extends ErpIntegrationTest {
     void duplicate_line_numbers() {
       NewPurchaseOrder twice = order("PO-1", line(1, "1", "1.00"), line(1, "2", "2.00"));
 
-      assertThatThrownBy(() -> purchaseOrders.create(Actor.system(), twice))
+      assertThatThrownBy(() -> purchaseOrders.create(SYSTEM, twice))
           .isInstanceOf(InvalidRequestException.class);
     }
 
@@ -127,7 +129,7 @@ class PurchaseOrdersTest extends ErpIntegrationTest {
     void a_zero_price() {
       NewPurchaseOrder free = order("PO-1", line(1, "1", "0.00"));
 
-      assertThatThrownBy(() -> purchaseOrders.create(Actor.system(), free))
+      assertThatThrownBy(() -> purchaseOrders.create(SYSTEM, free))
           .isInstanceOf(InvalidRequestException.class);
     }
   }
