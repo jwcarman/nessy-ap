@@ -16,7 +16,6 @@
 package org.jwcarman.nessyap.agent.decisions;
 
 import java.time.Clock;
-import java.util.UUID;
 import org.jwcarman.nessy.api.tool.ApprovalRequest;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.oversight.DeskMetrics;
@@ -53,10 +52,10 @@ class Proposals {
       ProposeResolution proposal,
       String role,
       String requiredUser) {
-    UUID decisionId = Ids.next();
+    Provenance.Stamp stamp = provenance.stamp(request.agentType());
     decisions.insert(
         new PendingDecision(
-            decisionId,
+            Ids.next(),
             request.agentId(),
             request.idempotencyKey().value(),
             request.replyToken(),
@@ -76,9 +75,8 @@ class Proposals {
             null,
             clock.instant(),
             role,
-            requiredUser));
-    Provenance.Stamp stamp = provenance.stamp(request.agentType());
-    decisions.rememberProvenance(decisionId, json.writeValueAsString(stamp));
+            requiredUser),
+        json.writeValueAsString(stamp));
     metrics.proposed(stamp.proposer(), proposal.action());
   }
 }

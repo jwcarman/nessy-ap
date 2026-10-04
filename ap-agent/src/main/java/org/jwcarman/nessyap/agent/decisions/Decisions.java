@@ -47,20 +47,27 @@ public class Decisions {
   }
 
   /**
-   * Records a proposal. Asked again about the same call (the engine re-asking after a restart), it
-   * keeps the decision and takes the new reply address and deadline.
+   * Records a proposal and what produced it, in one statement. Asked again about the same call (the
+   * engine re-asking after a restart), it keeps the decision and its first provenance, and takes
+   * the new reply address and deadline.
    */
-  public void insert(PendingDecision d) {
+  public void insert(PendingDecision d, String provenance) {
     jdbc.sql(
             """
-            insert into pending_decision
-                (id, agent_id, idempotency_key, reply_token, exception_id, invoice_id, action, amount,
-                 rationale, evidence, deadline, status, created_at, required_role, required_user)
-            values (:id, :agentId, :idempotencyKey, :replyToken, :exceptionId, :invoiceId, :action,
-                    :amount, :rationale, :evidence, :deadline, :status, :createdAt, :requiredRole,
-                    :requiredUser)
-            on conflict (idempotency_key) do update
-                set reply_token = excluded.reply_token, deadline = excluded.deadline
+            with kept as (
+              insert into pending_decision
+                  (id, agent_id, idempotency_key, reply_token, exception_id, invoice_id, action,
+                   amount, rationale, evidence, deadline, status, created_at, required_role,
+                   required_user)
+              values (:id, :agentId, :idempotencyKey, :replyToken, :exceptionId, :invoiceId,
+                      :action, :amount, :rationale, :evidence, :deadline, :status, :createdAt,
+                      :requiredRole, :requiredUser)
+              on conflict (idempotency_key) do update
+                  set reply_token = excluded.reply_token, deadline = excluded.deadline
+              returning id)
+            insert into decision_provenance (decision_id, provenance)
+            select id, :provenance from kept
+            on conflict (decision_id) do nothing
             """)
         .param("id", d.id())
         .param("agentId", d.agentId().value())
@@ -77,6 +84,7 @@ public class Decisions {
         .param("createdAt", Timestamp.from(d.createdAt()))
         .param("requiredRole", d.requiredRole())
         .param("requiredUser", d.requiredUser(), Types.VARCHAR)
+        .param("provenance", provenance)
         .update();
   }
 
@@ -194,14 +202,6 @@ public class Decisions {
     jdbc.sql("update pending_decision set status = 'ANSWERED', erp_result = :result where id = :id")
         .param("result", erpResult, Types.VARCHAR)
         .param("id", id)
-        .update();
-  }
-
-  /** Keeps what produced a proposal, as JSON. */
-  public void rememberProvenance(UUID id, String provenance) {
-    jdbc.sql("insert into decision_provenance (decision_id, provenance) values (:id, :provenance)")
-        .param("id", id)
-        .param("provenance", provenance)
         .update();
   }
 
