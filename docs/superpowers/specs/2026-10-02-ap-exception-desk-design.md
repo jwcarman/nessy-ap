@@ -400,6 +400,11 @@ A Spring Boot command-line runner against the running Compose stack, with
 
 ## 10. Findings log (Nessy)
 
+Status against the released Nessy 0.4.0, checked 2026-10-04: F6, F7, F8, F10, F14 and F15 are
+fixed in 0.4.0. F3 is partly fixed (`UsageReports`); a public read of an agent's turns is still
+missing. The rest are open. The entries below are as first written; `docs/findings.md` keeps the
+current status of each.
+
 Places where Nessy's public API was awkward or missing. Findings are inputs to
 Nessy design conversations, not changes made from this repo.
 

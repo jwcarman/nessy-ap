@@ -4,7 +4,8 @@ Nessy AP is the first enterprise application built on Nessy. This page is a crit
 Nessy was to use, how far it reached into the application, how much code it needed, and where it
 failed us. The measurements are from the `main` branch on 2026-10-03. Each finding was checked against Nessy's
 source, and two were corrected: a claimed gap that Nessy does not have was removed, and F3 was
-narrowed.
+narrowed. On 2026-10-04 each finding's status was checked again against the released 0.4.0, which
+the desk now uses.
 
 ## The verdict
 
@@ -15,8 +16,12 @@ write. The gaps are in three areas:
 - reading an agent's history and usage from outside the engine;
 - trust in the input.
 
-Each gap cost us application code. The dispatcher stall (F8) was a release blocker. Its fix is on
-Nessy `main` and must ship in the next release.
+Each gap cost us application code. Nessy 0.4.0 fixed six of the fifteen findings, the dispatcher
+stall (F8) among them, which was a release blocker.
+
+Since the desk's rules came first ([Stay deterministic as long as you can](deterministic-first.md)),
+the agent settles about a third of the cases, the ones that need judgment. Nessy's work is now
+concentrated where it earns its keep.
 
 ## How much code, and whose
 
@@ -55,9 +60,7 @@ decisions and audit.
   RabbitMQ message, the case index and the `tell` to the agent commit together. It is also a
   coupling: Nessy's tables live in the application's schema, and an engine upgrade is a schema
   change.
-- **Nessy is a snapshot dependency today.** Nessy AP builds against `0.4.0-SNAPSHOT`. The fixes it
-  needs are on Nessy `main`, but not in a release. That is the biggest practical barrier for anyone
-  else who wants to run this.
+- **Nessy is a released dependency.** Nessy AP builds against Nessy 0.4.0 from Maven Central.
 
 ## What was easy
 
@@ -67,6 +70,10 @@ decisions and audit.
   event id and tells the agent in one transaction, with no outbox of our own.
 - **People in the loop.** `PolicyApprover` with OPA's `delegate` routes each proposal to a role,
   and `Replies` with a `ReplyToken` answers it days later. We did not invent an approval engine.
+- **Approvals with no agent behind them.** The desk's rules propose through the same
+  `PolicyApprover`, the same enricher and the same workbench, under an agent type of their own and
+  a reply token that no agent waits on. Nessy's approval stack needed no change for a proposer that
+  is not a model.
 - **Any model.** The agent ran on a local model through LM Studio with no change to the
   application. Tool schemas come from Java records.
 - **A one-shot is a direct harness.** The quarantined reader is a `DirectHarness` with no tools
@@ -106,31 +113,32 @@ records it.
   20 runs proved it.
 
 Where Nessy made the evaluation harder:
-- **The story has no public read API (F3).** The evidence check and the audit trail use an
-  internal engine type.
-- **A failed turn is quiet (F15).** A dropped connection to the model ended turns, and the cases
+- **The story has no public read API (F3).** The evidence check, the audit trail, the case view's
+  "is the agent in a turn?" and the count of model requests all use an internal engine type
+  (`TurnHistories`). The evaluation cannot know when a case is finished without that last one.
+- **A failed turn was quiet (F15).** A dropped connection to the model ended turns, and the cases
   looked like an agent that gave up. Separating the system's failures from the model's took
-  digging through logs.
+  digging through logs. Fixed in 0.4.0: such a failure now reaches the retry policy.
 - **No published test kit (F5).** Every application writes its own scripted model.
 
 ## Where it fought us
 
 | Finding | What it cost us |
 |---|---|
-| **F1.** A tool cannot see its own approval. | A table of decisions, keyed by turn and call id, so that `propose_resolution` can find the decision that let it run. |
-| **F3.** No read API for an agent's story. | The audit trail and the evidence check use an internal engine type. Usage is now readable, by model, through `UsageReports` (added to Nessy during this work); the story itself is not. |
+| **F1.** A tool cannot see its own approval. | A table of decisions, keyed by the call's idempotency key, so that `propose_resolution` can find the decision that let it run. Simpler since 0.4.0 (see F7), still open. |
+| **F3.** No read API for an agent's story. | The audit trail, the evidence check, the case view's turn state and the request count use an internal engine type. Usage is readable, by model, through `UsageReports`; the story itself is not. Open. |
 | **F4.** A late decision has no channel. | A separate path that tells the agent after its approval expired. |
 | **F5.** No scripted model for tests. | About 90 lines of test support that every Nessy application will write again. |
-| **F6.** Narration cannot be joined to a tool call. | The application writes its own timeline for people to read. Fixed on Nessy `main` since. |
-| **F7.** A call key is unique only within one agent. | A composite key in our own table. A silent collision if we had not read the code. |
-| **F8.** The queued dispatcher could stop for good. | Found under load in the first live run. Every later case was told but never ran. Fixed on Nessy `main`. |
+| **F6.** Narration cannot be joined to a tool call. | The application writes its own timeline for people to read. Fixed in 0.4.0: `ActionsRequested` carries each call. |
+| **F7.** A call key is unique only within one agent. | A composite key in our own table. A silent collision if we had not read the code. Fixed in 0.4.0: an `IdempotencyKey` for each call, shared by its approval and its run. |
+| **F8.** The queued dispatcher could stop for good. | Found under load in the first live run. Every later case was told but never ran. Fixed in 0.4.0. |
 | **F9.** A person cannot reach an agent while its proposal waits. | A note from the workbench waits until the decision is made, which is the wrong order for AP. |
-| **F10.** `Turn.tokens` was always 0. | The evaluation reads the metric before and after each case, which works only while cases run one at a time. The field is removed on Nessy `main`. |
+| **F10.** `Turn.tokens` was always 0. | The evaluation reads the metric before and after each case, which works only while cases run one at a time. Fixed in 0.4.0: the field is removed, and usage is read through `UsageReports`. |
 | **F11.** Inputs carry no provenance. | The application frames untrusted text itself. A prompt injection still persuaded the agent in 4 of 5 runs. |
 | **F12.** Nothing checks that the policy knows a gated tool. | A new tool met an old policy, and a fraudulent vendor received mail. The policy now denies any tool it does not name. |
 | **F13.** Stored history has no retention or cleanup. | The quarantined reader's history holds the text of every reply, outside Occlude. Nessy's storage codec encrypts it (the desk uses codec-crypto), but nothing expires it, and Occlude's erasure cannot reach it. |
-| **F14.** The direct door fails inside a caller's transaction, and nothing anticipated it. | We called it inside the mail route's transaction (our mistake: a model call held a transaction open). Every live read failed with an internal error, and no test saw it. The reader now suspends the transaction. |
-| **F15.** A dropped connection to the model ends the turn. | The OpenAI adapter reports a transport failure as "unknown", and the engine retries only "transient" failures. Under parallel load on LM Studio, each dropped request left a case with nobody acting on it. |
+| **F14.** The direct door fails inside a caller's transaction, and nothing anticipated it. | We called it inside the mail route's transaction (our mistake: a model call held a transaction open). Every live read failed with an internal error, and no test saw it. The reader now suspends the transaction. Fixed in 0.4.0: the direct door refuses, with a clear error. |
+| **F15.** A dropped connection to the model ends the turn. | The OpenAI adapter reported a transport failure as "unknown", and the engine retried only "transient" failures. Under parallel load on LM Studio, each dropped request left a case with nobody acting on it. Fixed in 0.4.0. |
 
 Two smaller points:
 - **The `Tool` interface is verbose for simple tools.** Each tool implements four methods.
@@ -144,13 +152,13 @@ Two smaller points:
 ## What would make Nessy a better fit
 
 In order of value to this application:
-1. **Release the fixes on `main` (F6, F8, F10).** Nobody can build on the queued door without F8.
-2. **Make approvals complete:** a tool sees its approval (F1), a late decision has a channel (F4),
-   and call keys are unique (F7). Together these would remove about 100 lines and a class of bug.
-3. **A read API for an agent's story (F3).** Usage is done (`UsageReports`); the story is not. Audit and cost are the
-   first questions an enterprise asks.
-4. **Provenance on input (F11).** Let an application say how far each input is trusted, so that
+1. **A read API for an agent's story (F3).** Usage is done (`UsageReports`); the story is not.
+   Audit and cost are the first questions an enterprise asks, and "is this agent in a turn?" is
+   the first one an evaluation asks.
+2. **Make approvals complete:** a tool sees its approval (F1), and a late decision has a channel
+   (F4). Unique call keys (F7) shipped in 0.4.0.
+3. **Provenance on input (F11).** Let an application say how far each input is trusted, so that
    the renderer, the policy and the trail can use it. The Occlude experiment in this repository
    is a candidate design.
-5. **A published test kit (F5)** with a scripted model and a narration tap.
-6. **Input while a proposal waits (F9).**
+4. **A published test kit (F5)** with a scripted model and a narration tap.
+5. **Input while a proposal waits (F9).**

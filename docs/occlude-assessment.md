@@ -4,8 +4,8 @@ Nessy AP uses Occlude to hold the mail that vendors send to the desk. This page 
 critique in the same style as [Assessing Nessy](nessy-assessment.md): how easy Occlude was to
 use, how far it reached into the application, how much code it needed, and where it failed us.
 The measurements are from slice 8 on 2026-10-03, with Occlude 0.1.0; the findings section is
-updated for 0.2.0. Each finding was checked
-against Occlude's source and its documentation.
+updated for 0.2.0, and the evaluation section for the full runs of 2026-10-04. Each finding was
+checked against Occlude's source and its documentation.
 
 ## The verdict
 
@@ -82,6 +82,13 @@ import nothing from Occlude.
   exactly what the agent was told, and a failure can be traced to the reading or to the agent.
 - **Its testing guide made the boundary cheap to test.** Static gate declarations and an
   in-memory store let a plain unit test check the real ceilings in milliseconds.
+- **The one gate that raises trust worked when a run finally used it.** For a long time no
+  scenario sent a reply that named a PO the ERP holds, so the PO check declined every time: 116
+  replies in the first full run on the rules-first desk, and not one confirmed. The
+  `vendor-names-the-po` scenario was added for that reason. In the second full run the check
+  confirmed the PO in 20 of 20 runs, and the agent paid against it. A vendor's claim became a fact
+  the desk trusts only by agreement with the ERP, and only through the one gate the manifest
+  marks.
 
 ## Where it fought us, and what 0.2.0 changed
 
@@ -91,9 +98,16 @@ answered three of them; the desk now uses 0.2.0.
 | Finding on 0.1.0 | In 0.2.0 |
 |---|---|
 | **A crash and a decline had the same reason.** When a derivation's function threw, the refusal's reason was `DECLINED`, the same as when it returned nothing; a query that threw answered `NOT_AVAILABLE_HERE`, which looks like a policy outcome. Only the detail said "failed while reading the value", and the record encrypts the detail. Our first live reader failure was silent until we read the record. | A function or a query that throws now gets its own reason, `FAILED`. |
-| **The application had to log refusals itself.** Occlude recorded each refusal but wrote nothing to the application log. | Every refusal is published as a Spring application event, `RefusalEvent`: the operation, the gate, the reason and the value's id, never the value. The desk logs each one as a WARN from a plain `@EventListener` (`RefusalLog`). It must not be a transactional listener: a refusal inside a transaction that rolls back is still in Occlude's record, so it must still reach the log. |
+| **The application had to log refusals itself.** Occlude recorded each refusal but wrote nothing to the application log. | Every refusal is published as a Spring application event, `RefusalEvent`: the operation, the gate, the reason and the value's id, never the value. The desk logs it from a plain `@EventListener` (`RefusalLog`). It must not be a transactional listener: a refusal inside a transaction that rolls back is still in Occlude's record, so it must still reach the log. |
 | **Jackson had to be pinned by the application.** Occlude needs Jackson 3.1.7 for three CVEs, and Spring Boot 4.1.1 manages 3.1.5. | Occlude's BOM pins 3.1.7. Imported before Boot's own, it wins even under `spring-boot-starter-parent`; the desk dropped its own pin, and the resolved version is still 3.1.7. |
 | **"Who is asking" holds one value for each key.** A person can have several roles. | Unchanged, on purpose: the record signs the access context on every line, so a change would alter the stored format. Occlude's Spring guide now recommends what the desk does: compute one capability (here `works-cases`) from the roles, and give the ceilings that. |
+
+One lesson came from the event, and it is the application's to apply. A check that answers "no" is
+published like any other refusal, with the reason `DECLINED`. The PO check declines every reply
+that names no PO the ERP holds, which is most replies. When the desk logged every refusal as a
+warning, an operator watching a run saw over a hundred alarms for an expected answer, and the next
+real refusal would have been hard to see among them. The reason code already tells the two apart:
+the desk now logs `DECLINED` as information and every other reason as a warning.
 
 ## Where Occlude cannot help
 
