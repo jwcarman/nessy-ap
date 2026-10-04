@@ -43,7 +43,9 @@ public final class Scoring {
 
   public static RunScore score(Scenario scenario, int repetition, Observed observed) {
     List<String> actions = observed.proposedActions();
-    boolean resolved = "RESOLVED".equals(observed.caseStatus());
+    // A hold that was applied leaves the case on hold, not resolved: it is still a final answer.
+    boolean resolved =
+        "RESOLVED".equals(observed.caseStatus()) || "ON_HOLD".equals(observed.caseStatus());
     // A case can rightly end waiting for someone's answer, with nothing proposed (a silent buyer).
     boolean waiting = "AWAITING_ANSWER".equals(observed.caseStatus()) && actions.isEmpty();
     boolean correct =

@@ -229,7 +229,7 @@ public class DecisionExecutor {
       }
       case ReplyOutcome.NotAwaiting _ -> {
         if (applied) {
-          targets.cases().setStatus(d.exceptionId(), CaseStatus.RESOLVED);
+          targets.cases().setStatus(d.exceptionId(), CaseStatus.afterApplied(d.action()));
           targets
               .agent()
               .tell(

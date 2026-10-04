@@ -216,8 +216,10 @@ public class ResolverDesk {
   private void carryOn(RulesDecided event) {
     PendingDecision d = event.decision();
     if (event.applied()) {
-      cases.setStatus(d.exceptionId(), CaseStatus.RESOLVED);
-      timeline.record(d.exceptionId(), "resolved", d.action() + " applied, proposed by the rules");
+      CaseStatus status = CaseStatus.afterApplied(d.action());
+      cases.setStatus(d.exceptionId(), status);
+      timeline.record(
+          d.exceptionId(), status.timelineKind(), d.action() + " applied, proposed by the rules");
     }
     if (!cases.rulesHandle(d.exceptionId())) {
       // The agent took the case while this proposal waited: it hears the outcome.

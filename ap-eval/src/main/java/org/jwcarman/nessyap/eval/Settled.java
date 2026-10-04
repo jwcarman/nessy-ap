@@ -46,11 +46,16 @@ final class Settled {
    */
   static boolean of(JsonNode view, Instant now, Duration quiet, Instant lastAnswered) {
     String status = view.path("status").asString();
+    // An agent in the middle of a turn may still propose: nothing is final until it stops.
+    if (view.path("agentActive").asBoolean(false)) {
+      return false;
+    }
     if ("INVESTIGATING".equals(status)) {
       return stalled(view, now);
     }
     // A case the desk put in front of a person is as finished as the agent will make it.
     if (!"RESOLVED".equals(status)
+        && !"ON_HOLD".equals(status)
         && !"AWAITING_ANSWER".equals(status)
         && !"NEEDS_PERSON".equals(status)) {
       return false;

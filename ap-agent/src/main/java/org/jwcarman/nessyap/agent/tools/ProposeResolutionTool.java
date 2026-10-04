@@ -93,12 +93,19 @@ public class ProposeResolutionTool implements Tool<ProposeResolution> {
           case ErpOutcome.Refused<JsonNode> r -> " The invoice could not be re-read.";
           case ErpOutcome.Unavailable<JsonNode> u -> " The ERP could not be reached to re-read it.";
         };
-    cases.setStatus(d.exceptionId(), CaseStatus.RESOLVED);
-    timeline.record(d.exceptionId(), "resolved", d.action() + " approved by " + d.decidedBy());
+    CaseStatus status = CaseStatus.afterApplied(d.action());
+    cases.setStatus(d.exceptionId(), status);
+    timeline.record(
+        d.exceptionId(), status.timelineKind(), d.action() + " approved by " + d.decidedBy());
+    String next =
+        status == CaseStatus.ON_HOLD
+            ? " A hold parks the invoice; the case stays open. Propose the final resolution when"
+                + " you know it, or end your turn: new goods or a reply will wake you."
+            : "";
     return Awaited.ready(
         ToolResult.ok(
             new Block.Text(
-                "Done: " + d.action() + ", approved by " + d.decidedBy() + "." + state)));
+                "Done: " + d.action() + ", approved by " + d.decidedBy() + "." + state + next)));
   }
 
   private static String approved(JsonNode amount) {

@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -497,5 +498,28 @@ class ScoringTest {
   @Test
   void a_case_its_agent_took_was_settled_by_the_agent() {
     assertThat(Scoring.settledBy(handledBy("agent", List.of("vendor")))).isEqualTo("agent");
+  }
+
+  @Test
+  void an_applied_hold_leaves_the_case_on_hold_and_counts_as_its_final_answer() {
+    Scenario holds = Scenario.of("held", "hold", "ap-clerk", List.of("invoice"), Set.of());
+    Observed onHold =
+        new Observed(
+            "ON_HOLD",
+            List.of("hold"),
+            List.of(),
+            List.of("ap-clerk"),
+            List.of(),
+            Usage.UNKNOWN,
+            Duration.ZERO,
+            null,
+            FACTS,
+            List.of("I"),
+            List.of(),
+            0,
+            0,
+            "rules");
+
+    assertThat(Scoring.score(holds, 1, onHold).passed()).isTrue();
   }
 }

@@ -19,6 +19,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.jwcarman.nessy.engine.store.TurnHistories;
+import org.jwcarman.nessyap.agent.AgentConfiguration;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.CaseUsage;
@@ -82,6 +84,7 @@ public class CaseController {
       String reasonCode,
       String status,
       String handledBy,
+      boolean agentActive,
       List<CaseTimeline.CaseEvent> timeline,
       List<CaseDecision> decisions,
       List<CaseMail> mail,
@@ -98,6 +101,7 @@ public class CaseController {
   private final Questions questions;
   private final Grounding grounding;
   private final CaseUsage caseUsage;
+  private final TurnHistories histories;
 
   public CaseController(
       Cases cases,
@@ -106,7 +110,9 @@ public class CaseController {
       Counterparty counterparty,
       Questions questions,
       Grounding grounding,
-      CaseUsage caseUsage) {
+      CaseUsage caseUsage,
+      TurnHistories histories) {
+    this.histories = histories;
     this.cases = cases;
     this.timeline = timeline;
     this.decisions = decisions;
@@ -146,6 +152,9 @@ public class CaseController {
         c.reasonCode().name(),
         c.status().name(),
         cases.rulesHandle(exceptionId) ? "rules" : "agent",
+        // A turn in progress may still propose; an input told but not yet started is not seen.
+        histories.forAgent(AgentConfiguration.AGENT_TYPE, c.agentId()).lastTurns(1).stream()
+            .anyMatch(turn -> !turn.complete()),
         timeline.of(exceptionId),
         decisions.forCase(exceptionId).stream()
             .map(d -> CaseDecision.of(d, grounding.ungrounded(d)))

@@ -129,4 +129,22 @@ class SettledTest {
                 QUIET))
         .isTrue();
   }
+
+  @Test
+  void a_case_whose_agent_is_mid_turn_is_not_settled_however_quiet() {
+    JsonNode busy =
+        JSON.readTree(
+            """
+            {"status": "RESOLVED", "agentActive": true,
+             "decisions": [{"status": "ANSWERED"}],
+             "timeline": [{"at": "2026-10-03T07:00:00Z", "kind": "resolved"}]}
+            """);
+
+    assertThat(Settled.of(busy, NOW, QUIET)).isFalse();
+  }
+
+  @Test
+  void a_case_on_hold_that_has_been_quiet_long_enough_is_settled() {
+    assertThat(Settled.of(view("ON_HOLD", "ANSWERED", NOW.minusSeconds(9)), NOW, QUIET)).isTrue();
+  }
 }

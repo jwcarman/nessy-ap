@@ -399,4 +399,34 @@ class ResolverDeskTest extends ApAgentIntegrationTest {
                 model.requests().stream()
                     .anyMatch(r -> r.context().toString().contains("Goods receipt")));
   }
+
+  @Test
+  void an_applied_hold_leaves_the_case_on_hold_not_resolved() {
+    invoiceBills("M8-HEX-ZN-100", "10.40");
+    erp.on("POST", "/api/invoices/" + invoiceId + "/hold", 200, "{}");
+    raise(ReasonCode.QTY_OVER_RECEIPT);
+    PendingDecision hold = awaitProposal(1);
+
+    executor.decide(hold.id(), "clara", true, "until the rest arrives");
+
+    await()
+        .atMost(PATIENCE)
+        .until(() -> caseIndex.find(exceptionId).orElseThrow().status() == CaseStatus.ON_HOLD);
+    assertThat(timeline.of(exceptionId))
+        .extracting(CaseTimeline.CaseEvent::kind)
+        .contains("on-hold")
+        .doesNotContain("resolved");
+  }
+
+  @Test
+  void the_case_view_says_whether_its_agent_is_in_a_turn() {
+    invoiceBills("M8-HEX-ZN-100", "10.40");
+    raise(ReasonCode.PRICE_VARIANCE);
+    awaitProposal(1);
+    TestingAuthenticationToken connie =
+        new TestingAuthenticationToken(
+            "connie", "n/a", List.of(new SimpleGrantedAuthority("ROLE_controller")));
+
+    assertThat(caseController.get(exceptionId, connie).agentActive()).isFalse();
+  }
 }

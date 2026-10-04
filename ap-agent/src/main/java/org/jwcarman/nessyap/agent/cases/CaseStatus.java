@@ -25,5 +25,20 @@ public enum CaseStatus {
    * asked. A person must look; a new turn takes the case back.
    */
   NEEDS_PERSON,
-  RESOLVED
+  /**
+   * A hold was applied: the invoice is parked, and the exception is still open. The case waits for
+   * goods, a fact or its agent's next proposal.
+   */
+  ON_HOLD,
+  RESOLVED;
+
+  /** The status a case takes when a decision on this action is applied in the ERP. */
+  public static CaseStatus afterApplied(String action) {
+    return "hold".equals(action) ? ON_HOLD : RESOLVED;
+  }
+
+  /** The timeline kind for that moment. */
+  public String timelineKind() {
+    return this == ON_HOLD ? "on-hold" : "resolved";
+  }
 }
