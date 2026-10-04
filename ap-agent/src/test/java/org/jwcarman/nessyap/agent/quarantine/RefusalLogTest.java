@@ -50,4 +50,23 @@ class RefusalLogTest {
         .contains("ABOVE_CEILING")
         .contains("value-17");
   }
+
+  @Test
+  void a_check_that_answers_no_is_logged_as_information_not_as_an_alarm(CapturedOutput log) {
+    new RefusalLog()
+        .on(
+            new RefusalEvent(
+                Instant.now(),
+                AuditRecord.Operation.DERIVE,
+                "reply.po.confirmed",
+                "value-18",
+                RefusalReason.DECLINED,
+                AccessContext.empty()));
+
+    assertThat(log.getOut())
+        .contains("INFO")
+        .doesNotContain("WARN")
+        .contains("reply.po.confirmed")
+        .contains("value-18");
+  }
 }

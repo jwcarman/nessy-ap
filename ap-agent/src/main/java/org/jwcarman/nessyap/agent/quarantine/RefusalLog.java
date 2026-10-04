@@ -16,6 +16,7 @@
 package org.jwcarman.nessyap.agent.quarantine;
 
 import org.jwcarman.occlude.RefusalEvent;
+import org.jwcarman.occlude.RefusalReason;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -24,7 +25,9 @@ import org.springframework.stereotype.Component;
 /**
  * Writes every Occlude refusal to the log an operator reads. Occlude keeps each refusal in its
  * record, and the record is the evidence; this line is the alarm. The event names the gate, the
- * reason and the value's id, and never the value, so the log carries no mail.
+ * reason and the value's id, and never the value, so the log carries no mail. A check that answers
+ * no ({@code DECLINED}) is logged as information, not as a warning: the PO check declines every
+ * reply that names no PO the ERP holds, and an alarm on each one hides the real ones.
  *
  * <p>A plain {@link EventListener}, not a transactional one: a refusal inside a transaction that
  * rolls back is still in Occlude's record, so it must still reach the log.
@@ -36,6 +39,15 @@ public class RefusalLog {
 
   @EventListener
   public void on(RefusalEvent refusal) {
+    if (refusal.reason() == RefusalReason.DECLINED) {
+      // A check that answered no, such as a PO the ERP does not hold: expected, and no alarm.
+      log.info(
+          "Occlude: {} at {} declined, value {}",
+          refusal.operation(),
+          refusal.portal(),
+          refusal.valueId());
+      return;
+    }
     log.warn(
         "Occlude refused {} at {} ({}), value {}",
         refusal.operation(),
