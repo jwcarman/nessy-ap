@@ -94,6 +94,31 @@ class CaseInputRendererTest {
   }
 
   @Test
+  void a_case_the_rules_hand_over_carries_the_exception_and_what_they_established() {
+    String text =
+        render(
+            new CaseInput.RulesStopped(
+                new MatchExceptionRaised(
+                    UUID.randomUUID(),
+                    Instant.EPOCH,
+                    EXCEPTION,
+                    INVOICE,
+                    "INV-1001",
+                    UUID.randomUUID(),
+                    null,
+                    ReasonCode.NO_PO,
+                    "No purchase order",
+                    new BigDecimal("40.00")),
+                "unhandled",
+                "{reasonCode=NO_PO}"));
+
+    assertThat(text)
+        .contains("no rule covers what they know")
+        .contains("{reasonCode=NO_PO}")
+        .contains("The ERP raised match exception " + EXCEPTION);
+  }
+
+  @Test
   void an_arrived_receipt_names_its_po() {
     assertThat(
             render(

@@ -111,7 +111,8 @@ class AgentEndToEndTest extends ApAgentIntegrationTest {
     assertThat(cases.find(exceptionId).orElseThrow().status()).isEqualTo(CaseStatus.RESOLVED);
     assertThat(timeline.of(exceptionId))
         .extracting(CaseTimeline.CaseEvent::kind)
-        .containsExactly("tool", "tool", "tool", "proposal", "decision", "resolved");
+        // The PO shows no lines, so the rules cannot measure the variance and hand the case over.
+        .containsExactly("rules", "tool", "tool", "tool", "proposal", "decision", "resolved");
     assertThat(model.requests().getFirst().systemPrompt().value()).contains("VENDOR_BANK_CHANGED");
   }
 }

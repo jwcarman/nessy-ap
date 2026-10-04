@@ -142,6 +142,34 @@ class DecisionApiTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void a_decline_reason_must_be_one_the_rules_know() throws Exception {
+    PendingDecision proposal = awaitProposal();
+
+    mvc.perform(
+            post("/api/decisions/{id}", proposal.id())
+                .with(bearer("clara", "ap-clerk"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"approve\":false,\"comment\":\"no\",\"declineReason\":\"KEEP_IT\"}"))
+        .andExpect(status().isBadRequest());
+    assertThat(caseIndex.slots(exceptionId)).doesNotContainKey("declineReason");
+  }
+
+  @Test
+  void a_decline_reason_is_kept_for_the_rules() throws Exception {
+    PendingDecision proposal = awaitProposal();
+
+    mvc.perform(
+            post("/api/decisions/{id}", proposal.id())
+                .with(bearer("clara", "ap-clerk"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"approve\":false,\"comment\":\"no\",\"declineReason\":\"RETURN_GOODS\"}"))
+        .andExpect(status().isOk());
+
+    assertThat(caseIndex.slots(exceptionId)).containsEntry("declineReason", "RETURN_GOODS");
+  }
+
+  @Test
   void a_buyer_cannot_decide_it() throws Exception {
     PendingDecision proposal = awaitProposal();
 

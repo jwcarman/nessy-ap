@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Clock;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -126,7 +127,10 @@ public class Cases {
 
   public List<AgentId> openCasesForPo(String poNumber) {
     return jdbc.sql(
-            "select agent_id from ap_case where po_number = :poNumber and status <> 'RESOLVED'")
+            """
+            select agent_id from ap_case
+            where po_number = :poNumber and status <> 'RESOLVED' and handled_by = 'agent'
+            """)
         .param("poNumber", poNumber)
         .query((rs, row) -> new AgentId(rs.getObject("agent_id", UUID.class)))
         .list();
@@ -213,6 +217,61 @@ public class Cases {
         .param("now", Timestamp.from(clock.instant()))
         .param("id", exceptionId)
         .update();
+  }
+
+  /** Whether the rules still work this case; false once it was handed to its agent. */
+  public boolean rulesHandle(UUID exceptionId) {
+    return jdbc.sql("select handled_by from ap_case where exception_id = :id")
+        .param("id", exceptionId)
+        .query(String.class)
+        .optional()
+        .map("rules"::equals)
+        .orElse(false);
+  }
+
+  /** Gives a new case to the rules, which work it first. */
+  public void handToRules(UUID exceptionId) {
+    jdbc.sql("update ap_case set handled_by = 'rules', updated_at = :now where exception_id = :id")
+        .param("now", Timestamp.from(clock.instant()))
+        .param("id", exceptionId)
+        .update();
+  }
+
+  /** Hands a case from the rules to its agent, for good. */
+  public void handToAgent(UUID exceptionId) {
+    jdbc.sql("update ap_case set handled_by = 'agent', updated_at = :now where exception_id = :id")
+        .param("now", Timestamp.from(clock.instant()))
+        .param("id", exceptionId)
+        .update();
+  }
+
+  /** Remembers a fact the rules learned from outside the ERP; a later one replaces it. */
+  public void rememberSlot(UUID exceptionId, String name, String value, String source) {
+    jdbc.sql(
+            """
+            insert into case_slot (exception_id, name, value, source, recorded_at)
+            values (:id, :name, :value, :source, :now)
+            on conflict (exception_id, name)
+              do update set value = excluded.value, source = excluded.source,
+                            recorded_at = excluded.recorded_at
+            """)
+        .param("id", exceptionId)
+        .param("name", name)
+        .param("value", value)
+        .param("source", source)
+        .param("now", Timestamp.from(clock.instant()))
+        .update();
+  }
+
+  /** The facts the rules learned from outside the ERP, by name. */
+  public Map<String, String> slots(UUID exceptionId) {
+    Map<String, String> slots = new HashMap<>();
+    jdbc.sql("select name, value from case_slot where exception_id = :id")
+        .param("id", exceptionId)
+        .query((rs, row) -> Map.entry(rs.getString("name"), rs.getString("value")))
+        .list()
+        .forEach(slot -> slots.put(slot.getKey(), slot.getValue()));
+    return slots;
   }
 
   public void setStatus(UUID exceptionId, CaseStatus status) {

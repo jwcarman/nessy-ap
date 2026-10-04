@@ -24,6 +24,7 @@ import java.util.Map;
 import org.jwcarman.nessy.api.QueuedHarness;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.Cases;
+import org.jwcarman.nessyap.agent.resolver.ResolverDesk;
 import org.jwcarman.nessyap.contracts.ErpEvent;
 import org.jwcarman.nessyap.contracts.ErpEvents;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
@@ -56,8 +57,10 @@ public class ErpEventListener {
   private final JsonMapper json;
   private final Clock clock;
   private final RabbitTemplate rabbit;
+  private final ResolverDesk resolverDesk;
 
   public ErpEventListener(
+      ResolverDesk resolverDesk,
       QueuedHarness<CaseInput> agent,
       Cases cases,
       JdbcClient jdbc,
@@ -72,6 +75,7 @@ public class ErpEventListener {
     this.json = json;
     this.clock = clock;
     this.rabbit = rabbit;
+    this.resolverDesk = resolverDesk;
   }
 
   @RabbitListener(queues = ErpEvents.AGENT_QUEUE, ackMode = "MANUAL")
@@ -146,7 +150,8 @@ public class ErpEventListener {
     switch (event) {
       case MatchExceptionRaised raised -> {
         cases.open(raised);
-        agent.tell(cases.agentFor(raised.exceptionId()), new CaseInput.ExceptionRaised(raised));
+        // The rules look first; they tell the agent themselves when they cannot settle it.
+        resolverDesk.opened(raised);
       }
       case ReceiptPosted receipt ->
           cases

@@ -18,6 +18,7 @@ package org.jwcarman.nessyap.agent.api;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.Deciders;
 import org.jwcarman.nessyap.agent.decisions.DecisionExecutor;
 import org.jwcarman.nessyap.agent.decisions.DecisionResult;
@@ -39,14 +40,30 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/decisions")
 public class DecisionApi {
 
-  public record DecideRequest(Boolean approve, String comment) {}
+  /**
+   * A decision on a proposal.
+   *
+   * @param declineReason for a declined substitution, what to do instead: {@code PAY_PO_PRICE} or
+   *     {@code RETURN_GOODS}; the desk's rules act on it
+   */
+  public record DecideRequest(Boolean approve, String comment, String declineReason) {
+
+    public DecideRequest(Boolean approve, String comment) {
+      this(approve, comment, null);
+    }
+  }
+
+  /** What a decider may say instead of a substitution they decline. */
+  private static final Set<String> DECLINE_REASONS = Set.of("PAY_PO_PRICE", "RETURN_GOODS");
 
   public record DecideResponse(String result, String decidedBy) {}
 
   private final Decisions decisions;
   private final DecisionExecutor executor;
+  private final Cases cases;
 
-  public DecisionApi(Decisions decisions, DecisionExecutor executor) {
+  public DecisionApi(Decisions decisions, DecisionExecutor executor, Cases cases) {
+    this.cases = cases;
     this.decisions = decisions;
     this.executor = executor;
   }
@@ -78,6 +95,15 @@ public class DecisionApi {
     boolean approve = Boolean.TRUE.equals(request.approve());
     if (!approve && (request.comment() == null || request.comment().isBlank())) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A denial needs a reason");
+    }
+    if (request.declineReason() != null) {
+      if (approve || !DECLINE_REASONS.contains(request.declineReason())) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "A decline reason is one of " + DECLINE_REASONS);
+      }
+      if (d.approved() == null) {
+        cases.rememberSlot(d.exceptionId(), "declineReason", request.declineReason(), me.getName());
+      }
     }
     return switch (executor.decide(
         decisionId, me.getName(), approve, request.comment(), me.getToken().getTokenValue())) {

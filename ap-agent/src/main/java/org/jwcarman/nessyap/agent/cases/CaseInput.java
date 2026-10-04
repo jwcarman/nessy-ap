@@ -36,7 +36,8 @@ import org.jwcarman.nessyap.contracts.ReceiptPosted;
   @JsonSubTypes.Type(value = CaseInput.PersonNote.class, name = "person-note"),
   @JsonSubTypes.Type(value = CaseInput.CounterpartyReply.class, name = "counterparty-reply"),
   @JsonSubTypes.Type(value = CaseInput.DecisionApplied.class, name = "decision-applied"),
-  @JsonSubTypes.Type(value = CaseInput.PersonAnswered.class, name = "person-answered")
+  @JsonSubTypes.Type(value = CaseInput.PersonAnswered.class, name = "person-answered"),
+  @JsonSubTypes.Type(value = CaseInput.RulesStopped.class, name = "rules-stopped")
 })
 public sealed interface CaseInput {
 
@@ -71,6 +72,16 @@ public sealed interface CaseInput {
    */
   record PersonAnswered(String person, String question, String choice, String comment)
       implements CaseInput {}
+
+  /**
+   * The desk's rules worked the case first and could not settle it: the exception and what the
+   * rules established, as one input, so the agent's first turn starts from both.
+   *
+   * @param event the exception as the ERP raised it
+   * @param why the rules' reason: unhandled, conflict, exhausted, refused or invariant
+   * @param known the facts the rules established, by name, sorted
+   */
+  record RulesStopped(MatchExceptionRaised event, String why, String known) implements CaseInput {}
 
   /** A decision reached the ERP after the agent had stopped waiting for it. */
   record DecisionApplied(UUID decisionId, String action, String outcome) implements CaseInput {}

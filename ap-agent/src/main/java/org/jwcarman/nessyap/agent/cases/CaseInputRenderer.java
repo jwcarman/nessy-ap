@@ -34,19 +34,11 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
 
   private static String text(CaseInput input) {
     return switch (input) {
-      case CaseInput.ExceptionRaised(MatchExceptionRaised e) ->
-          "The ERP raised match exception %s (%s) on invoice %s (invoice id %s) from vendor %s, %s. Amount in question: %s. ERP summary: %s. Investigate, then end this turn with a proposal, a question to the buyer or a letter to the vendor: never with nothing."
-              .formatted(
-                  e.exceptionId(),
-                  e.reasonCode(),
-                  VendorReference.shown(e.invoiceNumber()),
-                  e.invoiceId(),
-                  e.vendorId(),
-                  e.poNumber() == null
-                      ? "which cites no purchase order"
-                      : "against purchase order " + VendorReference.shown(e.poNumber()),
-                  e.amountAtIssue().toPlainString(),
-                  summary(e));
+      case CaseInput.ExceptionRaised(MatchExceptionRaised e) -> raised(e);
+      case CaseInput.RulesStopped(var e, var why, var known) ->
+          "The desk's rules worked this case first and stopped: %s. What they established: %s. Check what you need yourself; the case is yours now. "
+                  .formatted(stopped(why), known.isEmpty() ? "nothing" : known)
+              + raised(e);
       case CaseInput.ReceiptArrived(var r) ->
           "Goods receipt %s was just posted against purchase order %s. If this case is waiting on goods, look at the receipts again."
               .formatted(r.receiptId(), r.poNumber());
@@ -69,6 +61,21 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
     };
   }
 
+  private static String raised(MatchExceptionRaised e) {
+    return "The ERP raised match exception %s (%s) on invoice %s (invoice id %s) from vendor %s, %s. Amount in question: %s. ERP summary: %s. Investigate, then end this turn with a proposal, a question to the buyer or a letter to the vendor: never with nothing."
+        .formatted(
+            e.exceptionId(),
+            e.reasonCode(),
+            VendorReference.shown(e.invoiceNumber()),
+            e.invoiceId(),
+            e.vendorId(),
+            e.poNumber() == null
+                ? "which cites no purchase order"
+                : "against purchase order " + VendorReference.shown(e.poNumber()),
+            e.amountAtIssue().toPlainString(),
+            summary(e));
+  }
+
   /**
    * The ERP's summary is its own sentence, but it quotes the vendor's references ("No purchase
    * order X exists"): each one is shown only as a reference would be shown anywhere else.
@@ -81,6 +88,17 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
       }
     }
     return summary;
+  }
+
+  private static String stopped(String why) {
+    return switch (why) {
+      case "conflict" -> "two of their rules matched and disagree";
+      case "exhausted" -> "a fact they need did not come back in a form they can check";
+      case "refused" -> "the policy refused what they proposed";
+      case "invariant" -> "they could not compute the amount their rule needs";
+      case "person" -> "a person on the desk wrote to you about it";
+      default -> "no rule covers what they know about this case";
+    };
   }
 
   /** An answer settles a wait, so it always ends by asking for a move. */

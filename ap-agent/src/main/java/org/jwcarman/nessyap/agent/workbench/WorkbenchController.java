@@ -41,6 +41,7 @@ import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.agent.questions.Answers;
 import org.jwcarman.nessyap.agent.questions.Question;
 import org.jwcarman.nessyap.agent.questions.Questions;
+import org.jwcarman.nessyap.agent.resolver.ResolverDesk;
 import org.jwcarman.nessyap.agent.security.RealmRoles;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -77,6 +78,7 @@ public class WorkbenchController {
   private final Questions questions;
   private final Answers answers;
   private final Grounding grounding;
+  private final ResolverDesk resolverDesk;
 
   public WorkbenchController(
       Cases cases,
@@ -89,7 +91,9 @@ public class WorkbenchController {
       Quarantine quarantine,
       Questions questions,
       Answers answers,
-      Grounding grounding) {
+      Grounding grounding,
+      ResolverDesk resolverDesk) {
+    this.resolverDesk = resolverDesk;
     this.cases = cases;
     this.timeline = timeline;
     this.decisions = decisions;
@@ -310,6 +314,8 @@ public class WorkbenchController {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No such case"));
     if (!text.isBlank()) {
       timeline.record(exceptionId, "note", me.getName() + ": " + text);
+      // A note is for the agent: a case the rules work becomes the agent's first.
+      resolverDesk.handOver(exceptionId, "person");
       agent.tell(c.agentId(), new CaseInput.PersonNote(me.getName(), text));
       redirect.addFlashAttribute("message", "Sent to the agent.");
     }

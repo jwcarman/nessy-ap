@@ -37,6 +37,7 @@ import org.jwcarman.nessyap.agent.quarantine.Quarantine;
 import org.jwcarman.nessyap.agent.quarantine.QuarantineConfig;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ReplyReading;
+import org.jwcarman.nessyap.agent.resolver.ResolverDesk;
 import org.jwcarman.nessyap.agent.support.Ids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +63,7 @@ public class DeskMail {
   private final JdbcClient jdbc;
   private final Clock clock;
   private final Quarantine quarantine;
+  private final ResolverDesk resolverDesk;
 
   public DeskMail(
       MailRouter router,
@@ -70,7 +72,9 @@ public class DeskMail {
       QueuedHarness<CaseInput> agent,
       JdbcClient jdbc,
       Clock clock,
-      Quarantine quarantine) {
+      Quarantine quarantine,
+      ResolverDesk resolverDesk) {
+    this.resolverDesk = resolverDesk;
     this.quarantine = quarantine;
     this.router = router;
     this.cases = cases;
@@ -135,6 +139,10 @@ public class DeskMail {
     cases.addAgent(exceptionId, QuarantineConfig.READER, ModelReplyReader.agentFor(reply));
     timeline.record(
         exceptionId, "mail-received", from + ": " + summary(reading), reading.reply().id());
+    // A reply to the rules' own question is theirs to read; any other reply is the agent's.
+    if (resolverDesk.replied(exceptionId, claim)) {
+      return;
+    }
     agent.tell(
         kase.agentId(),
         new CaseInput.CounterpartyReply(

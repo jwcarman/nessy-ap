@@ -27,8 +27,10 @@ import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.erp.ErpClient;
 import org.jwcarman.nessyap.agent.erp.ErpOutcome;
+import org.jwcarman.nessyap.agent.resolver.ResolverDesk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
@@ -209,17 +211,16 @@ public class DecisionExecutor {
   }
 
   private void answer(PendingDecision d, ApprovalResult result, String erpResult, boolean applied) {
+    if (ResolverDesk.TOKEN.equals(d.replyToken())) {
+      // No agent waits on what the rules proposed: the rules hear of it once this commits.
+      decisions.markAnswered(d.id(), erpResult);
+      targets.timeline().record(d.exceptionId(), "decision", decided(d) + " -> " + erpResult);
+      targets.events().publishEvent(new ResolverDesk.RulesDecided(d, applied));
+      return;
+    }
     ReplyOutcome reply = targets.replies().approve(d.replyToken(), result);
     decisions.markAnswered(d.id(), erpResult);
-    targets
-        .timeline()
-        .record(
-            d.exceptionId(),
-            "decision",
-            (Boolean.TRUE.equals(d.approved()) ? "approved by " : "declined by ")
-                + d.decidedBy()
-                + " -> "
-                + erpResult);
+    targets.timeline().record(d.exceptionId(), "decision", decided(d) + " -> " + erpResult);
     switch (reply) {
       case ReplyOutcome.Settled _ -> {
         if (!applied) {
@@ -242,6 +243,10 @@ public class DecisionExecutor {
     }
   }
 
+  private static String decided(PendingDecision d) {
+    return (Boolean.TRUE.equals(d.approved()) ? "approved by " : "declined by ") + d.decidedBy();
+  }
+
   /** What a decision reaches once it is carried out. */
   @Component
   static final class DecisionTargets {
@@ -251,13 +256,16 @@ public class DecisionExecutor {
     private final QueuedHarness<CaseInput> agent;
     private final Cases cases;
     private final CaseTimeline timeline;
+    private final ApplicationEventPublisher events;
 
     DecisionTargets(
         ErpClient erp,
         Replies replies,
         QueuedHarness<CaseInput> agent,
         Cases cases,
-        CaseTimeline timeline) {
+        CaseTimeline timeline,
+        ApplicationEventPublisher events) {
+      this.events = events;
       this.erp = erp;
       this.replies = replies;
       this.agent = agent;
@@ -283,6 +291,10 @@ public class DecisionExecutor {
 
     CaseTimeline timeline() {
       return timeline;
+    }
+
+    ApplicationEventPublisher events() {
+      return events;
     }
   }
 }
