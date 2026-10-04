@@ -147,4 +147,26 @@ class SettledTest {
   void a_case_on_hold_that_has_been_quiet_long_enough_is_settled() {
     assertThat(Settled.of(view("ON_HOLD", "ANSWERED", NOW.minusSeconds(9)), NOW, QUIET)).isTrue();
   }
+
+  @Test
+  void a_case_on_hold_is_not_settled_while_an_answer_the_evaluation_gave_is_still_in_flight() {
+    JsonNode held = view("ON_HOLD", "ANSWERED", NOW.minusSeconds(30));
+
+    assertThat(Settled.of(held, NOW, QUIET, NOW.minusSeconds(20))).isFalse();
+  }
+
+  @Test
+  void a_case_is_settled_once_the_answer_the_evaluation_gave_has_landed() {
+    JsonNode landed =
+        JSON.readTree(
+            """
+            {"status": "RESOLVED",
+             "decisions": [{"status": "ANSWERED"}],
+             "timeline": [{"at": "%s", "kind": "mail-received"},
+                          {"at": "%s", "kind": "resolved"}]}
+            """
+                .formatted(NOW.minusSeconds(15), NOW.minusSeconds(10)));
+
+    assertThat(Settled.of(landed, NOW, QUIET, NOW.minusSeconds(20))).isTrue();
+  }
 }

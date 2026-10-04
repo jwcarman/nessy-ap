@@ -60,9 +60,11 @@ final class Settled {
         && !"NEEDS_PERSON".equals(status)) {
       return false;
     }
-    if ("AWAITING_ANSWER".equals(status)
-        && lastAnswered != null
-        && lastAnswered.plus(AFTER_REPLY).isAfter(now)) {
+    // An answer the evaluation gave is not in the case until its timeline shows it: mail goes by
+    // SMTP and an IMAP poll. Whatever the case's status, it is not done until the answer lands.
+    if (lastAnswered != null
+        && lastAnswered.plus(AFTER_REPLY).isAfter(now)
+        && !landedSince(view, lastAnswered)) {
       return false;
     }
     for (JsonNode decision : view.path("decisions")) {
@@ -82,6 +84,18 @@ final class Settled {
     Duration wait =
         "mail-received".equals(lastKind) && AFTER_REPLY.compareTo(quiet) > 0 ? AFTER_REPLY : quiet;
     return !last.plus(wait).isAfter(now);
+  }
+
+  /** Whether a reply or a person's answer reached the case's timeline at or after {@code since}. */
+  private static boolean landedSince(JsonNode view, Instant since) {
+    for (JsonNode event : view.path("timeline")) {
+      String kind = event.path("kind").asString();
+      if (("mail-received".equals(kind) || "answer".equals(kind))
+          && !Instant.parse(event.path("at").asString()).isBefore(since)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
