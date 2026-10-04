@@ -7,9 +7,9 @@ a true rate above 84%.
 
 !!! note "These results are from before the rules came first"
     Every run on this page had the agent settle every case. Since then, the desk's decision
-    tables settle most scenarios before the agent sees them. One run of 13 scenarios on the new
-    desk is in [Stay deterministic as long as you can](../deterministic-first.md#the-first-run).
-    No full run has used the new desk yet.
+    tables settle most scenarios before the agent sees them. The first full run on the new desk
+    (480 of 480 on `gpt-6-luna`) is in
+    [Stay deterministic as long as you can](../deterministic-first.md#the-first-full-run).
 
 [Writing an evaluation](writing-evaluations.md) explains the method and the mistakes it
 corrected. [The scenarios](scenarios.md) gives the result of each scenario in each run.

@@ -135,7 +135,9 @@ sequenceDiagram
    buyer's own word. If the agent needs the vendor, it writes to the vendor's contact of record.
    The reply comes back by mail, is held by Occlude, and is read by a model with no tools into
    a typed reading. The agent gets the reading, never the text. While it waits, the case is
-   `AWAITING_ANSWER`, and the invoice stays stopped by its exception.
+   `AWAITING_ANSWER`, and the invoice stays stopped by its exception. A hold that a person
+   approves leaves the case `ON_HOLD`: the invoice is parked, the exception is still open, and
+   new goods, a reply or the agent's next proposal moves it on.
 6. The agent proposes a resolution: approve-variance, short-pay, hold, reject or
    request-credit-memo.
 7. OPA routes the proposal to a role (clerk, buyer, AP manager or controller), or refuses it.

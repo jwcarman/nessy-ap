@@ -171,7 +171,9 @@ to fail. The mail path alone found three problems that no unit test found.
 An agent works in turns, and a case can wait for days. The evaluation must decide when to stop
 and score. A case is finished (settled) when one of these is true:
 
-- It is resolved, and nothing has happened for a quiet period.
+- It is resolved or on hold, its agent is not in a turn, and nothing has happened for a quiet
+  period. A quiet period alone is a guess: in the first full run on the rules-first desk, an agent
+  proposed again 13 seconds after its hold was applied, and the case had already been scored.
 - It waits on an answer that will not come, because the scenario's person is silent.
 - The desk put it in front of a person (`NEEDS_PERSON`): the agent stopped with nothing in
   motion.

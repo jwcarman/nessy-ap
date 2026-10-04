@@ -245,7 +245,9 @@ reply through the quarantine. When they cannot settle a case, they say why and g
 agent.
 
 The first live run found one bug at once: the rules' letter to the vendor was not on the case's
-record, so the evaluation could not see it. See
+record, so the evaluation could not see it. The first full run on `gpt-6-luna` passed 480 of
+480, and the agent settled 124 of them. It also found that an applied hold marked a case
+resolved while its agent was still working. See
 [Stay deterministic as long as you can](../deterministic-first.md) for the design and the run.
 
 ## What the whole story teaches

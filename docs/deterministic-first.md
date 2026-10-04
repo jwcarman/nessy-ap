@@ -193,36 +193,56 @@ note, the reply or the receipt.
 - **The rules' own tests.** Each table row, the `NeedsFact` row, and the `unhandled` and
   `conflict` outcomes have unit tests that need no model and no container (`ResolverTest`).
 
-## The first run
+## The first full run
 
-One run of each of 13 scenarios, on 2026-10-04, with local models in LM Studio:
+All 24 scenarios, 20 runs each, 480 cases, on 2026-10-04. The agent and the reader were both
+`gpt-6-luna`, through OpenAI's Responses API, with 8 cases side by side.
 
-| Who settled it | Scenarios | Passed | Model use per case |
-|---|---|---|---|
-| The rules | 9: both price variances, quantity over receipt, no receipt, duplicate, possible duplicate, unplanned freight, bank-change fraud, buyer denies | 9 of 9 | none |
-| The rules, after one fact | 2: item substituted, substitute at the PO price | 2 of 2 | the reader only (below) |
-| The agent | 2: no PO, substitution unclear | 0 of 2 | see below |
+**All 480 cases passed.** Every rate has the Wilson 95% interval 84–100%. The last full run on
+`gpt-6-luna` before the rules came first passed 415 of 420.
 
-Usage, for each case that used a model, as LM Studio reported it (it reports no cache counts):
+| Who settled it | Runs | Scenarios |
+|---|---|---|
+| The rules | 316 | 15 scenarios, and 16 of the 20 `flaky-erp` runs |
+| The rules, after one fact | 40 | item-substituted, substitute-at-po-price |
+| The agent | 124 (26%) | no-po, silent-vendor, bank-change-by-mail, injected-reply, injected-reply-reject, substitution-unclear, and 4 `flaky-erp` runs |
 
-| Scenario | Model | Input | Output | Cache read | Cache write | Reasoning |
-|---|---|---|---|---|---|---|
-| item-substituted | `google/gemma-4-e4b` | 633 | 68 | — | — | 0 |
-| substitute-at-po-price | `google/gemma-4-e4b` | 631 | 69 | — | — | 0 |
-| no-po | `qwen/qwen3-coder-30b` | 45,302 | 853 | — | — | 0 |
+- **Determinism.** In every scenario, every run that the rules settled ended in the same action.
+- **Time.** A case that the rules settled took about 10 seconds, wall time, including the
+  evaluation's own 2-second polling. A case that the agent settled took 15 to 73 seconds.
+- **The attacks met the agent every time.** All 20 runs of each attack scenario wrote to the
+  vendor and read the attack. The controls held in every run.
+- **The `flaky-erp` handoffs are the design working.** When an ERP read failed three times, the
+  rules did not propose on what they could not read. They gave the case to the agent, and the
+  agent passed.
 
-The `no-po` case also used the reader for the vendor's reply.
+Usage, the mean per case for the cases that used a model, all `gpt-6-luna`:
 
-Each case that the rules settled alone was resolved in about 10 seconds, wall time, including the
-evaluation's own 2-second polling. Each run made one proposal for one person to decide, except
-`buyer-denies`: there the buyer declined the first proposal, and the rules proposed a credit memo.
+| Scenario | Input | Output | Cache read | Cache write | Reasoning |
+|---|---|---|---|---|---|
+| no-po | 18,423 | 853 | 14,927 | 2,726 | 409 |
+| injected-reply | 24,978 | 880 | 20,719 | 3,502 | 277 |
+| bank-change-by-mail | 23,225 | 880 | 19,173 | 3,298 | 284 |
+| injected-reply-reject | 23,348 | 839 | 19,755 | 2,850 | 261 |
+| silent-vendor | 9,788 | 312 | 8,029 | 1,750 | 81 |
+| substitution-unclear | 36,244 | 2,179 | 29,034 | 5,079 | 1,308 |
+| item-substituted (the reader only) | 733 | 108 | 0 | 0 | 46 |
+| substitute-at-po-price (the reader only) | 732 | 112 | 0 | 0 | 50 |
+| flaky-erp (4 cases) | 16,906 | 603 | 12,525 | 4,368 | 185 |
 
-The two agent runs do not measure the agent. The agent's model, `qwen/qwen3-coder-30b`, was loaded
-with LM Studio's default context of 8,192 tokens. The input above is the total over many requests,
-so it does not show whether one prompt was cut short; that is not verified. On `no-po` the agent rejected
-the invoice where the scenario expects a hold. On `substitution-unclear` it asked
-the buyer, read the answer, and then stopped with no move. A full run on a frontier model is
-still to do. One run of each scenario shows that a path works; it does not measure how often.
+The other 15 scenarios used no model. The whole run made 935 requests to OpenAI: 486 tool-calling
+requests and 268 final answers from the agent, and 181 from the reader. The desk's own records
+and OpenAI's dashboard agree on that count. OpenAI's dashboard showed $0.16 for the day.
+
+**What the run found.** In 3 of the 20 `substitution-unclear` runs, the agent proposed a hold,
+the hold was applied, and the agent then proposed again. The desk had marked the case resolved
+when the hold was applied, and the evaluation had scored the case while the agent was still in
+its turn. Two fixes followed:
+
+- An applied hold now leaves the case `ON_HOLD`, not `RESOLVED`: a hold parks the invoice, and
+  the exception is still open. The agent is told that the case stays open.
+- The case view says whether the case's agent is in a turn (`agentActive`), and the evaluation
+  does not score a case until it is not.
 
 ## What is not done
 

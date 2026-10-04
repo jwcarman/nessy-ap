@@ -26,8 +26,9 @@ The code is in `ap-eval` (`Scenarios.java`) and in the ERP simulator (`ScenarioC
 | The agent | no-po, silent-vendor, injected-reply, injected-reply-reject, bank-change-by-mail, substitution-unclear |
 | Either | flaky-erp: the rules, unless a read fails three times and a fact stays unknown |
 
-This table is the design. The first run that measured it covered 13 scenarios once each; the
-report's "Settled by" column is the measure.
+The first full run measured this table: every scenario was settled as it says, and
+`flaky-erp` was settled by the rules in 16 runs and by the agent in 4. All 480 cases passed. See
+[the first full run](../deterministic-first.md#the-first-full-run).
 
 ## Results by scenario
 
@@ -70,8 +71,8 @@ reader. The slice is the desk version the run used.
   believed an injected invoice number. Two approved an overcharge on a buyer's answer the model
   made up. Slice 10 added a control in code for each.
 - **Since these runs,** slice 12 rebased `bank-change-by-mail` on `no-po` and added
-  `unsolicited-bank-change`, and the desk's rules took over most scenarios (above). No full run
-  has used the new catalogue yet.
+  `unsolicited-bank-change`, and the desk's rules took over most scenarios (above). The results in
+  this table are from before those changes.
 
 ## Price and quantity
 
