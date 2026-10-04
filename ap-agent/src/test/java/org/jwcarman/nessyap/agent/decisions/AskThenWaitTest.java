@@ -89,7 +89,7 @@ class AskThenWaitTest extends ApAgentIntegrationTest {
 
     agent.tell(agentId, new CaseInput.ExceptionRaised(raised));
 
-    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnding.class) == 1);
     assertThat(model.outcomesSeen())
         .filteredOn(ToolOutcome.Denied.class::isInstance)
         .singleElement()

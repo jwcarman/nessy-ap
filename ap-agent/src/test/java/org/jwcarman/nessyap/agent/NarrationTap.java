@@ -18,7 +18,7 @@ package org.jwcarman.nessyap.agent;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.jwcarman.nessy.api.AgentId;
-import org.jwcarman.nessy.api.AgentType;
+import org.jwcarman.nessy.api.Narrated;
 import org.jwcarman.nessy.api.Narration;
 import org.jwcarman.nessy.api.NarrationListener;
 
@@ -30,8 +30,8 @@ public final class NarrationTap implements NarrationListener {
   private final List<Heard> heard = new CopyOnWriteArrayList<>();
 
   @Override
-  public void on(AgentType agentType, AgentId agentId, Narration event) {
-    heard.add(new Heard(agentId, event));
+  public void on(Narrated narrated) {
+    heard.add(new Heard(narrated.agentId(), narrated.event()));
   }
 
   public long count(AgentId agentId, Class<? extends Narration> kind) {

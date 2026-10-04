@@ -16,7 +16,7 @@
 package org.jwcarman.nessyap.agent.cases;
 
 import org.jwcarman.nessy.api.AgentId;
-import org.jwcarman.nessy.api.AgentType;
+import org.jwcarman.nessy.api.Narrated;
 import org.jwcarman.nessy.api.Narration;
 import org.jwcarman.nessy.api.NarrationListener;
 import org.jwcarman.nessyap.agent.AgentConfiguration;
@@ -46,11 +46,12 @@ public class NeedsPerson implements NarrationListener {
   }
 
   @Override
-  public void on(AgentType agentType, AgentId agentId, Narration event) {
-    if (!AgentConfiguration.AGENT_TYPE.equals(agentType)) {
+  public void on(Narrated narrated) {
+    if (!AgentConfiguration.AGENT_TYPE.equals(narrated.agentType())) {
       return;
     }
-    switch (event) {
+    AgentId agentId = narrated.agentId();
+    switch (narrated.event()) {
       case Narration.TurnStarted _ ->
           cases
               .forAgent(agentId)
@@ -58,10 +59,14 @@ public class NeedsPerson implements NarrationListener {
                   c ->
                       cases.moveStatus(
                           c.exceptionId(), CaseStatus.NEEDS_PERSON, CaseStatus.INVESTIGATING));
-      case Narration.TurnEnded _ ->
+      case Narration.Answered _ ->
           stopped(agentId, "the agent ended its turn with nothing in motion");
-      case Narration.TurnFailed(String reason) ->
-          stopped(agentId, "the agent's turn failed (" + reason + ")");
+      case Narration.TurnFailed failed ->
+          stopped(agentId, "the agent's turn failed (" + failed.reason() + ")");
+      case Narration.TurnStopped(var turn, String reason) ->
+          stopped(agentId, "a policy stopped the agent's turn (" + reason + ")");
+      case Narration.TurnRefused refused ->
+          stopped(agentId, "the model refused the turn (" + refused.category() + ")");
       default -> {
         // Every other narration leaves the case alone.
       }

@@ -19,8 +19,8 @@ import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.ModelUsage;
 import org.jwcarman.nessy.api.Tokens;
 import org.jwcarman.nessy.api.UsageReports;
-import org.jwcarman.nessy.engine.store.TurnHistories;
 import org.jwcarman.nessyap.agent.AgentConfiguration;
+import org.jwcarman.nessyap.agent.cases.AgentTurns;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -34,33 +34,31 @@ public class AgentBudget {
   /** What an agent has spent. */
   public record Spent(int turns, long inputTokens) {}
 
-  private final TurnHistories histories;
+  private final AgentTurns turns;
   private final UsageReports reports;
   private final int maxTurns;
   private final long maxInputTokens;
 
   public AgentBudget(
-      TurnHistories histories,
+      AgentTurns turns,
       UsageReports reports,
       @Value("${ap.agents.budget.turns:12}") int maxTurns,
       @Value("${ap.agents.budget.input-tokens:200000}") long maxInputTokens) {
-    this.histories = histories;
+    this.turns = turns;
     this.reports = reports;
     this.maxTurns = maxTurns;
     this.maxInputTokens = maxInputTokens;
   }
 
   public Spent spent(AgentId agentId) {
-    // One more than the cap is enough to know the cap is passed.
-    int turns =
-        histories.forAgent(AgentConfiguration.AGENT_TYPE, agentId).lastTurns(maxTurns + 1).size();
+    int started = turns.started(agentId);
     long input = 0;
     for (ModelUsage usage : reports.of(AgentConfiguration.AGENT_TYPE, agentId).byModel()) {
       if (usage.input() instanceof Tokens.Counted(int count)) {
         input += count;
       }
     }
-    return new Spent(turns, input);
+    return new Spent(started, input);
   }
 
   /** Whether the agent has spent its budget. */

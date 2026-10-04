@@ -208,7 +208,7 @@ class DecisionApiTest extends ApAgentIntegrationTest {
             .with(bearer("clara", "ap-clerk"))
             .contentType(MediaType.APPLICATION_JSON)
             .content("{\"approve\":true}"));
-    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnding.class) == 1);
 
     mvc.perform(get("/api/cases/{id}/trail", exceptionId).with(bearer("audrey", "auditor")))
         .andExpect(status().isOk())

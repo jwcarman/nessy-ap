@@ -79,14 +79,14 @@ class LateDecisionTest extends ApAgentIntegrationTest {
             .getFirst();
     await()
         .atMost(DecisionFlowTest.PATIENCE)
-        .until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+        .until(() -> narration.count(agentId, Narration.TurnEnding.class) == 1);
     assertThat(model.outcomesSeen()).anyMatch(ToolOutcome.Failed.class::isInstance);
 
     executor.decide(proposal.id(), "connie", true, "late but fine");
 
     await()
         .atMost(DecisionFlowTest.PATIENCE)
-        .until(() -> narration.count(agentId, Narration.TurnEnded.class) == 2);
+        .until(() -> narration.count(agentId, Narration.TurnEnding.class) == 2);
     assertThat(erp.seen())
         .anyMatch(seen -> seen.method().equals("POST") && seen.target().startsWith("/api/"));
     assertThat(decisions.find(proposal.id()).orElseThrow().status())

@@ -48,7 +48,7 @@ class NeedsPersonTest extends ApAgentIntegrationTest {
     await()
         .atMost(Duration.ofSeconds(20))
         .until(() -> caseIndex.find(exceptionId).orElseThrow().status() == CaseStatus.NEEDS_PERSON);
-    assertThat(narration.count(agentId, Narration.TurnEnded.class)).isEqualTo(1);
+    assertThat(narration.count(agentId, Narration.TurnEnding.class)).isEqualTo(1);
   }
 
   @Test

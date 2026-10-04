@@ -100,7 +100,7 @@ class AgentEndToEndTest extends ApAgentIntegrationTest {
     AgentId agentId = cases.agentFor(exceptionId);
     await()
         .atMost(Duration.ofSeconds(30))
-        .until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+        .until(() -> narration.count(agentId, Narration.TurnEnding.class) == 1);
     assertThat(erp.seen())
         .extracting(seen -> seen.method() + " " + seen.target())
         .containsSubsequence(

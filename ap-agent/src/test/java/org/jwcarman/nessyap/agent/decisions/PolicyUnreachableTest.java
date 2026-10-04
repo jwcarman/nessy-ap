@@ -91,7 +91,7 @@ class PolicyUnreachableTest extends ApAgentIntegrationTest {
 
     await()
         .atMost(Duration.ofSeconds(30))
-        .until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+        .until(() -> narration.count(agentId, Narration.TurnEnding.class) == 1);
     assertThat(decisions.forCase(exceptionId)).isEmpty();
     assertThat(narration.count(agentId, Narration.CallApproved.class)).isZero();
     assertThat(model.outcomesSeen())

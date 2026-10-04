@@ -68,8 +68,8 @@ class CaseUsageTest extends ApAgentIntegrationTest {
         .atMost(Duration.ofSeconds(20))
         .until(
             () ->
-                narration.count(desk, Narration.TurnEnded.class) == 1
-                    && narration.count(helper, Narration.TurnEnded.class) == 1);
+                narration.count(desk, Narration.TurnEnding.class) == 1
+                    && narration.count(helper, Narration.TurnEnding.class) == 1);
 
     CaseUsage.Spent spent = usage.of(exceptionId);
 

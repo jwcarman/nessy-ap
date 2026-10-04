@@ -115,7 +115,7 @@ class MailToolsTest extends ApAgentIntegrationTest {
 
     await()
         .atMost(Duration.ofSeconds(20))
-        .until(() -> narration.count(kase.agentId(), Narration.TurnEnded.class) == 1);
+        .until(() -> narration.count(kase.agentId(), Narration.TurnEnding.class) == 1);
     assertThat(model.outcomesSeen())
         .filteredOn(ToolOutcome.Denied.class::isInstance)
         .singleElement()

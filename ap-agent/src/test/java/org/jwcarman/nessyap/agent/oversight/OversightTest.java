@@ -29,8 +29,8 @@ import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.Narration;
 import org.jwcarman.nessy.api.QueuedHarness;
 import org.jwcarman.nessy.api.UsageReports;
-import org.jwcarman.nessy.engine.store.TurnHistories;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
+import org.jwcarman.nessyap.agent.cases.AgentTurns;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
@@ -51,7 +51,7 @@ class OversightTest extends ApAgentIntegrationTest {
   @Autowired OversightController oversight;
   @Autowired CaseTimeline timeline;
   @Autowired Switches switches;
-  @Autowired TurnHistories histories;
+  @Autowired AgentTurns turns;
   @Autowired UsageReports reports;
   @Autowired TransactionTemplate tx;
   @Autowired JsonMapper json;
@@ -121,7 +121,7 @@ class OversightTest extends ApAgentIntegrationTest {
         new GuardedAgents(
             unguarded,
             switches,
-            new AgentBudget(histories, reports, 1, 1_000_000),
+            new AgentBudget(turns, reports, 1, 1_000_000),
             caseIndex,
             timeline,
             new HeldInputs(jdbc, json, clock, tx),
@@ -129,7 +129,7 @@ class OversightTest extends ApAgentIntegrationTest {
     UUID exceptionId = openCase();
     AgentId agentId = caseIndex.agentFor(exceptionId);
     oneTurn.tell(agentId, new CaseInput.PersonNote("clara", "first"));
-    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnding.class) == 1);
 
     oneTurn.tell(agentId, new CaseInput.PersonNote("clara", "second"));
 

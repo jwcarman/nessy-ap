@@ -109,7 +109,7 @@ class DecisionFlowTest extends ApAgentIntegrationTest {
   private void awaitTurnEnded(long turns) {
     await()
         .atMost(PATIENCE)
-        .until(() -> narration.count(agentId, Narration.TurnEnded.class) == turns);
+        .until(() -> narration.count(agentId, Narration.TurnEnding.class) == turns);
   }
 
   private List<ErpStub.Seen> posts() {

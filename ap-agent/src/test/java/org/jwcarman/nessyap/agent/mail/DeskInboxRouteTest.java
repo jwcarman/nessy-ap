@@ -139,7 +139,7 @@ class DeskInboxRouteTest extends ApAgentIntegrationTest {
         .containsExactlyInAnyOrder("ap-exception-resolver", "reply-reader");
     await()
         .atMost(Duration.ofSeconds(20))
-        .until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+        .until(() -> narration.count(agentId, Narration.TurnEnding.class) == 1);
   }
 
   @Test

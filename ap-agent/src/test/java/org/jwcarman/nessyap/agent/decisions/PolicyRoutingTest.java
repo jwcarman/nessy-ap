@@ -106,7 +106,7 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
         "ON_HOLD",
         "{\"action\":\"hold\",\"rationale\":\"r\",\"evidence\":[]}");
 
-    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnding.class) == 1);
     assertThat(model.outcomesSeen())
         .filteredOn(ToolOutcome.Denied.class::isInstance)
         .singleElement()
@@ -202,7 +202,7 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
     agentId = cases.agentFor(exceptionId);
     agent.tell(agentId, new CaseInput.ExceptionRaised(raised));
 
-    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnding.class) == 1);
     assertThat(decisions.forCase(exceptionId)).isEmpty();
     assertThat(model.outcomesSeen())
         .filteredOn(ToolOutcome.Denied.class::isInstance)
@@ -214,7 +214,7 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
   void an_action_that_is_not_a_resolution_is_denied_without_asking_anyone() {
     propose(ReasonCode.PRICE_VARIANCE, "40.00", "{\"action\":\"pay-twice\",\"rationale\":\"r\"}");
 
-    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnding.class) == 1);
     assertThat(decisions.forCase(exceptionId)).isEmpty();
     assertThat(model.outcomesSeen()).anyMatch(ToolOutcome.Denied.class::isInstance);
   }
@@ -231,7 +231,7 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
         "1000.00",
         "{\"action\":\"approve-variance\",\"rationale\":\"r\"}");
 
-    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnding.class) == 1);
     assertThat(decisions.forCase(exceptionId)).isEmpty();
     assertThat(model.outcomesSeen())
         .filteredOn(ToolOutcome.Denied.class::isInstance)
@@ -247,7 +247,7 @@ class PolicyRoutingTest extends ApAgentIntegrationTest {
         "40.00",
         "{\"action\":\"approve-variance\",\"rationale\":\"r\"}");
 
-    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnded.class) == 1);
+    await().atMost(PATIENCE).until(() -> narration.count(agentId, Narration.TurnEnding.class) == 1);
     assertThat(decisions.forCase(exceptionId)).isEmpty();
     // Refused, but not as fraud: a read that failed says nothing about the bank details.
     assertThat(model.outcomesSeen())

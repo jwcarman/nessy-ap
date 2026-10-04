@@ -18,9 +18,7 @@ package org.jwcarman.nessyap.agent.api;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.jwcarman.nessy.api.turn.Turn;
-import org.jwcarman.nessy.engine.store.TurnHistories;
-import org.jwcarman.nessyap.agent.AgentConfiguration;
+import org.jwcarman.nessyap.agent.cases.AgentTurns;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
@@ -47,12 +45,8 @@ public class TrailController {
   /** One agent turn, as the trail shows it. */
   public record TurnView(long turn, boolean complete, int exchanges, String ended) {
 
-    static TurnView of(Turn turn) {
-      return new TurnView(
-          turn.id().value(),
-          turn.complete(),
-          turn.exchanges().size(),
-          turn.result() == null ? null : turn.result().getClass().getSimpleName());
+    static TurnView of(AgentTurns.Summary turn) {
+      return new TurnView(turn.turn(), turn.complete(), turn.exchanges(), turn.ended());
     }
   }
 
@@ -65,14 +59,14 @@ public class TrailController {
   private final Cases cases;
   private final CaseTimeline timeline;
   private final Decisions decisions;
-  private final TurnHistories histories;
+  private final AgentTurns agentTurns;
 
   public TrailController(
-      Cases cases, CaseTimeline timeline, Decisions decisions, TurnHistories histories) {
+      Cases cases, CaseTimeline timeline, Decisions decisions, AgentTurns turns) {
     this.cases = cases;
     this.timeline = timeline;
     this.decisions = decisions;
-    this.histories = histories;
+    this.agentTurns = turns;
   }
 
   @GetMapping("/api/cases/{exceptionId}/trail")
@@ -85,9 +79,7 @@ public class TrailController {
             .find(exceptionId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No such case"));
     List<TurnView> turns =
-        histories.forAgent(AgentConfiguration.AGENT_TYPE, c.agentId()).lastTurns(MAX_TURNS).stream()
-            .map(TurnView::of)
-            .toList();
+        agentTurns.last(c.agentId(), MAX_TURNS).stream().map(TurnView::of).toList();
     return new Trail(
         c,
         timeline.of(exceptionId),
