@@ -147,7 +147,7 @@ public class CaseFactsEnricher implements ApprovalEnricher {
 
   private static boolean bankChangeUnverified(JsonNode vendor) {
     for (JsonNode account : vendor.path("bankAccounts")) {
-      if (PENDING.equals(account.path("status").asString())) {
+      if (PENDING.equals(account.path(STATUS).asString())) {
         return true;
       }
     }

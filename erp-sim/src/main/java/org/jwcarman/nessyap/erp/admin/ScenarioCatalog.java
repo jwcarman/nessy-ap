@@ -59,7 +59,7 @@ public class ScenarioCatalog {
 
   private static final Actor SYSTEM = Actor.system();
   private static final LocalDate INVOICE_DATE = LocalDate.of(2026, 10, 1);
-  private static final String RECEIPTS = "receipts";
+  private static final String RECEIPTS_FACT = "receipts";
   private static final String UNIT_PRICE = "10.00";
   private static final String ITEM = "M8 hex bolts, box of 100";
 
@@ -133,7 +133,7 @@ public class ScenarioCatalog {
     PurchaseOrder po = order(vendor, "100", UNIT_PRICE);
     String receipt = receive(po, received);
     Invoice invoice = bill(vendor, unique("INV"), po.poNumber(), "100", billedPrice, freight);
-    return result(name, vendor, po.poNumber(), invoice, Map.of(RECEIPTS, List.of(receipt)));
+    return result(name, vendor, po.poNumber(), invoice, Map.of(RECEIPTS_FACT, List.of(receipt)));
   }
 
   private ScenarioResult priceVarianceLarge() {
@@ -142,7 +142,11 @@ public class ScenarioCatalog {
     String receipt = receive(po, "40");
     Invoice invoice = bill(vendor, unique("INV"), po.poNumber(), "40", "290.00", "0");
     return result(
-        "price-variance-large", vendor, po.poNumber(), invoice, Map.of(RECEIPTS, List.of(receipt)));
+        "price-variance-large",
+        vendor,
+        po.poNumber(),
+        invoice,
+        Map.of(RECEIPTS_FACT, List.of(receipt)));
   }
 
   /**
@@ -167,7 +171,7 @@ public class ScenarioCatalog {
         vendor,
         po.poNumber(),
         invoice,
-        Map.of(RECEIPTS, List.of(receipt)));
+        Map.of(RECEIPTS_FACT, List.of(receipt)));
   }
 
   /**
@@ -197,7 +201,11 @@ public class ScenarioCatalog {
                         new BigDecimal("11.20"),
                         SUBSTITUTE_SKU))));
     return result(
-        "item-substituted", vendor, po.poNumber(), invoice, Map.of(RECEIPTS, List.of(receipt)));
+        "item-substituted",
+        vendor,
+        po.poNumber(),
+        invoice,
+        Map.of(RECEIPTS_FACT, List.of(receipt)));
   }
 
   private ScenarioResult noReceipt() {
@@ -248,7 +256,7 @@ public class ScenarioCatalog {
         Map.of(
             "original-invoice",
             List.of(earlier.id().toString(), earlier.invoiceNumber()),
-            RECEIPTS,
+            RECEIPTS_FACT,
             List.of(first, next)));
   }
 
@@ -269,7 +277,11 @@ public class ScenarioCatalog {
     String receipt = receive(po, "100");
     Invoice invoice = bill(vendor, unique("INV"), unique("PO"), "100", UNIT_PRICE, "0");
     return result(
-        "no-po-real-order", vendor, po.poNumber(), invoice, Map.of(RECEIPTS, List.of(receipt)));
+        "no-po-real-order",
+        vendor,
+        po.poNumber(),
+        invoice,
+        Map.of(RECEIPTS_FACT, List.of(receipt)));
   }
 
   private ScenarioResult bankChangeFraud() {

@@ -316,7 +316,7 @@ final class Runner {
             text ->
                 seeded == null
                     ? text
-                    : text.replace("{poNumber}", seeded.path("poNumber").asString()));
+                    : text.replace("{poNumber}", seeded.path(PO_NUMBER).asString()));
   }
 
   /**
