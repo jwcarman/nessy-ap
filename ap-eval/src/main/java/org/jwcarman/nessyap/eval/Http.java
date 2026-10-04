@@ -87,9 +87,8 @@ final class Http {
                 + ": "
                 + response.body());
       }
-      return response.body().isBlank()
-          ? Optional.of(json.createObjectNode())
-          : Optional.of(json.readTree(response.body()));
+      return Optional.of(
+          response.body().isBlank() ? json.createObjectNode() : json.readTree(response.body()));
     } catch (IOException e) {
       throw new IllegalStateException("cannot reach " + request.build().uri(), e);
     } catch (InterruptedException e) {

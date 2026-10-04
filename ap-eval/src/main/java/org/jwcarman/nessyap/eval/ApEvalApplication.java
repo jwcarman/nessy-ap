@@ -89,11 +89,13 @@ public class ApEvalApplication {
                             }
                           }))
               .toList();
-      List<RunScore> scores = new ArrayList<>();
-      for (Future<RunScore> score : pending) {
-        scores.add(score.get());
-      }
-      return scores;
+      return pending.stream().map(ApEvalApplication::await).toList();
+    }
+  }
+
+  private static RunScore await(Future<RunScore> score) {
+    try {
+      return score.get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("The evaluation was interrupted", e);
