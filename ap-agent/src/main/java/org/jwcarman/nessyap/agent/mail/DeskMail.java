@@ -155,7 +155,9 @@ public class DeskMail {
             claim.statedUnitPrice(),
             claim.poNumber() == null ? null : claim.poNumber().value(),
             reading.confirmedPo().orElse(null),
-            claim.containsInstructions()));
+            claim.containsInstructions(),
+            claim.substitutionReason(),
+            claim.shippedItem()));
   }
 
   /** Who sent it, as the desk knows them: by whom it wrote to, never by what the sender wrote. */

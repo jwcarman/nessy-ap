@@ -23,6 +23,7 @@ import org.jwcarman.nessy.api.InputRenderer;
 import org.jwcarman.nessy.api.block.Block;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Offer;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.SubstitutionReason;
 import org.jwcarman.nessyap.agent.tools.VendorReference;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 
@@ -53,8 +54,12 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
               var price,
               var claimedPo,
               var confirmedPo,
-              var instructions) ->
-          reply(from, intent, offers, price, claimedPo, confirmedPo, instructions) + NEXT;
+              var instructions,
+              var reason,
+              var shipped) ->
+          reply(from, intent, offers, price, claimedPo, confirmedPo, instructions)
+              + substitution(reason, shipped)
+              + NEXT;
       case CaseInput.PersonAnswered(var person, var question, var choice, var comment) ->
           answer(person, question, choice, comment) + NEXT;
       case CaseInput.DecisionApplied(var decisionId, var action, var outcome) ->
@@ -153,6 +158,32 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
               + " invoice and note the case for a person to read the reply.");
     }
     return text.toString();
+  }
+
+  /**
+   * What a reply says about a substitution: the reason, as a typed claim, and the item it says it
+   * shipped, shown only shaped like a reference.
+   */
+  private static String substitution(SubstitutionReason reason, String shipped) {
+    StringBuilder text = new StringBuilder();
+    if (reason != null) {
+      text.append(" It gives the reason: ").append(because(reason)).append('.');
+    }
+    if (shipped != null) {
+      text.append(" It says the item it shipped is ")
+          .append(VendorReference.shown(shipped))
+          .append('.');
+    }
+    return text.toString();
+  }
+
+  private static String because(SubstitutionReason reason) {
+    return switch (reason) {
+      case OUT_OF_STOCK -> "the ordered item was out of stock";
+      case DISCONTINUED -> "the ordered item is discontinued";
+      case UPGRADE -> "it sent a better item";
+      case OTHER -> "a reason the reader could not type";
+    };
   }
 
   /** A signed-in person's answer: their own word, which the agent may rely on. */

@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Offer;
+import org.jwcarman.nessyap.agent.quarantine.Untrusted.SubstitutionReason;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
 import org.jwcarman.nessyap.contracts.ReceiptPosted;
 
@@ -63,8 +64,32 @@ public sealed interface CaseInput {
       BigDecimal statedUnitPrice,
       String claimedPo,
       String confirmedPo,
-      boolean containsInstructions)
-      implements CaseInput {}
+      boolean containsInstructions,
+      SubstitutionReason substitutionReason,
+      String shippedItem)
+      implements CaseInput {
+
+    /** A reply that claims no substitution. */
+    public CounterpartyReply(
+        String from,
+        Intent intent,
+        List<Offer> offers,
+        BigDecimal statedUnitPrice,
+        String claimedPo,
+        String confirmedPo,
+        boolean containsInstructions) {
+      this(
+          from,
+          intent,
+          offers,
+          statedUnitPrice,
+          claimedPo,
+          confirmedPo,
+          containsInstructions,
+          null,
+          null);
+    }
+  }
 
   /**
    * A person inside the company answered the agent's question on the workbench, signed in. The
