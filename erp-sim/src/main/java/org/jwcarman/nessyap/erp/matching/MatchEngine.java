@@ -68,6 +68,7 @@ public final class MatchEngine {
               money(in.total())));
       return List.copyOf(findings);
     }
+    itemSubstituted(in, po).ifPresent(findings::add);
     priceVariance(in, po).ifPresent(findings::add);
     receiptShortfall(in, po).ifPresent(findings::add);
     unplannedCharges(in, po).ifPresent(findings::add);
@@ -131,7 +132,9 @@ public final class MatchEngine {
     List<String> notes = new ArrayList<>();
     for (MatchLine line : in.lines()) {
       Optional<PoLine> poLine = poLineFor(line, po);
+      // A substituted line's price is explained by the substitution, which is its own finding.
       if (poLine.isPresent()
+          && !substituted(line, poLine.get())
           && line.unitPrice().compareTo(poLine.get().unitPrice().multiply(factor)) > 0) {
         BigDecimal poPrice = poLine.get().unitPrice();
         BigDecimal over = line.unitPrice().subtract(poPrice);
@@ -211,6 +214,45 @@ public final class MatchEngine {
     return notes.isEmpty()
         ? Optional.empty()
         : Optional.of(new MatchFinding(code, String.join("; ", notes), money(amount)));
+  }
+
+  /**
+   * Lines that bill a different item than their PO line ordered. The price difference is what is at
+   * issue; a cheaper substitute is still a substitution someone must accept.
+   */
+  private static Optional<MatchFinding> itemSubstituted(MatchInput in, PurchaseOrder po) {
+    BigDecimal impact = BigDecimal.ZERO;
+    List<String> notes = new ArrayList<>();
+    for (MatchLine line : in.lines()) {
+      Optional<PoLine> poLine = poLineFor(line, po);
+      if (poLine.isPresent() && substituted(line, poLine.get())) {
+        BigDecimal poPrice = poLine.get().unitPrice();
+        impact =
+            impact.add(
+                line.unitPrice().subtract(poPrice).max(BigDecimal.ZERO).multiply(line.quantity()));
+        notes.add(
+            "Line "
+                + line.lineNo()
+                + " billed item \""
+                + line.itemCode()
+                + "\" against PO item \""
+                + poLine.get().item()
+                + "\" at "
+                + line.unitPrice().toPlainString()
+                + " against PO price "
+                + poPrice.toPlainString());
+      }
+    }
+    return notes.isEmpty()
+        ? Optional.empty()
+        : Optional.of(
+            new MatchFinding(ReasonCode.ITEM_SUBSTITUTED, String.join("; ", notes), money(impact)));
+  }
+
+  private static boolean substituted(MatchLine line, PoLine poLine) {
+    return line.itemCode() != null
+        && poLine.item() != null
+        && !line.itemCode().equalsIgnoreCase(poLine.item());
   }
 
   private static Optional<PoLine> poLineFor(MatchLine line, PurchaseOrder po) {

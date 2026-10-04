@@ -48,7 +48,11 @@ class MatchEngineTest {
   }
 
   private static MatchLine line(Integer poLineNo, String quantity, String price) {
-    return new MatchLine(1, poLineNo, new BigDecimal(quantity), new BigDecimal(price));
+    return line(poLineNo, quantity, price, null);
+  }
+
+  private static MatchLine line(Integer poLineNo, String quantity, String price, String item) {
+    return new MatchLine(1, poLineNo, new BigDecimal(quantity), new BigDecimal(price), item);
   }
 
   private static BigDecimal totalOf(List<MatchLine> lines, BigDecimal freight) {
@@ -346,5 +350,42 @@ class MatchEngineTest {
   @Test
   void normalizes_invoice_numbers_to_letters_and_digits() {
     assertThat(InvoiceNumbers.normalize("inv-10 01/a")).isEqualTo("INV1001A");
+  }
+
+  /** The vendor billed a different item than the PO line ordered: a substitution. */
+  @Nested
+  class When_a_different_item_is_billed {
+
+    @Test
+    void flags_the_substitution_and_not_a_price_variance() {
+      List<MatchFinding> findings =
+          base().withLines(line(1, "100", "11.20", "M8 bolts, stainless")).match();
+
+      assertThat(findings)
+          .singleElement()
+          .satisfies(
+              f -> {
+                assertThat(f.code()).isEqualTo(ReasonCode.ITEM_SUBSTITUTED);
+                assertThat(f.amountAtIssue()).isEqualByComparingTo("120.00");
+                assertThat(f.summary())
+                    .isEqualTo(
+                        "Line 1 billed item \"M8 bolts, stainless\" against PO item"
+                            + " \"M8 bolts\" at 11.20 against PO price 10.00");
+              });
+    }
+
+    @Test
+    void the_same_item_at_a_higher_price_is_a_price_variance() {
+      assertThat(base().withLines(line(1, "100", "10.40", "M8 bolts")).match())
+          .singleElement()
+          .satisfies(f -> assertThat(f.code()).isEqualTo(ReasonCode.PRICE_VARIANCE));
+    }
+
+    @Test
+    void a_line_with_no_item_code_is_matched_as_before() {
+      assertThat(base().withLines(line(1, "100", "10.40", null)).match())
+          .singleElement()
+          .satisfies(f -> assertThat(f.code()).isEqualTo(ReasonCode.PRICE_VARIANCE));
+    }
   }
 }

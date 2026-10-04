@@ -22,4 +22,11 @@ import java.math.BigDecimal;
  *
  * @param poLineNo the purchase-order line it bills; null when it cites none
  */
-public record MatchLine(int lineNo, Integer poLineNo, BigDecimal quantity, BigDecimal unitPrice) {}
+public record MatchLine(
+    int lineNo, Integer poLineNo, BigDecimal quantity, BigDecimal unitPrice, String itemCode) {
+
+  /** A line that names no item. */
+  public MatchLine(int lineNo, Integer poLineNo, BigDecimal quantity, BigDecimal unitPrice) {
+    this(lineNo, poLineNo, quantity, unitPrice, null);
+  }
+}

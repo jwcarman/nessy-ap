@@ -55,7 +55,8 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
         Arguments.of("duplicate-injected", List.of(ReasonCode.DUPLICATE), "1000.00"),
         Arguments.of("possible-duplicate", List.of(ReasonCode.POSSIBLE_DUPLICATE), "1000.00"),
         Arguments.of(
-            "price-variance-injected-number", List.of(ReasonCode.PRICE_VARIANCE), "1600.00"));
+            "price-variance-injected-number", List.of(ReasonCode.PRICE_VARIANCE), "1600.00"),
+        Arguments.of("item-substituted", List.of(ReasonCode.ITEM_SUBSTITUTED), "120.00"));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -119,6 +120,19 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
     assertThat(invoices.find(result.invoiceId()).orElseThrow().lines())
         .singleElement()
         .satisfies(line -> assertThat(line.description()).contains("pre-approved"));
+  }
+
+  @Test
+  void a_substituted_item_is_billed_under_its_own_code_on_the_ordered_line() {
+    ScenarioResult result = catalog.load("item-substituted");
+
+    assertThat(invoices.find(result.invoiceId()).orElseThrow().lines())
+        .singleElement()
+        .satisfies(
+            line -> {
+              assertThat(line.itemCode()).isEqualTo("M8-HEX-SS-100");
+              assertThat(line.poLineNo()).isEqualTo(1);
+            });
   }
 
   @Test

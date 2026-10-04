@@ -21,6 +21,19 @@ import java.math.BigDecimal;
  * One billed line.
  *
  * @param poLineNo the purchase-order line it bills; null when it cites none
+ * @param itemCode the item billed, as the vendor wrote it; null when the invoice names none
  */
 public record InvoiceLine(
-    int lineNo, Integer poLineNo, String description, BigDecimal quantity, BigDecimal unitPrice) {}
+    int lineNo,
+    Integer poLineNo,
+    String description,
+    BigDecimal quantity,
+    BigDecimal unitPrice,
+    String itemCode) {
+
+  /** A line that names no item. */
+  public InvoiceLine(
+      int lineNo, Integer poLineNo, String description, BigDecimal quantity, BigDecimal unitPrice) {
+    this(lineNo, poLineNo, description, quantity, unitPrice, null);
+  }
+}

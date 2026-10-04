@@ -64,8 +64,10 @@ public class InvoiceRepository {
       jdbc.sql(
               """
               insert into invoice_line
-                  (id, invoice_id, line_no, po_line_no, description, quantity, unit_price)
-              values (:id, :invoiceId, :lineNo, :poLineNo, :description, :quantity, :unitPrice)
+                  (id, invoice_id, line_no, po_line_no, description, quantity, unit_price,
+                   item_code)
+              values (:id, :invoiceId, :lineNo, :poLineNo, :description, :quantity, :unitPrice,
+                      :itemCode)
               """)
           .param("id", Ids.next())
           .param("invoiceId", invoice.id())
@@ -74,6 +76,7 @@ public class InvoiceRepository {
           .param("description", line.description())
           .param("quantity", line.quantity())
           .param("unitPrice", line.unitPrice())
+          .param("itemCode", line.itemCode(), Types.VARCHAR)
           .update();
     }
   }
@@ -147,7 +150,8 @@ public class InvoiceRepository {
                     rs.getObject("po_line_no", Integer.class),
                     rs.getString("description"),
                     rs.getBigDecimal("quantity"),
-                    rs.getBigDecimal("unit_price")))
+                    rs.getBigDecimal("unit_price"),
+                    rs.getString("item_code")))
         .list();
   }
 

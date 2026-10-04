@@ -78,6 +78,7 @@ create table invoice_line (
     description text           not null,
     quantity    numeric(14, 3) not null,
     unit_price  numeric(14, 2) not null,
+    item_code   text,
     unique (invoice_id, line_no)
 );
 
