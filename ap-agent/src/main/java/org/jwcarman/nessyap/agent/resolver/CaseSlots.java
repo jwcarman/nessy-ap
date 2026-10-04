@@ -268,9 +268,9 @@ public class CaseSlots {
     return node.isNumber() ? node.decimalValue() : null;
   }
 
-  private static Optional<JsonNode> tried(Supplier<ErpOutcome<JsonNode>> read) {
+  private static Optional<JsonNode> tried(Supplier<ErpOutcome> read) {
     for (int i = 0; i < TRIES; i++) {
-      if (read.get() instanceof ErpOutcome.Ok<JsonNode>(JsonNode value)) {
+      if (read.get() instanceof ErpOutcome.Ok(JsonNode value)) {
         return Optional.of(value);
       }
     }

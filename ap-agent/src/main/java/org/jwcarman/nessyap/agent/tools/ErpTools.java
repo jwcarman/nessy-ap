@@ -220,11 +220,10 @@ public class ErpTools {
   }
 
   /** Reads a PO by the number given, else by the case's own; a case may cite no PO at all. */
-  private static ErpOutcome<JsonNode> withPo(
-      CaseRecord c, PoRef in, Function<String, ErpOutcome<JsonNode>> read) {
+  private static ErpOutcome withPo(CaseRecord c, PoRef in, Function<String, ErpOutcome> read) {
     String number = in.poNumber() == null || in.poNumber().isBlank() ? c.poNumber() : in.poNumber();
     return number == null
-        ? new ErpOutcome.Refused<>(
+        ? new ErpOutcome.Refused(
             404, "NO_PO", "this case's invoice cites no purchase order; give a number to read one")
         : read.apply(number);
   }
@@ -263,7 +262,7 @@ public class ErpTools {
     private final ToolName name;
     private final String description;
     private final Class<I> inputType;
-    private final BiFunction<CaseRecord, I, ErpOutcome<JsonNode>> fetch;
+    private final BiFunction<CaseRecord, I, ErpOutcome> fetch;
     private final Function<JsonNode, JsonNode> shown;
     private final String preface;
 
@@ -271,7 +270,7 @@ public class ErpTools {
         String name,
         String description,
         Class<I> inputType,
-        BiFunction<CaseRecord, I, ErpOutcome<JsonNode>> fetch,
+        BiFunction<CaseRecord, I, ErpOutcome> fetch,
         Function<JsonNode, JsonNode> shown) {
       this(name, description, inputType, fetch, shown, null);
     }
@@ -280,7 +279,7 @@ public class ErpTools {
         String name,
         String description,
         Class<I> inputType,
-        BiFunction<CaseRecord, I, ErpOutcome<JsonNode>> fetch,
+        BiFunction<CaseRecord, I, ErpOutcome> fetch,
         Function<JsonNode, JsonNode> shown,
         String preface) {
       this.name = new ToolName(name);
@@ -312,18 +311,18 @@ public class ErpTools {
       if (theCase.isEmpty()) {
         return Awaited.ready(new ToolResult.Failure("This agent has no case to read."));
       }
-      ErpOutcome<JsonNode> outcome = fetch.apply(theCase.get(), request.input());
+      ErpOutcome outcome = fetch.apply(theCase.get(), request.input());
       ToolResult result =
           switch (outcome) {
-            case ErpOutcome.Ok<JsonNode>(JsonNode value) ->
+            case ErpOutcome.Ok(JsonNode value) ->
                 ToolResult.ok(
                     new Block.Text(
                         (preface == null ? "" : preface + "\n\n")
                             + json.writerWithDefaultPrettyPrinter()
                                 .writeValueAsString(shown.apply(value))));
-            case ErpOutcome.Refused<JsonNode>(int status, String code, String detail) ->
+            case ErpOutcome.Refused(int status, String code, String detail) ->
                 new ToolResult.Failure(code + ": " + detail);
-            case ErpOutcome.Unavailable<JsonNode>(String reason) ->
+            case ErpOutcome.Unavailable(String reason) ->
                 new ToolResult.Failure(
                     "The ERP is unavailable (" + reason + "). Try again shortly.");
           };

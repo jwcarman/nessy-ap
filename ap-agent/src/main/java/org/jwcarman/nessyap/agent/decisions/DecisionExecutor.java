@@ -139,11 +139,11 @@ public class DecisionExecutor {
       return result;
     }
     switch (targets.erp().invoice(d.invoiceId())) {
-      case ErpOutcome.Ok<JsonNode>(JsonNode view) ->
+      case ErpOutcome.Ok(JsonNode view) ->
           decisions.rememberExpectedVersion(d.id(), view.path("invoice").path("version").asLong());
-      case ErpOutcome.Refused<JsonNode>(int s, String code, String detail) ->
+      case ErpOutcome.Refused(int s, String code, String detail) ->
           decisions.rememberRefusal(d.id(), "ERP refused: " + code + ": " + detail);
-      case ErpOutcome.Unavailable<JsonNode>(String reason) ->
+      case ErpOutcome.Unavailable(String reason) ->
           log.info("ERP unavailable reading invoice for decision {}: {}", d.id(), reason);
     }
     return result;
@@ -169,7 +169,7 @@ public class DecisionExecutor {
       // Otherwise the ERP could not be read yet; the sweeper comes back for it.
       return;
     }
-    ErpOutcome<JsonNode> outcome =
+    ErpOutcome outcome =
         targets
             .erp()
             .resolve(
@@ -181,9 +181,9 @@ public class DecisionExecutor {
                 "Decided by " + d.decidedBy() + ": " + d.rationale(),
                 accessToken);
     switch (outcome) {
-      case ErpOutcome.Ok<JsonNode> ok ->
+      case ErpOutcome.Ok ok ->
           answer(d, ApprovalResult.approvedBy(d.id().toString()), "applied", true);
-      case ErpOutcome.Refused<JsonNode>(int s, String code, String detail)
+      case ErpOutcome.Refused(int s, String code, String detail)
           when accessToken == null && (s == 401 || s == 403) -> {
         // The ERP wants a person and none is lending their authority (the sweeper, or someone
         // arriving after the decision). That is not the decider saying no: keep it for them.
@@ -192,9 +192,8 @@ public class DecisionExecutor {
             .timeline()
             .record(d.exceptionId(), "decision", "the ERP needs " + d.decidedBy() + " to retry");
       }
-      case ErpOutcome.Refused<JsonNode>(int s, String code, String detail) ->
-          refused(d, code, detail);
-      case ErpOutcome.Unavailable<JsonNode>(String reason) ->
+      case ErpOutcome.Refused(int s, String code, String detail) -> refused(d, code, detail);
+      case ErpOutcome.Unavailable(String reason) ->
           log.info(
               "ERP unavailable carrying out decision {}; the sweeper will retry: {}",
               d.id(),

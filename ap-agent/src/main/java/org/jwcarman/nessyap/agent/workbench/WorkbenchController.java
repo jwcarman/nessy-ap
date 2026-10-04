@@ -367,7 +367,7 @@ public class WorkbenchController {
         : "Approved and carried out in the ERP.";
   }
 
-  private static JsonNode read(ErpOutcome<JsonNode> outcome) {
-    return outcome instanceof ErpOutcome.Ok<JsonNode>(JsonNode value) ? value : null;
+  private static JsonNode read(ErpOutcome outcome) {
+    return outcome instanceof ErpOutcome.Ok(JsonNode value) ? value : null;
   }
 }

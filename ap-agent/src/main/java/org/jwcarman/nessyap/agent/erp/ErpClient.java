@@ -60,32 +60,31 @@ public class ErpClient {
     this.http = HttpClient.newBuilder().connectTimeout(connectTimeout).build();
   }
 
-  public ErpOutcome<JsonNode> invoice(UUID invoiceId) {
+  public ErpOutcome invoice(UUID invoiceId) {
     return get("/api/invoices/" + invoiceId);
   }
 
-  public ErpOutcome<JsonNode> purchaseOrder(String poNumber) {
+  public ErpOutcome purchaseOrder(String poNumber) {
     return get("/api/purchase-orders/" + segment(poNumber));
   }
 
-  public ErpOutcome<JsonNode> receipts(String poNumber) {
+  public ErpOutcome receipts(String poNumber) {
     return get("/api/purchase-orders/" + segment(poNumber) + "/receipts");
   }
 
-  public ErpOutcome<JsonNode> vendor(UUID vendorId) {
+  public ErpOutcome vendor(UUID vendorId) {
     return get("/api/vendors/" + vendorId);
   }
 
-  public ErpOutcome<JsonNode> vendorInvoices(UUID vendorId) {
+  public ErpOutcome vendorInvoices(UUID vendorId) {
     return get("/api/vendors/" + vendorId + "/invoices");
   }
 
-  public ErpOutcome<JsonNode> matchException(UUID exceptionId) {
+  public ErpOutcome matchException(UUID exceptionId) {
     return get("/api/match-exceptions/" + exceptionId);
   }
 
-  public ErpOutcome<JsonNode> similarInvoices(
-      UUID vendorId, String invoiceNumber, BigDecimal total) {
+  public ErpOutcome similarInvoices(UUID vendorId, String invoiceNumber, BigDecimal total) {
     String query = "vendorId=" + vendorId + "&invoiceNumber=" + segment(invoiceNumber);
     if (total != null) {
       query += "&total=" + total.toPlainString();
@@ -97,7 +96,7 @@ public class ErpClient {
    * Applies a resolution command. The ERP applies a given key at most once, so a retry with the
    * same key is safe.
    */
-  public ErpOutcome<JsonNode> resolve(
+  public ErpOutcome resolve(
       UUID invoiceId,
       String action,
       String idempotencyKey,
@@ -111,7 +110,7 @@ public class ErpClient {
    * As {@link #resolve(UUID, String, String, long, BigDecimal, String)}, as the person whose token
    * this is.
    */
-  public ErpOutcome<JsonNode> resolve(
+  public ErpOutcome resolve(
       UUID invoiceId,
       String action,
       String idempotencyKey,
@@ -139,7 +138,7 @@ public class ErpClient {
   }
 
   /** Records a call to the vendor's contact of record, as the person who made it. */
-  public ErpOutcome<JsonNode> recordCallBack(
+  public ErpOutcome recordCallBack(
       UUID vendorId, UUID accountId, String phone, boolean vendorConfirmed, String bearerToken) {
     return postAs(
         "/api/vendors/" + vendorId + "/bank-changes/" + accountId + "/call-back",
@@ -148,14 +147,14 @@ public class ErpClient {
   }
 
   /** Confirms a called-back change, as a second person. */
-  public ErpOutcome<JsonNode> confirmBankChange(UUID vendorId, UUID accountId, String bearerToken) {
+  public ErpOutcome confirmBankChange(UUID vendorId, UUID accountId, String bearerToken) {
     return postAs(
         "/api/vendors/" + vendorId + "/bank-changes/" + accountId + "/confirm",
         Map.of(),
         bearerToken);
   }
 
-  private ErpOutcome<JsonNode> postAs(String path, Object body, String bearerToken) {
+  private ErpOutcome postAs(String path, Object body, String bearerToken) {
     HttpRequest.Builder request =
         HttpRequest.newBuilder(uri(path))
             .header("Content-Type", "application/json")
@@ -166,19 +165,19 @@ public class ErpClient {
     return send(request);
   }
 
-  private ErpOutcome<JsonNode> get(String path) {
+  private ErpOutcome get(String path) {
     HttpRequest.Builder request = HttpRequest.newBuilder(uri(path)).GET();
     if (serviceToken != null) {
       var token = serviceToken.current();
       if (token.isEmpty()) {
-        return new ErpOutcome.Unavailable<>("no service token for the ERP");
+        return new ErpOutcome.Unavailable("no service token for the ERP");
       }
       request.header("Authorization", "Bearer " + token.get());
     }
     return send(request);
   }
 
-  private ErpOutcome<JsonNode> send(HttpRequest.Builder request) {
+  private ErpOutcome send(HttpRequest.Builder request) {
     HttpResponse<String> response;
     try {
       response =
@@ -186,42 +185,42 @@ public class ErpClient {
               request.timeout(readTimeout).header("Accept", "application/json").build(),
               HttpResponse.BodyHandlers.ofString());
     } catch (IOException e) {
-      return new ErpOutcome.Unavailable<>(describe(e));
+      return new ErpOutcome.Unavailable(describe(e));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      return new ErpOutcome.Unavailable<>("interrupted");
+      return new ErpOutcome.Unavailable("interrupted");
     }
     int status = response.statusCode();
     if (status == 429) {
       // A rate limit is a wait, never a refusal: say how long the ERP asked for.
       String wait = response.headers().firstValue("Retry-After").orElse("a few");
-      return new ErpOutcome.Unavailable<>(
+      return new ErpOutcome.Unavailable(
           "rate limited by the ERP; retry after " + wait + " seconds");
     }
     if (status >= 500) {
-      return new ErpOutcome.Unavailable<>("HTTP " + status + " " + detailOf(response.body()));
+      return new ErpOutcome.Unavailable("HTTP " + status + " " + detailOf(response.body()));
     }
     if (status >= 400) {
       return refusal(status, response.body());
     }
     try {
-      return new ErpOutcome.Ok<>(json.readTree(response.body()));
+      return new ErpOutcome.Ok(json.readTree(response.body()));
     } catch (JacksonException e) {
-      return new ErpOutcome.Unavailable<>("unreadable ERP response: " + e.getOriginalMessage());
+      return new ErpOutcome.Unavailable("unreadable ERP response: " + e.getOriginalMessage());
     }
   }
 
-  private ErpOutcome<JsonNode> refusal(int status, String body) {
+  private ErpOutcome refusal(int status, String body) {
     try {
       JsonNode problem = json.readTree(body);
       if (problem.isObject() && problem.hasNonNull("code")) {
-        return new ErpOutcome.Refused<>(
+        return new ErpOutcome.Refused(
             status, problem.get("code").asString(), problem.path("detail").asString(""));
       }
     } catch (JacksonException e) {
       // not a problem document; fall through to the bare status
     }
-    return new ErpOutcome.Refused<>(status, "HTTP_" + status, body);
+    return new ErpOutcome.Refused(status, "HTTP_" + status, body);
   }
 
   private String detailOf(String body) {

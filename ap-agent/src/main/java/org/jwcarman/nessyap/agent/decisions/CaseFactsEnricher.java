@@ -85,7 +85,7 @@ public class CaseFactsEnricher implements ApprovalEnricher {
         nodes.booleanNode(!byRules && cases.askedInTurn(c.exceptionId(), request.turn().value())));
     // The ERP measures authority against the invoice total, so routing must see it too.
     // The ERP's invoice view is {"invoice": {...}, "exceptions": [...]}.
-    if (erp.invoice(c.invoiceId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode view)) {
+    if (erp.invoice(c.invoiceId()) instanceof ErpOutcome.Ok(JsonNode view)) {
       // A proposal that would change nothing (a hold on a held invoice) goes to nobody.
       request.fact("invoiceStatus", view.path("invoice").path("status").asString());
       if (view.path("invoice").path("total").isNumber()) {
@@ -101,13 +101,13 @@ public class CaseFactsEnricher implements ApprovalEnricher {
       request.fact("openReasonCodes", open);
     }
     if (c.poNumber() != null
-        && erp.purchaseOrder(c.poNumber()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode po)
+        && erp.purchaseOrder(c.poNumber()) instanceof ErpOutcome.Ok(JsonNode po)
         && po.hasNonNull("buyer")) {
       request.fact("buyer", po.get("buyer").asString());
     }
     // One read of the vendor answers both: is a bank change waiting, and does a proposal cite the
     // vendor (its id, or a pending change's id). Left out when the vendor could not be read.
-    if (erp.vendor(c.vendorId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode vendor)) {
+    if (erp.vendor(c.vendorId()) instanceof ErpOutcome.Ok(JsonNode vendor)) {
       request.fact("bankChangeUnverified", nodes.booleanNode(bankChangeUnverified(vendor)));
       if (PROPOSE.equals(request.toolName())) {
         Set<String> vendorIds = vendorIds(c, vendor);

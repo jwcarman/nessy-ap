@@ -98,7 +98,7 @@ public class MailTools {
   }
 
   private Recipient vendorOf(CaseRecord c) {
-    if (erp.vendor(c.vendorId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode vendor)
+    if (erp.vendor(c.vendorId()) instanceof ErpOutcome.Ok(JsonNode vendor)
         && vendor.path("contact").hasNonNull("email")) {
       return new Recipient.To(vendor.path("contact").get("email").asString());
     }

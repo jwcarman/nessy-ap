@@ -126,7 +126,7 @@ public class QuestionTools {
   private Optional<String> buyerOf(CaseRecord c) {
     // The PO number is the vendor's claim: the buyer counts only if the PO is the case vendor's.
     if (c.poNumber() != null
-        && erp.purchaseOrder(c.poNumber()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode po)
+        && erp.purchaseOrder(c.poNumber()) instanceof ErpOutcome.Ok(JsonNode po)
         && po.hasNonNull("buyer")
         && c.vendorId().toString().equals(po.path("vendorId").asString())) {
       return Optional.of(po.get("buyer").asString());
