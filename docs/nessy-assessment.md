@@ -113,9 +113,9 @@ records it.
   20 runs proved it.
 
 Where Nessy made the evaluation harder:
-- **The story has no public read API (F3).** The evidence check, the audit trail, the case view's
-  "is the agent in a turn?" and the count of model requests all use an internal engine type
-  (`TurnHistories`). The evaluation cannot know when a case is finished without that last one.
+- **The story has no public read API (F3).** The evidence check, the audit trail and the case
+  view's "is the agent in a turn?" use an internal engine type (`TurnHistories`). The number of
+  model requests does not: the public `UsageReports` counts them (`inferences`). The evaluation cannot know when a case is finished without that last one.
 - **A failed turn was quiet (F15).** A dropped connection to the model ended turns, and the cases
   looked like an agent that gave up. Separating the system's failures from the model's took
   digging through logs. Fixed in 0.4.0: such a failure now reaches the retry policy.
@@ -126,7 +126,7 @@ Where Nessy made the evaluation harder:
 | Finding | What it cost us |
 |---|---|
 | **F1.** A tool cannot see its own approval. | A table of decisions, keyed by the call's idempotency key, so that `propose_resolution` can find the decision that let it run. Simpler since 0.4.0 (see F7), still open. |
-| **F3.** No read API for an agent's story. | The audit trail, the evidence check, the case view's turn state and the request count use an internal engine type. Usage is readable, by model, through `UsageReports`; the story itself is not. Open. |
+| **F3.** No read API for an agent's story. | The audit trail, the evidence check and the case view's turn state use an internal engine type. Usage is readable, by model, through `UsageReports`; the story itself is not. Open. |
 | **F4.** A late decision has no channel. | A separate path that tells the agent after its approval expired. |
 | **F5.** No scripted model for tests. | About 90 lines of test support that every Nessy application will write again. |
 | **F6.** Narration cannot be joined to a tool call. | The application writes its own timeline for people to read. Fixed in 0.4.0: `ActionsRequested` carries each call. |

@@ -9,7 +9,7 @@ Nessy 0.4.0 on 2026-10-04.
 |---|---|
 | **F1.** A tool cannot see its own approval. | Open |
 | **F2.** An approval has no typed principal. | Open. A deliberate choice in Nessy (facts are untyped by design); fair to discuss. |
-| **F3.** No read API for an agent's history from outside the engine. | Partly fixed: `UsageReports` reads any agent's usage, by model, as a projection over its stored events. Still missing: a public read of an agent's turns. The desk reads them through the engine's `TurnHistories` for the evidence check, the audit trail, the case view's "is the agent in a turn?" and the count of model requests. |
+| **F3.** No read API for an agent's history from outside the engine. | Partly fixed: `UsageReports` reads any agent's usage, by model, as a projection over its stored events. Still missing: a public read of an agent's turns. The desk reads them through the engine's `TurnHistories` for the evidence check, the audit trail and the case view's "is the agent in a turn?". |
 | **F4.** A decision that arrives after its approval expired has no channel. | Open. A deliberate choice in Nessy (`NotAwaiting` does not tell expired from answered); fair to discuss. |
 | **F5.** Nessy publishes no scripted model for tests. | Open |
 | **F6.** Narration cannot be joined to a tool call. | Fixed in 0.4.0 (`ActionsRequested` carries each call's id, tool and action). |
