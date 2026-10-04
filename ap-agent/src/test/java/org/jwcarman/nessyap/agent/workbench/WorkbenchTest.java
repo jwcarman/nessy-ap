@@ -44,6 +44,7 @@ import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.DecisionStatus;
 import org.jwcarman.nessyap.agent.decisions.Decisions;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
+import org.jwcarman.nessyap.agent.oversight.GuardedAgents;
 import org.jwcarman.nessyap.agent.quarantine.Quarantine;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Reply;
 import org.jwcarman.nessyap.contracts.MatchExceptionRaised;
@@ -69,6 +70,7 @@ class WorkbenchTest extends ApAgentIntegrationTest {
   @Autowired WebApplicationContext web;
   @Autowired QueuedHarness<CaseInput> agent;
   @Autowired Cases cases;
+  @Autowired GuardedAgents guarded;
   @Autowired Decisions decisions;
   @Autowired Quarantine quarantine;
 
@@ -335,5 +337,36 @@ class WorkbenchTest extends ApAgentIntegrationTest {
         .until(() -> narration.count(agentId, Narration.TurnStarted.class) >= 2);
     assertThat(model.requests().getLast().context().turns().getLast().input().toString())
         .contains("the rest arrives Friday");
+  }
+
+  @Test
+  void a_controller_pauses_and_resumes_the_agents_from_the_worklist() throws Exception {
+    mvc.perform(
+            post("/workbench/oversight/agents")
+                .param("pause", "true")
+                .with(as("connie", "controller"))
+                .with(csrf()))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(flash().attribute("message", "The agents are paused."));
+    assertThat(guarded.arePaused()).isTrue();
+
+    mvc.perform(
+            post("/workbench/oversight/agents")
+                .param("pause", "false")
+                .with(as("connie", "controller"))
+                .with(csrf()))
+        .andExpect(status().is3xxRedirection());
+    assertThat(guarded.arePaused()).isFalse();
+  }
+
+  @Test
+  void only_a_controller_may_pause_the_agents_from_the_worklist() throws Exception {
+    mvc.perform(
+            post("/workbench/oversight/agents")
+                .param("pause", "true")
+                .with(as("clara", "ap-clerk"))
+                .with(csrf()))
+        .andExpect(status().isForbidden());
+    assertThat(guarded.arePaused()).isFalse();
   }
 }
