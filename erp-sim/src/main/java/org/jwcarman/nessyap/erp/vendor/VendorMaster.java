@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class VendorMaster {
 
+  private static final String VENDOR = "vendor";
   private static final String VERIFY = "verify-bank-change";
 
   private final VendorRepository vendors;
@@ -71,17 +72,21 @@ public class VendorMaster {
             BankAccountStatus.ACTIVE,
             now,
             null));
-    audit.record(actor, "vendor", id, "created", vendor.name());
-    return get(id);
+    audit.append(actor, VENDOR, id, "created", vendor.name());
+    return load(id);
   }
 
   @Transactional(readOnly = true)
   public Vendor get(UUID id) {
-    return vendors.find(id).orElseThrow(() -> new NotFoundException("vendor", id));
+    return load(id);
+  }
+
+  private Vendor load(UUID id) {
+    return vendors.find(id).orElseThrow(() -> new NotFoundException(VENDOR, id));
   }
 
   public BankAccount proposeBankChange(Actor actor, UUID vendorId, BankChangeProposal proposal) {
-    get(vendorId);
+    load(vendorId);
     Instant now = clock.instant();
     BankAccount account =
         new BankAccount(
@@ -92,9 +97,9 @@ public class VendorMaster {
             now,
             proposal.proposedByEmail());
     vendors.insertBankAccount(vendorId, account);
-    audit.record(
+    audit.append(
         actor,
-        "vendor",
+        VENDOR,
         vendorId,
         "bank-change-proposed",
         "New account " + account.id() + " requested by " + proposal.proposedByEmail());
@@ -109,16 +114,16 @@ public class VendorMaster {
   public void recordCallBack(
       Actor actor, UUID vendorId, UUID accountId, String phone, boolean vendorConfirmed) {
     authority.require(actor, VERIFY);
-    Vendor vendor = get(vendorId);
+    Vendor vendor = load(vendorId);
     pending(vendorId, accountId);
     if (!digits(phone).equals(digits(vendor.contact().phone()))) {
       throw new BankChangeVerificationException(
           "Call the contact of record on file, not a number that came with the change");
     }
     vendors.recordCallBack(accountId, actor.user(), phone, vendorConfirmed, clock.instant());
-    audit.record(
+    audit.append(
         actor,
-        "vendor",
+        VENDOR,
         vendorId,
         vendorConfirmed ? "bank-change-called-back" : "bank-change-rejected",
         "Account " + accountId + " " + (vendorConfirmed ? "confirmed" : "denied") + " by " + phone);
@@ -139,7 +144,7 @@ public class VendorMaster {
     if (!vendors.confirm(vendorId, accountId, actor.user(), clock.instant())) {
       throw new BankChangeVerificationException("This change is not waiting to be verified");
     }
-    audit.record(actor, "vendor", vendorId, "bank-change-confirmed", "Account " + accountId);
+    audit.append(actor, VENDOR, vendorId, "bank-change-confirmed", "Account " + accountId);
   }
 
   private VendorRepository.Verification pending(UUID vendorId, UUID accountId) {

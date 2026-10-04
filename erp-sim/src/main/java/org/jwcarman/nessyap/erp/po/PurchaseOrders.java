@@ -63,12 +63,16 @@ public class PurchaseOrders {
     validate(order.lines());
     UUID id = Ids.next();
     orders.insert(id, order, clock.instant());
-    audit.record(actor, "purchase_order", id, "created", order.poNumber());
-    return get(order.poNumber());
+    audit.append(actor, "purchase_order", id, "created", order.poNumber());
+    return load(order.poNumber());
   }
 
   @Transactional(readOnly = true)
   public PurchaseOrder get(String poNumber) {
+    return load(poNumber);
+  }
+
+  private PurchaseOrder load(String poNumber) {
     return orders
         .findByNumber(poNumber)
         .orElseThrow(() -> new NotFoundException("purchase order", poNumber));
@@ -76,7 +80,7 @@ public class PurchaseOrders {
 
   @Transactional(readOnly = true)
   public List<GoodsReceipt> receipts(String poNumber) {
-    return receipts.findByPo(get(poNumber).id());
+    return receipts.findByPo(load(poNumber).id());
   }
 
   private static void validate(List<PoLine> lines) {
