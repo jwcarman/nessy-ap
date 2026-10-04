@@ -61,6 +61,13 @@
     <spotless.version>3.10.3</spotless.version>
     <license.plugin.version>5.1.2</license.plugin.version>
     <license.owner>James Carman</license.owner>
+    <jacoco.version>0.8.15</jacoco.version>
+    <sonar.plugin.version>5.8.0.7211</sonar.plugin.version>
+    <!-- Empty unless the ci profile's JaCoCo agent fills it in. -->
+    <jacocoArgLine></jacocoArgLine>
+    <sonar.organization>jwcarman</sonar.organization>
+    <sonar.projectKey>jwcarman_nessy-ap</sonar.projectKey>
+    <sonar.host.url>https://sonarcloud.io</sonar.host.url>
   </properties>
 
   <dependencyManagement>
@@ -114,7 +121,23 @@
   </dependencyManagement>
 
   <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.sonarsource.scanner.maven</groupId>
+          <artifactId>sonar-maven-plugin</artifactId>
+          <version>${sonar.plugin.version}</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>@{jacocoArgLine}</argLine>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
@@ -192,4 +215,42 @@ limitations under the License.]]></inlineHeader>
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- CI only: line coverage for SonarCloud. -->
+    <profile>
+      <id>ci</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.jacoco</groupId>
+            <artifactId>jacoco-maven-plugin</artifactId>
+            <version>${jacoco.version}</version>
+            <configuration>
+              <propertyName>jacocoArgLine</propertyName>
+            </configuration>
+            <executions>
+              <execution>
+                <id>prepare-agent</id>
+                <goals>
+                  <goal>prepare-agent</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>report</id>
+                <goals>
+                  <goal>report</goal>
+                </goals>
+                <configuration>
+                  <formats>
+                    <format>XML</format>
+                  </formats>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
