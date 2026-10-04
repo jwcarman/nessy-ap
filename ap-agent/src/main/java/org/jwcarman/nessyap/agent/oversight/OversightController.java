@@ -58,7 +58,7 @@ public class OversightController {
     if (RealmRoles.of(me).stream().noneMatch(READERS::contains)) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Oversight is for the AP team");
     }
-    return new State(agents.paused());
+    return new State(agents.arePaused());
   }
 
   @PostMapping("/agents/pause")

@@ -23,7 +23,6 @@ import org.jwcarman.nessy.engine.store.TurnHistories;
 import org.jwcarman.nessyap.agent.AgentConfiguration;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
-import org.jwcarman.nessyap.agent.cases.CaseUsage;
 import org.jwcarman.nessyap.agent.cases.Cases;
 import org.jwcarman.nessyap.agent.decisions.Decisions;
 import org.jwcarman.nessyap.agent.decisions.Grounding;
@@ -104,7 +103,6 @@ public class CaseController {
   private final Counterparty counterparty;
   private final Questions questions;
   private final Grounding grounding;
-  private final CaseUsage caseUsage;
   private final TurnHistories histories;
 
   public CaseController(
@@ -114,7 +112,6 @@ public class CaseController {
       Counterparty counterparty,
       Questions questions,
       Grounding grounding,
-      CaseUsage caseUsage,
       TurnHistories histories) {
     this.histories = histories;
     this.cases = cases;
@@ -123,27 +120,22 @@ public class CaseController {
     this.counterparty = counterparty;
     this.questions = questions;
     this.grounding = grounding;
-    this.caseUsage = caseUsage;
   }
 
   /** Who may read a case: anyone who works cases, and the auditor. */
   private static final Set<String> READERS =
       Set.of("ap-clerk", "buyer", "ap-manager", "controller", "auditor");
 
-  /** What the case cost so far: every agent that worked it, by model. */
-  @GetMapping("/api/cases/{exceptionId}/usage")
-  public CaseUsage.Spent usage(@PathVariable UUID exceptionId, Authentication me) {
+  /** Refuses anyone who is not allowed to read cases. */
+  static void requireReader(Authentication me) {
     if (RealmRoles.of(me).stream().noneMatch(READERS::contains)) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cases are for the AP team");
     }
-    return caseUsage.of(exceptionId);
   }
 
   @GetMapping("/api/cases/{exceptionId}")
   public CaseView get(@PathVariable UUID exceptionId, Authentication me) {
-    if (RealmRoles.of(me).stream().noneMatch(READERS::contains)) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cases are for the AP team");
-    }
+    requireReader(me);
     CaseRecord c =
         cases
             .find(exceptionId)

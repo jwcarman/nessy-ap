@@ -15,9 +15,6 @@
  */
 package org.jwcarman.nessyap.agent.oversight;
 
-import java.sql.Timestamp;
-import java.time.Clock;
-import java.util.List;
 import java.util.UUID;
 import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.QueuedHarness;
@@ -26,12 +23,8 @@ import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
-import org.jwcarman.nessyap.agent.support.Ids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.transaction.support.TransactionTemplate;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The one door to the case agents. Every input for an agent passes here, and here people's
@@ -50,13 +43,10 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
 
   private final QueuedHarness<CaseInput> agents;
   private final Switches switches;
-  private final AgentBudget budget;
+  private final AgentBudget agentBudget;
   private final Cases cases;
   private final CaseTimeline timeline;
-  private final JdbcClient jdbc;
-  private final JsonMapper json;
-  private final Clock clock;
-  private final TransactionTemplate tx;
+  private final HeldInputs held;
   private final DeskMetrics metrics;
 
   public GuardedAgents(
@@ -65,21 +55,15 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
       AgentBudget budget,
       Cases cases,
       CaseTimeline timeline,
-      JdbcClient jdbc,
-      JsonMapper json,
-      Clock clock,
-      TransactionTemplate tx,
+      HeldInputs held,
       DeskMetrics metrics) {
     this.metrics = metrics;
     this.agents = agents;
     this.switches = switches;
-    this.budget = budget;
+    this.agentBudget = budget;
     this.cases = cases;
     this.timeline = timeline;
-    this.jdbc = jdbc;
-    this.json = json;
-    this.clock = clock;
-    this.tx = tx;
+    this.held = held;
   }
 
   @Override
@@ -88,8 +72,8 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
       hold(agentId, input, PAUSED, "the agents are paused");
       return;
     }
-    AgentBudget.Spent spent = budget.spent(agentId);
-    if (budget.spentUp(spent)) {
+    AgentBudget.Spent spent = agentBudget.spent(agentId);
+    if (agentBudget.spentUp(spent)) {
       hold(
           agentId,
           input,
@@ -109,7 +93,7 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
     agents.terminate(agentId);
   }
 
-  public boolean paused() {
+  public boolean arePaused() {
     return switches.on(Switches.AGENTS_PAUSED);
   }
 
@@ -128,56 +112,18 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
   public int resume(String by) {
     switches.set(Switches.AGENTS_PAUSED, false, by);
     log.warn("The agents were resumed by {}", by);
-    List<Held> held =
-        jdbc.sql(
-                """
-                select id, agent_id, input from held_input
-                where reason = :reason and released_at is null
-                order by held_at
-                """)
-            .param("reason", PAUSED)
-            .query(
-                (rs, row) ->
-                    new Held(
-                        rs.getObject("id", UUID.class),
-                        new AgentId(rs.getObject("agent_id", UUID.class)),
-                        rs.getString("input")))
-            .list();
-    for (Held h : held) {
-      tx.executeWithoutResult(
-          status -> {
-            jdbc.sql("update held_input set released_at = :at where id = :id")
-                .param("at", Timestamp.from(clock.instant()))
-                .param("id", h.id())
-                .update();
-            tell(h.agentId(), json.readValue(h.input(), CaseInput.class));
-          });
-    }
-    return held.size();
+    return held.release(PAUSED, this::tell);
   }
-
-  private record Held(UUID id, AgentId agentId, String input) {}
 
   private void hold(AgentId agentId, CaseInput input, String reason, String why) {
     metrics.held(reason);
     CaseRecord c = cases.forAgent(agentId).orElse(null);
     UUID exceptionId = c == null ? null : c.exceptionId();
-    jdbc.sql(
-            """
-            insert into held_input (id, agent_id, exception_id, reason, input, held_at)
-            values (:id, :agentId, :exceptionId, :reason, :input, :at)
-            """)
-        .param("id", Ids.next())
-        .param("agentId", agentId.value())
-        .param("exceptionId", exceptionId)
-        .param("reason", reason)
-        .param("input", json.writeValueAsString(input))
-        .param("at", Timestamp.from(clock.instant()))
-        .update();
+    held.add(agentId, exceptionId, reason, input);
     if (c == null) {
       return;
     }
-    timeline.record(
+    timeline.append(
         c.exceptionId(),
         "held",
         "an input for the agent was held: " + why + "; a person must look");

@@ -68,7 +68,6 @@ public class MailTools {
   private final Cases cases;
   private final CaseTimeline timeline;
   private final JdbcClient jdbc;
-  private final String peopleDomain;
   private final int maxPerCase;
 
   public MailTools(
@@ -77,14 +76,12 @@ public class MailTools {
       Cases cases,
       CaseTimeline timeline,
       JdbcClient jdbc,
-      @Value("${ap.mail.people-domain}") String peopleDomain,
       @Value("${ap.mail.max-per-case}") int maxPerCase) {
     this.mailer = mailer;
     this.erp = erp;
     this.cases = cases;
     this.timeline = timeline;
     this.jdbc = jdbc;
-    this.peopleDomain = peopleDomain;
     this.maxPerCase = maxPerCase;
   }
 
@@ -98,19 +95,11 @@ public class MailTools {
   }
 
   private Recipient vendorOf(CaseRecord c) {
-    if (erp.vendor(c.vendorId()) instanceof ErpOutcome.Ok<JsonNode>(JsonNode vendor)
+    if (erp.vendor(c.vendorId()) instanceof ErpOutcome.Ok(JsonNode vendor)
         && vendor.path("contact").hasNonNull("email")) {
       return new Recipient.To(vendor.path("contact").get("email").asString());
     }
     return new Recipient.Nobody("The vendor could not be read, or has no contact email of record.");
-  }
-
-  private int sentSoFar(UUID exceptionId, String kind) {
-    return jdbc.sql("select count(*) from outbound_mail where exception_id = :id and kind = :kind")
-        .param("id", exceptionId)
-        .param("kind", kind)
-        .query(Integer.class)
-        .single();
   }
 
   /** One kind of letter: who it goes to, the limits, and the record on the case. */
@@ -150,7 +139,7 @@ public class MailTools {
         return Awaited.ready(new ToolResult.Failure("This agent has no case to write about."));
       }
       ToolResult result = send(kase.get(), request.input(), request.turn().value());
-      timeline.record(
+      timeline.append(
           kase.get().exceptionId(),
           "tool",
           name.value()
@@ -161,6 +150,15 @@ public class MailTools {
                   ? "failed: " + message
                   : "ok"));
       return Awaited.ready(result);
+    }
+
+    private int sentSoFar(UUID exceptionId, String kind) {
+      return jdbc.sql(
+              "select count(*) from outbound_mail where exception_id = :id and kind = :kind")
+          .param("id", exceptionId)
+          .param("kind", kind)
+          .query(Integer.class)
+          .single();
     }
 
     private ToolResult send(CaseRecord c, Letter letter, long turn) {
@@ -197,7 +195,7 @@ public class MailTools {
       try {
         MailSent sent =
             mailer.send(c.exceptionId(), kind, address, letter.subject(), letter.body());
-        timeline.record(c.exceptionId(), "mail-sent", kind + " " + address + ": " + sent.subject());
+        timeline.append(c.exceptionId(), "mail-sent", kind + " " + address + ": " + sent.subject());
         jdbc.sql("update outbound_mail set asked_in_turn = :turn where message_id = :id")
             .param("turn", turn)
             .param("id", sent.messageId())

@@ -15,13 +15,11 @@
  */
 package org.jwcarman.nessyap.agent.decisions;
 
-import java.time.Clock;
 import java.util.List;
 import org.jwcarman.nessy.approval.policy.PolicyApprover;
 import org.jwcarman.nessy.approval.policy.opa.OpaPolicyEngine;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
-import org.jwcarman.nessyap.agent.oversight.DeskMetrics;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,21 +45,15 @@ public class PolicyConfig {
   @Bean
   public PolicyApprover routing(
       OpaPolicyEngine engine,
-      Decisions decisions,
       Cases cases,
       CaseTimeline timeline,
       JsonMapper json,
-      Clock clock,
-      Provenance provenance,
-      DeskMetrics metrics) {
+      Proposals proposals) {
     return PolicyApprover.of(
         config -> {
           config.engine(engine);
           for (String role : DECIDING_ROLES) {
-            config.delegate(
-                role,
-                new WorkbenchDesk(
-                    role, decisions, cases, timeline, json, clock, provenance, metrics));
+            config.delegate(role, new WorkbenchDesk(role, cases, timeline, json, proposals));
           }
         });
   }

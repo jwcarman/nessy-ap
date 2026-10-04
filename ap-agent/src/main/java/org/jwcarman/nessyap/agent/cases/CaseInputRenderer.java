@@ -188,9 +188,16 @@ public class CaseInputRenderer implements InputRenderer<CaseInput> {
 
   /** A signed-in person's answer: their own word, which the agent may rely on. */
   private static String answer(String person, String question, String choice, String comment) {
-    String said = choice == null ? comment : comment == null ? choice : choice + ". " + comment;
+    String said = said(choice, comment);
     return "%s, who works this case, answered your question \"%s\" on the workbench: %s"
         .formatted(person, question, said);
+  }
+
+  private static String said(String choice, String comment) {
+    if (choice == null) {
+      return comment;
+    }
+    return comment == null ? choice : choice + ". " + comment;
   }
 
   private static String says(Intent intent) {

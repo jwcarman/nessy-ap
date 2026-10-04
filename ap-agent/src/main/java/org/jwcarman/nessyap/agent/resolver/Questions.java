@@ -18,17 +18,19 @@ package org.jwcarman.nessyap.agent.resolver;
 /** The letters the rules send when they need a fact from the vendor: one per fact. */
 final class Questions {
 
+  private static final String INVOICE = "Invoice ";
+
   private Questions() {}
 
   static String subject(String slot, String invoiceNumber) {
     return "substitutionReason".equals(slot)
-        ? "Invoice " + invoiceNumber + ": why a different item?"
-        : "Invoice " + invoiceNumber + ": a question";
+        ? INVOICE + invoiceNumber + ": why a different item?"
+        : INVOICE + invoiceNumber + ": a question";
   }
 
   static String body(String slot, String invoiceNumber) {
     return "substitutionReason".equals(slot)
-        ? "Invoice "
+        ? INVOICE
             + invoiceNumber
             + " bills a different item than the one our purchase order ordered. Please tell us"
             + " why it was substituted (for example, out of stock or discontinued), the item code"

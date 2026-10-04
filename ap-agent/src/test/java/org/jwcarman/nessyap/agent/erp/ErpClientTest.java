@@ -25,7 +25,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 class ErpClientTest {
@@ -58,7 +57,7 @@ class ErpClientTest {
     void an_invoice_comes_back_as_json() {
       erp.on("GET", "/api/invoices/" + ID, 200, "{\"invoice\":{\"status\":\"EXCEPTION\"}}");
 
-      ErpOutcome<JsonNode> outcome = client.invoice(ID);
+      ErpOutcome outcome = client.invoice(ID);
 
       assertThat(outcome)
           .isInstanceOfSatisfying(
@@ -98,14 +97,14 @@ class ErpClientTest {
           "{\"status\":404,\"code\":\"NOT_FOUND\",\"detail\":\"No invoice\"}");
 
       assertThat(client.invoice(ID))
-          .isEqualTo(new ErpOutcome.Refused<>(404, "NOT_FOUND", "No invoice"));
+          .isEqualTo(new ErpOutcome.Refused(404, "NOT_FOUND", "No invoice"));
     }
 
     @Test
     void a_4xx_without_a_problem_body_is_still_a_refusal() {
       erp.on("GET", "/api/invoices/" + ID, 400, "nope");
 
-      assertThat(client.invoice(ID)).isEqualTo(new ErpOutcome.Refused<>(400, "HTTP_400", "nope"));
+      assertThat(client.invoice(ID)).isEqualTo(new ErpOutcome.Refused(400, "HTTP_400", "nope"));
     }
 
     @Test
@@ -188,8 +187,7 @@ class ErpClientTest {
   void a_resolution_carries_its_idempotency_key_and_version() {
     erp.on("POST", "/api/invoices/" + ID + "/approve-variance", 200, "{\"status\":\"APPROVED\"}");
 
-    ErpOutcome<JsonNode> outcome =
-        client.resolve(ID, "approve-variance", "decision-1", 3, null, "fine");
+    ErpOutcome outcome = client.resolve(ID, "approve-variance", "decision-1", 3, null, "fine");
 
     assertThat(outcome).isInstanceOf(ErpOutcome.Ok.class);
     ErpStub.Seen sent = erp.seen().getFirst();

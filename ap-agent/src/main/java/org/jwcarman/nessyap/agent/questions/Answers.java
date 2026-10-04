@@ -110,12 +110,7 @@ public class Answers {
         .param("at", Timestamp.from(now))
         .param("id", questionId)
         .update();
-    timeline.record(
-        question.exceptionId(),
-        "answer",
-        person
-            + " answered: "
-            + (picked == null ? words : picked + (words == null ? "" : ". " + words)));
+    timeline.append(question.exceptionId(), "answer", person + " answered: " + said(picked, words));
     cases.moveStatus(question.exceptionId(), CaseStatus.AWAITING_ANSWER, CaseStatus.INVESTIGATING);
     cases
         .find(question.exceptionId())
@@ -136,5 +131,12 @@ public class Answers {
             picked,
             words,
             now));
+  }
+
+  private static String said(String picked, String words) {
+    if (picked == null) {
+      return words;
+    }
+    return picked + (words == null ? "" : ". " + words);
   }
 }

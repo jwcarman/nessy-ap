@@ -64,7 +64,7 @@ class OversightTest extends ApAgentIntegrationTest {
 
   @AfterEach
   void resumed() {
-    if (agents.paused()) {
+    if (agents.arePaused()) {
       agents.resume("test");
     }
   }
@@ -124,10 +124,7 @@ class OversightTest extends ApAgentIntegrationTest {
             new AgentBudget(histories, reports, 1, 1_000_000),
             caseIndex,
             timeline,
-            jdbc,
-            json,
-            clock,
-            tx,
+            new HeldInputs(jdbc, json, clock, tx),
             metrics);
     UUID exceptionId = openCase();
     AgentId agentId = caseIndex.agentFor(exceptionId);

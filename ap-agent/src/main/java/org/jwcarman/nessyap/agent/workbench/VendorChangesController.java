@@ -65,7 +65,7 @@ public class VendorChangesController {
   public String pending(Authentication me, Model model) {
     List<PendingChange> pending = new ArrayList<>();
     for (UUID vendorId : cases.recentVendors(RECENT_VENDORS)) {
-      if (erp.vendor(vendorId) instanceof ErpOutcome.Ok<JsonNode>(JsonNode vendor)) {
+      if (erp.vendor(vendorId) instanceof ErpOutcome.Ok(JsonNode vendor)) {
         for (JsonNode account : vendor.path("bankAccounts")) {
           if ("PENDING_VERIFICATION".equals(account.path("status").asString())) {
             pending.add(new PendingChange(vendor, account));
@@ -129,13 +129,11 @@ public class VendorChangesController {
     return client == null ? null : client.getAccessToken().getTokenValue();
   }
 
-  private static String describe(ErpOutcome<JsonNode> outcome, String done) {
+  private static String describe(ErpOutcome outcome, String done) {
     return switch (outcome) {
-      case ErpOutcome.Ok<JsonNode> ok -> done;
-      case ErpOutcome.Refused<JsonNode>(int status, String code, String detail) ->
-          "The ERP refused: " + detail;
-      case ErpOutcome.Unavailable<JsonNode>(String reason) ->
-          "The ERP could not be reached; try again.";
+      case ErpOutcome.Ok _ -> done;
+      case ErpOutcome.Refused(_, _, String detail) -> "The ERP refused: " + detail;
+      case ErpOutcome.Unavailable _ -> "The ERP could not be reached; try again.";
     };
   }
 }

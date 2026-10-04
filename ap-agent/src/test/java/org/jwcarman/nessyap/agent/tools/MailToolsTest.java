@@ -78,7 +78,7 @@ class MailToolsTest extends ApAgentIntegrationTest {
   }
 
   @Test
-  void a_case_writes_to_the_vendor_at_most_three_times() throws Exception {
+  void a_case_writes_to_the_vendor_at_most_three_times() {
     for (int i = 1; i <= 3; i++) {
       assertThat(send(tools.emailVendor(), "Chasing " + i, "Any news?"))
           .isInstanceOf(ToolResult.Success.class);

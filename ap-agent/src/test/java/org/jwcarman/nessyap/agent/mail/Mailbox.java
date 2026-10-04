@@ -82,7 +82,7 @@ public final class Mailbox {
     Store store = Session.getInstance(new Properties()).getStore("imap");
     try {
       store.connect(greenMail.getHost(), greenMail.getMappedPort(3143), address, address);
-    } catch (MessagingException noMailboxYet) {
+    } catch (MessagingException _) {
       return List.of();
     }
     try (store) {

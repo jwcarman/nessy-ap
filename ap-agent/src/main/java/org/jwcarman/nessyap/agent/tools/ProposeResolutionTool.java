@@ -43,7 +43,7 @@ import tools.jackson.databind.JsonNode;
 @Component
 public class ProposeResolutionTool implements Tool<ProposeResolution> {
 
-  public static final ToolName NAME = new ToolName("propose_resolution");
+  public static final ToolName TOOL_NAME = new ToolName("propose_resolution");
 
   private final Decisions decisions;
   private final ErpClient erp;
@@ -67,7 +67,7 @@ public class ProposeResolutionTool implements Tool<ProposeResolution> {
 
   @Override
   public ToolName name() {
-    return NAME;
+    return TOOL_NAME;
   }
 
   @Override
@@ -88,18 +88,18 @@ public class ProposeResolutionTool implements Tool<ProposeResolution> {
     PendingDecision d = decision.get();
     String state =
         switch (erp.invoice(d.invoiceId())) {
-          case ErpOutcome.Ok<JsonNode>(JsonNode view) ->
+          case ErpOutcome.Ok(JsonNode view) ->
               " Invoice is now "
                   + view.path("invoice").path("status").asString()
                   + approved(view.path("invoice").path("approvedAmount"))
                   + ".";
-          case ErpOutcome.Refused<JsonNode> r -> " The invoice could not be re-read.";
-          case ErpOutcome.Unavailable<JsonNode> u -> " The ERP could not be reached to re-read it.";
+          case ErpOutcome.Refused _ -> " The invoice could not be re-read.";
+          case ErpOutcome.Unavailable _ -> " The ERP could not be reached to re-read it.";
         };
     CaseStatus status = CaseStatus.afterApplied(d.action());
     cases.setStatus(d.exceptionId(), status);
     metrics.settled("agent", status.name());
-    timeline.record(
+    timeline.append(
         d.exceptionId(), status.timelineKind(), d.action() + " approved by " + d.decidedBy());
     String next =
         status == CaseStatus.ON_HOLD

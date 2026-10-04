@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import org.jwcarman.nessy.api.Awaited;
 import org.jwcarman.nessy.api.block.Block;
 import org.jwcarman.nessy.api.tool.Tool;
@@ -77,6 +78,8 @@ public class ErpTools {
       @JsonPropertyDescription("What to record on the case, for the people who work it")
           String text) {}
 
+  private static final String ACCOUNT_NUMBER = "accountNumber";
+
   private final ErpClient erp;
   private final Cases cases;
   private final CaseTimeline timeline;
@@ -118,7 +121,7 @@ public class ErpTools {
             + " placed it, and each line's ordered quantity and agreed unit price.",
         PoRef.class,
         (c, in) -> withPo(c, in, erp::purchaseOrder),
-        Function.identity());
+        UnaryOperator.identity());
   }
 
   public Tool<PoRef> getReceipts() {
@@ -128,7 +131,7 @@ public class ErpTools {
             + " number: what arrived, per PO line, and when.",
         PoRef.class,
         (c, in) -> withPo(c, in, erp::receipts),
-        Function.identity());
+        UnaryOperator.identity());
   }
 
   public Tool<NoInput> getVendor() {
@@ -188,7 +191,7 @@ public class ErpTools {
       public Awaited<ToolResult> call(ToolCallRequest<Note> request) {
         cases
             .forAgent(request.agentId())
-            .ifPresent(c -> timeline.record(c.exceptionId(), "note", request.input().text()));
+            .ifPresent(c -> timeline.append(c.exceptionId(), "note", request.input().text()));
         return Awaited.ready(ToolResult.ok(new Block.Text("Noted on the case.")));
       }
     };
@@ -220,11 +223,10 @@ public class ErpTools {
   }
 
   /** Reads a PO by the number given, else by the case's own; a case may cite no PO at all. */
-  private static ErpOutcome<JsonNode> withPo(
-      CaseRecord c, PoRef in, Function<String, ErpOutcome<JsonNode>> read) {
+  private static ErpOutcome withPo(CaseRecord c, PoRef in, Function<String, ErpOutcome> read) {
     String number = in.poNumber() == null || in.poNumber().isBlank() ? c.poNumber() : in.poNumber();
     return number == null
-        ? new ErpOutcome.Refused<>(
+        ? new ErpOutcome.Refused(
             404, "NO_PO", "this case's invoice cites no purchase order; give a number to read one")
         : read.apply(number);
   }
@@ -236,10 +238,10 @@ public class ErpTools {
    */
   private static JsonNode maskAccounts(JsonNode vendor) {
     for (JsonNode account : vendor.path("bankAccounts")) {
-      if (account instanceof ObjectNode editable && account.hasNonNull("accountNumber")) {
-        String number = account.get("accountNumber").asString();
+      if (account instanceof ObjectNode editable && account.hasNonNull(ACCOUNT_NUMBER)) {
+        String number = account.get(ACCOUNT_NUMBER).asString();
         String last4 = number.length() <= 4 ? number : number.substring(number.length() - 4);
-        editable.put("accountNumber", "*".repeat(Math.max(0, number.length() - 4)) + last4);
+        editable.put(ACCOUNT_NUMBER, "*".repeat(Math.max(0, number.length() - 4)) + last4);
       }
       if (account instanceof ObjectNode editable && account.hasNonNull("proposedByEmail")) {
         editable.put("proposedByEmail", "(withheld: written by whoever asked for the change)");
@@ -263,16 +265,16 @@ public class ErpTools {
     private final ToolName name;
     private final String description;
     private final Class<I> inputType;
-    private final BiFunction<CaseRecord, I, ErpOutcome<JsonNode>> fetch;
-    private final Function<JsonNode, JsonNode> shown;
+    private final BiFunction<CaseRecord, I, ErpOutcome> fetch;
+    private final UnaryOperator<JsonNode> shown;
     private final String preface;
 
     Read(
         String name,
         String description,
         Class<I> inputType,
-        BiFunction<CaseRecord, I, ErpOutcome<JsonNode>> fetch,
-        Function<JsonNode, JsonNode> shown) {
+        BiFunction<CaseRecord, I, ErpOutcome> fetch,
+        UnaryOperator<JsonNode> shown) {
       this(name, description, inputType, fetch, shown, null);
     }
 
@@ -280,8 +282,8 @@ public class ErpTools {
         String name,
         String description,
         Class<I> inputType,
-        BiFunction<CaseRecord, I, ErpOutcome<JsonNode>> fetch,
-        Function<JsonNode, JsonNode> shown,
+        BiFunction<CaseRecord, I, ErpOutcome> fetch,
+        UnaryOperator<JsonNode> shown,
         String preface) {
       this.name = new ToolName(name);
       this.description = description;
@@ -312,22 +314,22 @@ public class ErpTools {
       if (theCase.isEmpty()) {
         return Awaited.ready(new ToolResult.Failure("This agent has no case to read."));
       }
-      ErpOutcome<JsonNode> outcome = fetch.apply(theCase.get(), request.input());
+      ErpOutcome outcome = fetch.apply(theCase.get(), request.input());
       ToolResult result =
           switch (outcome) {
-            case ErpOutcome.Ok<JsonNode>(JsonNode value) ->
+            case ErpOutcome.Ok(JsonNode value) ->
                 ToolResult.ok(
                     new Block.Text(
                         (preface == null ? "" : preface + "\n\n")
                             + json.writerWithDefaultPrettyPrinter()
                                 .writeValueAsString(shown.apply(value))));
-            case ErpOutcome.Refused<JsonNode>(int status, String code, String detail) ->
+            case ErpOutcome.Refused(_, String code, String detail) ->
                 new ToolResult.Failure(code + ": " + detail);
-            case ErpOutcome.Unavailable<JsonNode>(String reason) ->
+            case ErpOutcome.Unavailable(String reason) ->
                 new ToolResult.Failure(
                     "The ERP is unavailable (" + reason + "). Try again shortly.");
           };
-      timeline.record(
+      timeline.append(
           theCase.get().exceptionId(),
           "tool",
           name.value() + " " + json.writeValueAsString(request.input()) + " -> " + summary(result));

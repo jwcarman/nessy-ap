@@ -43,6 +43,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class Cases {
 
+  private static final String AGENT_ID = "agent_id";
+
   /** Fixed forever: changing it would give every existing case a new agent. */
   private static final UUID NAMESPACE = UUID.fromString("6f1b2c64-4c0e-5d7a-9a52-2a9e3c7d0b11");
 
@@ -124,7 +126,7 @@ public class Cases {
             (rs, row) ->
                 Map.entry(
                     new AgentType(rs.getString("agent_type")),
-                    new AgentId(rs.getObject("agent_id", UUID.class))))
+                    new AgentId(rs.getObject(AGENT_ID, UUID.class))))
         .list();
   }
 
@@ -167,21 +169,21 @@ public class Cases {
             where po_number = :poNumber and status <> 'RESOLVED' and handled_by = 'agent'
             """)
         .param(PO_NUMBER, poNumber)
-        .query((rs, row) -> new AgentId(rs.getObject("agent_id", UUID.class)))
+        .query((rs, row) -> new AgentId(rs.getObject(AGENT_ID, UUID.class)))
         .list();
   }
 
   public Optional<CaseRecord> find(UUID exceptionId) {
     return jdbc.sql("select * from ap_case where exception_id = :id")
         .param("id", exceptionId)
-        .query(Cases::record)
+        .query(Cases::toCase)
         .optional();
   }
 
   public Optional<CaseRecord> forAgent(AgentId agentId) {
     return jdbc.sql("select * from ap_case where agent_id = :id")
         .param("id", agentId.value())
-        .query(Cases::record)
+        .query(Cases::toCase)
         .optional();
   }
 
@@ -189,7 +191,7 @@ public class Cases {
   public List<CaseRecord> recent(int limit) {
     return jdbc.sql("select * from ap_case order by opened_at desc limit :limit")
         .param("limit", limit)
-        .query(Cases::record)
+        .query(Cases::toCase)
         .list();
   }
 
@@ -317,10 +319,10 @@ public class Cases {
         .update();
   }
 
-  private static CaseRecord record(ResultSet rs, int row) throws SQLException {
+  private static CaseRecord toCase(ResultSet rs, int row) throws SQLException {
     return new CaseRecord(
         rs.getObject("exception_id", UUID.class),
-        new AgentId(rs.getObject("agent_id", UUID.class)),
+        new AgentId(rs.getObject(AGENT_ID, UUID.class)),
         rs.getObject("invoice_id", UUID.class),
         rs.getString("invoice_number"),
         rs.getObject("vendor_id", UUID.class),

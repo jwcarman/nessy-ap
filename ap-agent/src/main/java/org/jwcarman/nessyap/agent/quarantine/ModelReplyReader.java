@@ -117,7 +117,7 @@ public class ModelReplyReader implements ReplyReader {
   @Override
   public ReplyReading read(Reply reply) {
     if (!(outsideTransaction.execute(status -> reader.ask(agentFor(reply), reply))
-            instanceof Outcome.Answered<ModelReading>(ModelReading answer, var stats))
+            instanceof Outcome.Answered<ModelReading>(ModelReading answer, _))
         || answer == null) {
       return ReplyReader.unread(reply);
     }

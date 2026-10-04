@@ -63,12 +63,18 @@ public class Questions {
    */
   @Transactional
   public Question ask(UUID exceptionId, String askedOf, String text, List<String> choices) {
-    return ask(exceptionId, askedOf, text, choices, null);
+    return insertQuestion(exceptionId, askedOf, text, choices, null);
   }
 
   /** As {@link #ask(UUID, String, String, List)}, recording the agent turn that asked. */
   @Transactional
   public Question ask(
+      UUID exceptionId, String askedOf, String text, List<String> choices, Long askedInTurn) {
+    return insertQuestion(exceptionId, askedOf, text, choices, askedInTurn);
+  }
+
+  /** Both public overloads run this inside their own transaction, so neither calls the other. */
+  private Question insertQuestion(
       UUID exceptionId, String askedOf, String text, List<String> choices, Long askedInTurn) {
     if (choices != null && choices.stream().anyMatch(c -> c == null || c.isBlank())) {
       throw new IllegalArgumentException("A choice needs words.");
@@ -124,7 +130,7 @@ public class Questions {
           "A question already waits on this case. Wait for its answer before asking another.",
           askedAtOnce);
     }
-    timeline.record(exceptionId, "question-asked", "to " + askedOf + ": " + text);
+    timeline.append(exceptionId, "question-asked", "to " + askedOf + ": " + text);
     return question;
   }
 

@@ -74,7 +74,7 @@ public class Grounding {
     for (Turn turn : histories.forAgent(AgentConfiguration.AGENT_TYPE, agent).turnsFrom(0)) {
       for (Exchange exchange : turn.exchanges()) {
         for (ToolOutcome outcome : exchange.outcomes()) {
-          if (outcome instanceof ToolOutcome.Succeeded(var _, var blocks)) {
+          if (outcome instanceof ToolOutcome.Succeeded(_, var blocks)) {
             seen.addAll(Arrays.asList(SEPARATOR.split(json.writeValueAsString(blocks))));
           }
         }

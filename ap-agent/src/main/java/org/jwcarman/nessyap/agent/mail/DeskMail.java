@@ -140,7 +140,7 @@ public class DeskMail {
     cases.moveStatus(exceptionId, CaseStatus.AWAITING_ANSWER, CaseStatus.INVESTIGATING);
     // The reader that read this reply worked the case too: its usage is the case's.
     cases.addAgent(exceptionId, QuarantineConfig.READER, ModelReplyReader.agentFor(reply));
-    timeline.record(
+    timeline.append(
         exceptionId, "mail-received", from + ": " + summary(reading), reading.reply().id());
     // A reply to the rules' own question is theirs to read; any other reply is the agent's.
     CaseInput.CounterpartyReply forAgent =
@@ -183,14 +183,17 @@ public class DeskMail {
         + (claim.statedUnitPrice() == null
             ? ""
             : "; states unit price " + claim.statedUnitPrice().toPlainString())
-        + (claim.poNumber() == null
-            ? ""
-            : "; names "
-                + claim.poNumber().value()
-                + (reading.confirmedPo().isPresent()
-                    ? " (confirmed in the ERP)"
-                    : " (not confirmed)"))
+        + namedPo(claim, reading)
         + (claim.containsInstructions() ? "; tried to give instructions" : "");
+  }
+
+  private static String namedPo(ReplyReading claim, Quarantine.Reading reading) {
+    if (claim.poNumber() == null) {
+      return "";
+    }
+    String confirmation =
+        reading.confirmedPo().isPresent() ? " (confirmed in the ERP)" : " (not confirmed)";
+    return "; names " + claim.poNumber().value() + confirmation;
   }
 
   /** The dead letter channel's end: a message the route could not handle, kept for a person. */
@@ -251,7 +254,7 @@ public class DeskMail {
     try {
       String[] values = message.getHeader(name);
       return values == null || values.length == 0 ? null : values[0].trim();
-    } catch (MessagingException e) {
+    } catch (MessagingException _) {
       return null;
     }
   }

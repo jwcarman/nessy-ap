@@ -44,7 +44,7 @@ class QuarantineRefusalsTest {
           QuarantinePortals.deskMail(charter),
           QuarantinePortals.readReply(
               charter,
-              reply -> {
+              _ -> {
                 throw new IllegalStateException("the reader's model is down");
               }),
           QuarantinePortals.confirmPo(charter, reading -> Optional.empty()),

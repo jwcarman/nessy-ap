@@ -47,6 +47,11 @@ public class DecisionExecutor {
   /** What a decision is marked when the ERP wants its decider's own token to carry it through. */
   public static final String NEEDS_THE_DECIDER = "needs the decider";
 
+  private static final String ERP_REFUSED = "ERP refused: ";
+
+  /** The kind of line a decision writes on the case's timeline. */
+  private static final String DECISION = "decision";
+
   private static final Logger log = LoggerFactory.getLogger(DecisionExecutor.class);
 
   private final Decisions decisions;
@@ -82,7 +87,8 @@ public class DecisionExecutor {
    */
   public DecisionResult decide(
       UUID decisionId, String decidedBy, boolean approve, String comment, String accessToken) {
-    DecisionResult result = tx.execute(status -> record(decisionId, decidedBy, approve, comment));
+    DecisionResult result =
+        tx.execute(status -> recordDecision(decisionId, decidedBy, approve, comment));
     if (result instanceof DecisionResult.NoSuchDecision) {
       return result;
     }
@@ -119,7 +125,7 @@ public class DecisionExecutor {
     return Boolean.TRUE.equals(done);
   }
 
-  private DecisionResult record(
+  private DecisionResult recordDecision(
       UUID decisionId, String decidedBy, boolean approve, String comment) {
     var found = decisions.lock(decisionId);
     if (found.isEmpty()) {
@@ -139,11 +145,11 @@ public class DecisionExecutor {
       return result;
     }
     switch (targets.erp().invoice(d.invoiceId())) {
-      case ErpOutcome.Ok<JsonNode>(JsonNode view) ->
+      case ErpOutcome.Ok(JsonNode view) ->
           decisions.rememberExpectedVersion(d.id(), view.path("invoice").path("version").asLong());
-      case ErpOutcome.Refused<JsonNode>(int s, String code, String detail) ->
-          decisions.rememberRefusal(d.id(), "ERP refused: " + code + ": " + detail);
-      case ErpOutcome.Unavailable<JsonNode>(String reason) ->
+      case ErpOutcome.Refused(_, String code, String detail) ->
+          decisions.rememberRefusal(d.id(), ERP_REFUSED + code + ": " + detail);
+      case ErpOutcome.Unavailable(String reason) ->
           log.info("ERP unavailable reading invoice for decision {}: {}", d.id(), reason);
     }
     return result;
@@ -169,7 +175,7 @@ public class DecisionExecutor {
       // Otherwise the ERP could not be read yet; the sweeper comes back for it.
       return;
     }
-    ErpOutcome<JsonNode> outcome =
+    ErpOutcome outcome =
         targets
             .erp()
             .resolve(
@@ -181,20 +187,18 @@ public class DecisionExecutor {
                 "Decided by " + d.decidedBy() + ": " + d.rationale(),
                 accessToken);
     switch (outcome) {
-      case ErpOutcome.Ok<JsonNode> ok ->
+      case ErpOutcome.Ok _ ->
           answer(d, ApprovalResult.approvedBy(d.id().toString()), "applied", true);
-      case ErpOutcome.Refused<JsonNode>(int s, String code, String detail)
-          when accessToken == null && (s == 401 || s == 403) -> {
+      case ErpOutcome.Refused(int s, _, _) when accessToken == null && (s == 401 || s == 403) -> {
         // The ERP wants a person and none is lending their authority (the sweeper, or someone
         // arriving after the decision). That is not the decider saying no: keep it for them.
         decisions.rememberRefusal(d.id(), NEEDS_THE_DECIDER);
         targets
             .timeline()
-            .record(d.exceptionId(), "decision", "the ERP needs " + d.decidedBy() + " to retry");
+            .append(d.exceptionId(), DECISION, "the ERP needs " + d.decidedBy() + " to retry");
       }
-      case ErpOutcome.Refused<JsonNode>(int s, String code, String detail) ->
-          refused(d, code, detail);
-      case ErpOutcome.Unavailable<JsonNode>(String reason) ->
+      case ErpOutcome.Refused(_, String code, String detail) -> refused(d, code, detail);
+      case ErpOutcome.Unavailable(String reason) ->
           log.info(
               "ERP unavailable carrying out decision {}; the sweeper will retry: {}",
               d.id(),
@@ -205,8 +209,8 @@ public class DecisionExecutor {
   private void refused(PendingDecision d, String code, String detail) {
     answer(
         d,
-        ApprovalResult.deniedBy("ERP refused: " + code + ": " + detail, d.id().toString()),
-        "ERP refused: " + code,
+        ApprovalResult.deniedBy(ERP_REFUSED + code + ": " + detail, d.id().toString()),
+        ERP_REFUSED + code,
         false);
   }
 
@@ -214,29 +218,30 @@ public class DecisionExecutor {
     if (ResolverDesk.TOKEN.equals(d.replyToken())) {
       // No agent waits on what the rules proposed: the rules hear of it once this commits.
       decisions.markAnswered(d.id(), erpResult);
-      targets.timeline().record(d.exceptionId(), "decision", decided(d) + " -> " + erpResult);
+      targets.timeline().append(d.exceptionId(), DECISION, decided(d) + " -> " + erpResult);
       targets.events().publishEvent(new ResolverDesk.RulesDecided(d, applied));
       return;
     }
     ReplyOutcome reply = targets.replies().approve(d.replyToken(), result);
     decisions.markAnswered(d.id(), erpResult);
-    targets.timeline().record(d.exceptionId(), "decision", decided(d) + " -> " + erpResult);
+    targets.timeline().append(d.exceptionId(), DECISION, decided(d) + " -> " + erpResult);
     switch (reply) {
-      case ReplyOutcome.Settled _ -> {
-        if (!applied) {
+      case ReplyOutcome.Settled _ when !applied ->
           targets.cases().setStatus(d.exceptionId(), CaseStatus.INVESTIGATING);
-        }
+      case ReplyOutcome.Settled _ -> {
+        // Applied, and the waiting call heard of it: nothing more to do.
+      }
+      case ReplyOutcome.NotAwaiting _ when applied -> {
+        targets.cases().setStatus(d.exceptionId(), CaseStatus.afterApplied(d.action()));
+        targets
+            .agent()
+            .tell(
+                d.agentId(),
+                new CaseInput.DecisionApplied(
+                    d.id(), d.action(), "applied after the approval had expired"));
       }
       case ReplyOutcome.NotAwaiting _ -> {
-        if (applied) {
-          targets.cases().setStatus(d.exceptionId(), CaseStatus.afterApplied(d.action()));
-          targets
-              .agent()
-              .tell(
-                  d.agentId(),
-                  new CaseInput.DecisionApplied(
-                      d.id(), d.action(), "applied after the approval had expired"));
-        }
+        // Declined or refused, and nobody waits to hear: nothing more to do.
       }
       case ReplyOutcome.Unreadable _ ->
           log.error("The reply token for decision {} could not be read", d.id());
@@ -249,52 +254,11 @@ public class DecisionExecutor {
 
   /** What a decision reaches once it is carried out. */
   @Component
-  static final class DecisionTargets {
-
-    private final ErpClient erp;
-    private final Replies replies;
-    private final QueuedHarness<CaseInput> agent;
-    private final Cases cases;
-    private final CaseTimeline timeline;
-    private final ApplicationEventPublisher events;
-
-    DecisionTargets(
-        ErpClient erp,
-        Replies replies,
-        QueuedHarness<CaseInput> agent,
-        Cases cases,
-        CaseTimeline timeline,
-        ApplicationEventPublisher events) {
-      this.events = events;
-      this.erp = erp;
-      this.replies = replies;
-      this.agent = agent;
-      this.cases = cases;
-      this.timeline = timeline;
-    }
-
-    ErpClient erp() {
-      return erp;
-    }
-
-    Replies replies() {
-      return replies;
-    }
-
-    QueuedHarness<CaseInput> agent() {
-      return agent;
-    }
-
-    Cases cases() {
-      return cases;
-    }
-
-    CaseTimeline timeline() {
-      return timeline;
-    }
-
-    ApplicationEventPublisher events() {
-      return events;
-    }
-  }
+  record DecisionTargets(
+      ErpClient erp,
+      Replies replies,
+      QueuedHarness<CaseInput> agent,
+      Cases cases,
+      CaseTimeline timeline,
+      ApplicationEventPublisher events) {}
 }

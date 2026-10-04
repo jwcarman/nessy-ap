@@ -149,7 +149,7 @@ class QuestionsTest extends ApAgentIntegrationTest {
                             try {
                               questions.ask(exceptionId, "bob", text, List.of());
                               return true;
-                            } catch (IllegalStateException refused) {
+                            } catch (IllegalStateException _) {
                               return false;
                             }
                           }))

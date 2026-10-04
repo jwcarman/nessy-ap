@@ -80,7 +80,7 @@ class ReaderWiredTest extends ApAgentIntegrationTest {
 
     quarantine.receive(reply);
 
-    UUID reader = ModelReplyReader.agentFor(reply).value();
+    UUID readerAgent = ModelReplyReader.agentFor(reply).value();
     List<byte[]> stored =
         jdbc.sql(
                 """
@@ -88,11 +88,11 @@ class ReaderWiredTest extends ApAgentIntegrationTest {
                 union all
                 select payload from nessy_agent_event where agent_id = :agent
                 """)
-            .param("agent", reader)
+            .param("agent", readerAgent)
             .query(byte[].class)
             .list();
-    assertThat(stored).isNotEmpty();
     assertThat(stored)
+        .isNotEmpty()
         .noneSatisfy(
             bytes -> assertThat(new String(bytes, StandardCharsets.UTF_8)).contains("It is PO-7"))
         .allSatisfy(

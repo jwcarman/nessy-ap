@@ -97,7 +97,7 @@ public class ServiceToken {
     } catch (IOException | JacksonException e) {
       log.warn("Could not get an ERP service token: {}", e.getMessage());
       return Optional.empty();
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
       return Optional.empty();
     }

@@ -73,7 +73,7 @@ public class MailRouter {
         if (cases.find(exceptionId).isPresent()) {
           return Optional.of(exceptionId);
         }
-      } catch (IllegalArgumentException notAnId) {
+      } catch (IllegalArgumentException _) {
         // A token-shaped string that is not a UUID routes nowhere; try the next one.
       }
     }

@@ -241,7 +241,7 @@ public class ResolverDesk {
       CaseStatus status = CaseStatus.afterApplied(d.action());
       cases.setStatus(d.exceptionId(), status);
       metrics.settled(cases.rulesHandle(d.exceptionId()) ? BY_RULES : "agent", status.name());
-      timeline.record(
+      timeline.append(
           d.exceptionId(), status.timelineKind(), d.action() + " applied, proposed by the rules");
     }
     if (!cases.rulesHandle(d.exceptionId())) {
@@ -366,12 +366,12 @@ public class ResolverDesk {
             clock.instant().plus(approvalTimeout),
             TOKEN);
     facts.enrich(request);
-    timeline.record(
+    timeline.append(
         c.exceptionId(), BY_RULES, "rule " + resolved.rule() + " proposes " + resolved.action());
     Awaited<ApprovalResult> routed = routing.approve(request);
     if (routed instanceof Awaited.Ready<ApprovalResult>(ApprovalResult.Denied denied)) {
       // The guardrails refused what the rules proposed: the rules' view is not enough here.
-      timeline.record(c.exceptionId(), BY_RULES, "the policy refused it: " + denied.reason());
+      timeline.append(c.exceptionId(), BY_RULES, "the policy refused it: " + denied.reason());
       escalate(c, "refused");
     } else if (routed instanceof Awaited.Ready<ApprovalResult>) {
       // Every proposal waits for a person; one that does not would leave nobody acting.
@@ -401,9 +401,9 @@ public class ResolverDesk {
     }
     cases.rememberSlot(c.exceptionId(), ASKED + slot, VENDOR, BY_RULES);
     cases.setStatus(c.exceptionId(), CaseStatus.AWAITING_ANSWER);
-    timeline.record(c.exceptionId(), BY_RULES, "the rules need " + slot + ": asked the vendor");
+    timeline.append(c.exceptionId(), BY_RULES, "the rules need " + slot + ": asked the vendor");
     // The same record line as every letter the agent sends.
-    timeline.record(
+    timeline.append(
         c.exceptionId(), "mail-sent", "vendor " + read.vendorEmail() + ": " + sent.subject());
   }
 
@@ -415,7 +415,7 @@ public class ResolverDesk {
     cases.handToAgent(c.exceptionId());
     metrics.escalated(why);
     withdrawProposals(c);
-    timeline.record(
+    timeline.append(
         c.exceptionId(), BY_RULES, "the rules stopped (" + why + "): the agent takes it");
     log.info("Case {} goes to its agent: the rules stopped ({})", c.exceptionId(), why);
     Map<String, Object> known = new TreeMap<>(slots.read(c).slots());
@@ -434,7 +434,7 @@ public class ResolverDesk {
     for (PendingDecision d : decisions.forCase(c.exceptionId())) {
       if (d.status() == DecisionStatus.PENDING && TOKEN.equals(d.replyToken())) {
         decisions.markAnswered(d.id(), WITHDRAWN);
-        timeline.record(c.exceptionId(), "decision", d.action() + " " + WITHDRAWN);
+        timeline.append(c.exceptionId(), "decision", d.action() + " " + WITHDRAWN);
       }
     }
   }
