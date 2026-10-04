@@ -82,7 +82,8 @@ public class DecisionExecutor {
    */
   public DecisionResult decide(
       UUID decisionId, String decidedBy, boolean approve, String comment, String accessToken) {
-    DecisionResult result = tx.execute(status -> record(decisionId, decidedBy, approve, comment));
+    DecisionResult result =
+        tx.execute(status -> recordDecision(decisionId, decidedBy, approve, comment));
     if (result instanceof DecisionResult.NoSuchDecision) {
       return result;
     }
@@ -119,7 +120,7 @@ public class DecisionExecutor {
     return Boolean.TRUE.equals(done);
   }
 
-  private DecisionResult record(
+  private DecisionResult recordDecision(
       UUID decisionId, String decidedBy, boolean approve, String comment) {
     var found = decisions.lock(decisionId);
     if (found.isEmpty()) {
@@ -190,7 +191,7 @@ public class DecisionExecutor {
         decisions.rememberRefusal(d.id(), NEEDS_THE_DECIDER);
         targets
             .timeline()
-            .record(d.exceptionId(), "decision", "the ERP needs " + d.decidedBy() + " to retry");
+            .append(d.exceptionId(), "decision", "the ERP needs " + d.decidedBy() + " to retry");
       }
       case ErpOutcome.Refused(int s, String code, String detail) -> refused(d, code, detail);
       case ErpOutcome.Unavailable(String reason) ->
@@ -213,13 +214,13 @@ public class DecisionExecutor {
     if (ResolverDesk.TOKEN.equals(d.replyToken())) {
       // No agent waits on what the rules proposed: the rules hear of it once this commits.
       decisions.markAnswered(d.id(), erpResult);
-      targets.timeline().record(d.exceptionId(), "decision", decided(d) + " -> " + erpResult);
+      targets.timeline().append(d.exceptionId(), "decision", decided(d) + " -> " + erpResult);
       targets.events().publishEvent(new ResolverDesk.RulesDecided(d, applied));
       return;
     }
     ReplyOutcome reply = targets.replies().approve(d.replyToken(), result);
     decisions.markAnswered(d.id(), erpResult);
-    targets.timeline().record(d.exceptionId(), "decision", decided(d) + " -> " + erpResult);
+    targets.timeline().append(d.exceptionId(), "decision", decided(d) + " -> " + erpResult);
     switch (reply) {
       case ReplyOutcome.Settled _ -> {
         if (!applied) {

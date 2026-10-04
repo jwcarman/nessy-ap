@@ -45,12 +45,12 @@ public class CaseTimeline {
     this.clock = clock;
   }
 
-  public void record(UUID exceptionId, String kind, String text) {
-    record(exceptionId, kind, text, null);
+  public void append(UUID exceptionId, String kind, String text) {
+    append(exceptionId, kind, text, null);
   }
 
   /** A line about quarantined mail: what the desk knows of it, and the handle to read it. */
-  public void record(UUID exceptionId, String kind, String text, String mailHandle) {
+  public void append(UUID exceptionId, String kind, String text, String mailHandle) {
     jdbc.sql(
             """
             insert into case_event (exception_id, at, kind, text, mail_handle)

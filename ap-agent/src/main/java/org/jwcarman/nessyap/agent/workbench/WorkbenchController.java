@@ -125,7 +125,7 @@ public class WorkbenchController {
             : decisions.pendingFor(roles, me.getName());
     model.addAttribute("me", me.getName());
     model.addAttribute("roles", roles);
-    model.addAttribute("agentsPaused", agent.paused());
+    model.addAttribute("agentsPaused", agent.arePaused());
     model.addAttribute(
         "waiting",
         mine.stream()
@@ -341,7 +341,7 @@ public class WorkbenchController {
             .find(exceptionId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No such case"));
     if (!text.isBlank()) {
-      timeline.record(exceptionId, "note", me.getName() + ": " + text);
+      timeline.append(exceptionId, "note", me.getName() + ": " + text);
       // A note is for the agent: a case the rules work becomes the agent's first.
       CaseInput.PersonNote note = new CaseInput.PersonNote(me.getName(), text);
       if (!resolverDesk.handOver(exceptionId, "person", note)) {

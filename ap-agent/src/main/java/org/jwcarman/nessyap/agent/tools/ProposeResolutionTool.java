@@ -43,7 +43,7 @@ import tools.jackson.databind.JsonNode;
 @Component
 public class ProposeResolutionTool implements Tool<ProposeResolution> {
 
-  public static final ToolName NAME = new ToolName("propose_resolution");
+  public static final ToolName TOOL_NAME = new ToolName("propose_resolution");
 
   private final Decisions decisions;
   private final ErpClient erp;
@@ -67,7 +67,7 @@ public class ProposeResolutionTool implements Tool<ProposeResolution> {
 
   @Override
   public ToolName name() {
-    return NAME;
+    return TOOL_NAME;
   }
 
   @Override
@@ -99,7 +99,7 @@ public class ProposeResolutionTool implements Tool<ProposeResolution> {
     CaseStatus status = CaseStatus.afterApplied(d.action());
     cases.setStatus(d.exceptionId(), status);
     metrics.settled("agent", status.name());
-    timeline.record(
+    timeline.append(
         d.exceptionId(), status.timelineKind(), d.action() + " approved by " + d.decidedBy());
     String next =
         status == CaseStatus.ON_HOLD

@@ -110,7 +110,7 @@ public class Answers {
         .param("at", Timestamp.from(now))
         .param("id", questionId)
         .update();
-    timeline.record(
+    timeline.append(
         question.exceptionId(),
         "answer",
         person

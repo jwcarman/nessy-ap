@@ -75,7 +75,7 @@ public class NeedsPerson implements NarrationListener {
         .ifPresent(
             c -> {
               cases.moveStatus(c.exceptionId(), CaseStatus.INVESTIGATING, CaseStatus.NEEDS_PERSON);
-              timeline.record(c.exceptionId(), "needs-person", why + "; a person must look");
+              timeline.append(c.exceptionId(), "needs-person", why + "; a person must look");
             });
   }
 }

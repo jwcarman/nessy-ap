@@ -140,7 +140,7 @@ public class DeskMail {
     cases.moveStatus(exceptionId, CaseStatus.AWAITING_ANSWER, CaseStatus.INVESTIGATING);
     // The reader that read this reply worked the case too: its usage is the case's.
     cases.addAgent(exceptionId, QuarantineConfig.READER, ModelReplyReader.agentFor(reply));
-    timeline.record(
+    timeline.append(
         exceptionId, "mail-received", from + ": " + summary(reading), reading.reply().id());
     // A reply to the rules' own question is theirs to read; any other reply is the agent's.
     CaseInput.CounterpartyReply forAgent =

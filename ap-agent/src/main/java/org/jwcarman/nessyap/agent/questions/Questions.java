@@ -124,7 +124,7 @@ public class Questions {
           "A question already waits on this case. Wait for its answer before asking another.",
           askedAtOnce);
     }
-    timeline.record(exceptionId, "question-asked", "to " + askedOf + ": " + text);
+    timeline.append(exceptionId, "question-asked", "to " + askedOf + ": " + text);
     return question;
   }
 

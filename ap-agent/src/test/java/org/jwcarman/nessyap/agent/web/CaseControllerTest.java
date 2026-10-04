@@ -71,7 +71,7 @@ class CaseControllerTest extends ApAgentIntegrationTest {
             ReasonCode.DUPLICATE,
             "s",
             BigDecimal.TEN));
-    timeline.record(exceptionId, "tool", "get_invoice {} -> ok");
+    timeline.append(exceptionId, "tool", "get_invoice {} -> ok");
 
     MockMvcBuilders.webAppContextSetup(web)
         .apply(SecurityMockMvcConfigurers.springSecurity())

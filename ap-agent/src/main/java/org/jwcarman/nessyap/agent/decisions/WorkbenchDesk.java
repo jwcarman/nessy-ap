@@ -118,7 +118,7 @@ public class WorkbenchDesk implements Approver {
     decisions.rememberProvenance(decisionId, json.writeValueAsString(stamp));
     metrics.proposed(stamp.proposer(), proposal.action());
     cases.setStatus(c.exceptionId(), CaseStatus.AWAITING_DECISION);
-    timeline.record(c.exceptionId(), "proposal", request.action() + " (for " + role + ")");
+    timeline.append(c.exceptionId(), "proposal", request.action() + " (for " + role + ")");
     return Awaited.deferred();
   }
 }

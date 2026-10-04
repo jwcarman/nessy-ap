@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import org.jwcarman.nessy.api.Awaited;
 import org.jwcarman.nessy.api.block.Block;
 import org.jwcarman.nessy.api.tool.Tool;
@@ -118,7 +119,7 @@ public class ErpTools {
             + " placed it, and each line's ordered quantity and agreed unit price.",
         PoRef.class,
         (c, in) -> withPo(c, in, erp::purchaseOrder),
-        Function.identity());
+        UnaryOperator.identity());
   }
 
   public Tool<PoRef> getReceipts() {
@@ -128,7 +129,7 @@ public class ErpTools {
             + " number: what arrived, per PO line, and when.",
         PoRef.class,
         (c, in) -> withPo(c, in, erp::receipts),
-        Function.identity());
+        UnaryOperator.identity());
   }
 
   public Tool<NoInput> getVendor() {
@@ -188,7 +189,7 @@ public class ErpTools {
       public Awaited<ToolResult> call(ToolCallRequest<Note> request) {
         cases
             .forAgent(request.agentId())
-            .ifPresent(c -> timeline.record(c.exceptionId(), "note", request.input().text()));
+            .ifPresent(c -> timeline.append(c.exceptionId(), "note", request.input().text()));
         return Awaited.ready(ToolResult.ok(new Block.Text("Noted on the case.")));
       }
     };
@@ -263,7 +264,7 @@ public class ErpTools {
     private final String description;
     private final Class<I> inputType;
     private final BiFunction<CaseRecord, I, ErpOutcome> fetch;
-    private final Function<JsonNode, JsonNode> shown;
+    private final UnaryOperator<JsonNode> shown;
     private final String preface;
 
     Read(
@@ -271,7 +272,7 @@ public class ErpTools {
         String description,
         Class<I> inputType,
         BiFunction<CaseRecord, I, ErpOutcome> fetch,
-        Function<JsonNode, JsonNode> shown) {
+        UnaryOperator<JsonNode> shown) {
       this(name, description, inputType, fetch, shown, null);
     }
 
@@ -280,7 +281,7 @@ public class ErpTools {
         String description,
         Class<I> inputType,
         BiFunction<CaseRecord, I, ErpOutcome> fetch,
-        Function<JsonNode, JsonNode> shown,
+        UnaryOperator<JsonNode> shown,
         String preface) {
       this.name = new ToolName(name);
       this.description = description;
@@ -326,7 +327,7 @@ public class ErpTools {
                 new ToolResult.Failure(
                     "The ERP is unavailable (" + reason + "). Try again shortly.");
           };
-      timeline.record(
+      timeline.append(
           theCase.get().exceptionId(),
           "tool",
           name.value() + " " + json.writeValueAsString(request.input()) + " -> " + summary(result));

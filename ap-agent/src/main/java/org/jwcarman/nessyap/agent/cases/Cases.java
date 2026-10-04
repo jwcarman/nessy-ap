@@ -174,14 +174,14 @@ public class Cases {
   public Optional<CaseRecord> find(UUID exceptionId) {
     return jdbc.sql("select * from ap_case where exception_id = :id")
         .param("id", exceptionId)
-        .query(Cases::record)
+        .query(Cases::toCase)
         .optional();
   }
 
   public Optional<CaseRecord> forAgent(AgentId agentId) {
     return jdbc.sql("select * from ap_case where agent_id = :id")
         .param("id", agentId.value())
-        .query(Cases::record)
+        .query(Cases::toCase)
         .optional();
   }
 
@@ -189,7 +189,7 @@ public class Cases {
   public List<CaseRecord> recent(int limit) {
     return jdbc.sql("select * from ap_case order by opened_at desc limit :limit")
         .param("limit", limit)
-        .query(Cases::record)
+        .query(Cases::toCase)
         .list();
   }
 
@@ -317,7 +317,7 @@ public class Cases {
         .update();
   }
 
-  private static CaseRecord record(ResultSet rs, int row) throws SQLException {
+  private static CaseRecord toCase(ResultSet rs, int row) throws SQLException {
     return new CaseRecord(
         rs.getObject("exception_id", UUID.class),
         new AgentId(rs.getObject("agent_id", UUID.class)),

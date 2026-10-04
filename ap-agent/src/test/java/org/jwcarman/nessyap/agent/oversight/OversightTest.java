@@ -64,7 +64,7 @@ class OversightTest extends ApAgentIntegrationTest {
 
   @AfterEach
   void resumed() {
-    if (agents.paused()) {
+    if (agents.arePaused()) {
       agents.resume("test");
     }
   }

@@ -50,7 +50,7 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
 
   private final QueuedHarness<CaseInput> agents;
   private final Switches switches;
-  private final AgentBudget budget;
+  private final AgentBudget agentBudget;
   private final Cases cases;
   private final CaseTimeline timeline;
   private final JdbcClient jdbc;
@@ -73,7 +73,7 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
     this.metrics = metrics;
     this.agents = agents;
     this.switches = switches;
-    this.budget = budget;
+    this.agentBudget = budget;
     this.cases = cases;
     this.timeline = timeline;
     this.jdbc = jdbc;
@@ -88,8 +88,8 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
       hold(agentId, input, PAUSED, "the agents are paused");
       return;
     }
-    AgentBudget.Spent spent = budget.spent(agentId);
-    if (budget.spentUp(spent)) {
+    AgentBudget.Spent spent = agentBudget.spent(agentId);
+    if (agentBudget.spentUp(spent)) {
       hold(
           agentId,
           input,
@@ -109,7 +109,7 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
     agents.terminate(agentId);
   }
 
-  public boolean paused() {
+  public boolean arePaused() {
     return switches.on(Switches.AGENTS_PAUSED);
   }
 
@@ -177,7 +177,7 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
     if (c == null) {
       return;
     }
-    timeline.record(
+    timeline.append(
         c.exceptionId(),
         "held",
         "an input for the agent was held: " + why + "; a person must look");
