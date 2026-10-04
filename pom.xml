@@ -50,7 +50,7 @@
 
   <properties>
     <java.version>25</java.version>
-    <nessy.version>0.4.0-SNAPSHOT</nessy.version>
+    <nessy.version>0.4.0</nessy.version>
     <jug.version>5.2.0</jug.version>
     <testcontainers.version>2.0.5</testcontainers.version>
     <camel.version>4.22.1</camel.version>
