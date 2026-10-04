@@ -83,12 +83,12 @@ public class Questions {
       throw new IllegalArgumentException(
           "Offer at most " + MAX_CHOICES + " choices, each at most " + MAX_CHOICE + " characters.");
     }
-    long waiting = count(exceptionId, "and answered_at is null");
+    long waiting = countWaiting(exceptionId);
     if (waiting > 0) {
       throw new IllegalStateException(
           "A question already waits on this case. Wait for its answer before asking another.");
     }
-    if (count(exceptionId, "") >= MAX_PER_CASE) {
+    if (countAsked(exceptionId) >= MAX_PER_CASE) {
       throw new IllegalStateException(
           "This case has had " + MAX_PER_CASE + " questions, the most allowed. Hold and note it.");
     }
@@ -145,8 +145,16 @@ public class Questions {
         .list();
   }
 
-  private long count(UUID exceptionId, String andWhere) {
-    return jdbc.sql("select count(*) from question where exception_id = :case " + andWhere)
+  private long countAsked(UUID exceptionId) {
+    return jdbc.sql("select count(*) from question where exception_id = :case")
+        .param("case", exceptionId)
+        .query(Long.class)
+        .single();
+  }
+
+  private long countWaiting(UUID exceptionId) {
+    return jdbc.sql(
+            "select count(*) from question where exception_id = :case and answered_at is null")
         .param("case", exceptionId)
         .query(Long.class)
         .single();

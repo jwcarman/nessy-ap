@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.jwcarman.nessyap.contracts.ErpEvents;
 import org.slf4j.Logger;
@@ -77,44 +78,46 @@ public class OutboxPublisher {
   }
 
   private int publishBatch() {
+    // The callback always returns a count, so the transaction's result is never null.
     Integer published =
-        tx.execute(
-            status -> {
-              List<Pending> pending =
-                  jdbc.sql(
-                          """
+        Objects.requireNonNull(
+            tx.execute(
+                status -> {
+                  List<Pending> pending =
+                      jdbc.sql(
+                              """
                           select id, event_type, payload::text as payload from outbox
                           where published_at is null
                           order by created_at, id
                           limit :limit
                           for update skip locked
                           """)
-                      .param("limit", BATCH)
-                      .query(
-                          (rs, row) ->
-                              new Pending(
-                                  rs.getObject("id", UUID.class),
-                                  rs.getString("event_type"),
-                                  rs.getString("payload")))
-                      .list();
-              if (pending.isEmpty()) {
-                return 0;
-              }
-              rabbit.invoke(
-                  operations -> {
-                    for (Pending event : pending) {
-                      operations.send(ErpEvents.EXCHANGE, event.type(), message(event));
-                    }
-                    operations.waitForConfirmsOrDie(5_000);
-                    return null;
-                  });
-              jdbc.sql("update outbox set published_at = :now where id in (:ids)")
-                  .param("now", Timestamp.from(clock.instant()))
-                  .param("ids", pending.stream().map(Pending::id).toList())
-                  .update();
-              return pending.size();
-            });
-    return published == null ? 0 : published;
+                          .param("limit", BATCH)
+                          .query(
+                              (rs, row) ->
+                                  new Pending(
+                                      rs.getObject("id", UUID.class),
+                                      rs.getString("event_type"),
+                                      rs.getString("payload")))
+                          .list();
+                  if (pending.isEmpty()) {
+                    return 0;
+                  }
+                  rabbit.invoke(
+                      operations -> {
+                        for (Pending event : pending) {
+                          operations.send(ErpEvents.EXCHANGE, event.type(), message(event));
+                        }
+                        operations.waitForConfirmsOrDie(5_000);
+                        return null;
+                      });
+                  jdbc.sql("update outbox set published_at = :now where id in (:ids)")
+                      .param("now", Timestamp.from(clock.instant()))
+                      .param("ids", pending.stream().map(Pending::id).toList())
+                      .update();
+                  return pending.size();
+                }));
+    return published;
   }
 
   private static Message message(Pending event) {

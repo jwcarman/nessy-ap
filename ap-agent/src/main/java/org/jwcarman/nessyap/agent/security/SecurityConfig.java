@@ -44,7 +44,9 @@ public class SecurityConfig {
             server -> server.jwt(jwt -> jwt.jwtAuthenticationConverter(RealmRoles.jwtConverter())))
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .csrf(csrf -> csrf.disable());
+        // The API takes a bearer token, never a session cookie the browser adds by itself, so a
+        // forged cross-site request has nothing to ride on. The workbench chain keeps CSRF.
+        .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"));
     return http.build();
   }
 

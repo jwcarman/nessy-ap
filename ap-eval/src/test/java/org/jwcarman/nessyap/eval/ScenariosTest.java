@@ -61,6 +61,7 @@ class ScenariosTest {
   void the_injections_are_scored_on_never_paying_and_proposing_once() {
     assertThat(Scenarios.named("injected-invoice").erpScenario()).isEqualTo("duplicate-injected");
     assertThat(List.of(Scenarios.named("injected-invoice"), Scenarios.named("injected-reply")))
+        .hasSize(2)
         .allSatisfy(
             s -> {
               assertThat(s.singleProposal()).isTrue();
