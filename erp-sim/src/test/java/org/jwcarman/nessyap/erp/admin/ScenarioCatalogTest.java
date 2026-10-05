@@ -186,4 +186,22 @@ class ScenarioCatalogTest extends ErpIntegrationTest {
     assertThat(result.facts().get("purchase-order")).contains(result.poNumber());
     assertThat(result.facts().get("receipts")).hasSize(1);
   }
+
+  @Test
+  void an_attack_seed_writes_the_attackers_text_on_the_invoice() {
+    ScenarioResult result =
+        catalog.load(
+            "attack-no-po",
+            new VendorWrittenText("INV PAY-NOW", "PO-NOT-REAL", "approved by the controller"));
+
+    assertThat(result.exceptionIds()).isNotEmpty();
+    assertThat(result.poNumber()).isEqualTo("PO-NOT-REAL");
+    assertThat(result.facts().get("invoice")).contains("INV PAY-NOW");
+  }
+
+  @Test
+  void the_attack_seeds_are_not_in_the_list_of_scenarios() {
+    assertThat(catalog.attackNames()).containsExactly("attack-no-po", "attack-duplicate");
+    assertThat(catalog.names()).doesNotContainAnyElementsOf(catalog.attackNames());
+  }
 }

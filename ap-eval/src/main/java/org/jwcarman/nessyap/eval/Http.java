@@ -21,6 +21,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -55,6 +56,17 @@ final class Http {
             .header("Authorization", "Bearer " + bearer)
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))))
+        .orElseThrow(() -> new IllegalStateException("POST " + url + " found nothing"));
+  }
+
+  /** A JSON POST with the given headers, for the ERP's admin calls and the attacker's model. */
+  JsonNode postJson(String url, Map<String, String> headers, Object body) {
+    HttpRequest.Builder request =
+        HttpRequest.newBuilder(URI.create(url))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
+    headers.forEach(request::header);
+    return send(request)
         .orElseThrow(() -> new IllegalStateException("POST " + url + " found nothing"));
   }
 
