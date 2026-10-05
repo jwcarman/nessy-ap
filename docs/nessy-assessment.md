@@ -44,9 +44,9 @@ Inside `ap-agent`, the code divides like this (estimates by file):
 | Everything else | 1,690 lines | The workbench, the mail route, the ERP client, the event listener, the case index. None of it depends on the framework. |
 
 The application uses 23 Nessy types. Most of them come from the `api` package: `QueuedHarness`,
-`Tool`, `ToolCallRequest`, `ToolResult`, `Awaited`, `ApprovalRequest`, `Replies` and
-`ReplyToken`. One type comes from an internal package: `engine.store.TurnHistories`. That is a
-gap (F3), not a choice.
+`Tool`, `ToolCallRequest`, `ToolResult`, `Awaited`, `ApprovalRequest`, `Replies`, `AgentStories`
+and `AgentWork`. None comes from an internal package: the agent's story and its status are public
+reads since Nessy's agent-story work.
 
 **About 90% of `ap-agent` would exist with any agent framework.** The part that is Nessy's is
 small. The part that Nessy made us write is smaller, but it is in the places that matter most:
@@ -69,10 +69,11 @@ decisions and audit.
 - **Exactly-once intake.** `tell` joins the caller's transaction. The event listener records the
   event id and tells the agent in one transaction, with no outbox of our own.
 - **People in the loop.** `PolicyApprover` with OPA's `delegate` routes each proposal to a role,
-  and `Replies` with a `ReplyToken` answers it days later. We did not invent an approval engine.
+  and `Replies` answers it days later, by the agent and the call's idempotency key. We did not
+  invent an approval engine.
 - **Approvals with no agent behind them.** The desk's rules propose through the same
-  `PolicyApprover`, the same enricher and the same workbench, under an agent type of their own and
-  a reply token that no agent waits on. Nessy's approval stack needed no change for a proposer that
+  `PolicyApprover`, the same enricher and the same workbench, under an agent type of their own, and
+  no agent waits on their answer. Nessy's approval stack needed no change for a proposer that
   is not a model.
 - **Any model.** The agent ran on a local model through LM Studio with no change to the
   application. Tool schemas come from Java records.

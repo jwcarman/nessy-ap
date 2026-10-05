@@ -19,8 +19,10 @@ import java.time.Clock;
 import java.util.UUID;
 import org.jwcarman.nessy.api.QueuedHarness;
 import org.jwcarman.nessy.api.tool.ApprovalResult;
+import org.jwcarman.nessy.api.tool.IdempotencyKey;
 import org.jwcarman.nessy.api.tool.Replies;
 import org.jwcarman.nessy.api.tool.ReplyOutcome;
+import org.jwcarman.nessyap.agent.AgentConfiguration;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseStatus;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
@@ -226,16 +228,25 @@ public class DecisionExecutor {
       targets.events().publishEvent(new ResolverDesk.RulesDecided(d, applied));
       return;
     }
-    ReplyOutcome reply = targets.replies().approve(d.replyToken(), result);
+    ReplyOutcome reply =
+        targets
+            .replies()
+            .approve(
+                AgentConfiguration.AGENT_TYPE,
+                d.agentId(),
+                IdempotencyKey.of(d.idempotencyKey()),
+                result);
     decisions.markAnswered(d.id(), erpResult);
     targets.timeline().append(d.exceptionId(), DECISION, decided(d) + " -> " + erpResult);
     switch (reply) {
-      case ReplyOutcome.Settled _ when !applied ->
+      case ReplyOutcome.Applied _ when !applied ->
           targets.cases().setStatus(d.exceptionId(), CaseStatus.INVESTIGATING);
-      case ReplyOutcome.Settled _ -> {
-        // Applied, and the waiting call heard of it: nothing more to do.
+      case ReplyOutcome.Applied _ -> {
+        // Applied in the ERP, and the waiting call heard of it: nothing more to do.
       }
-      case ReplyOutcome.NotAwaiting _ when applied -> {
+      // The ERP acts before the call is answered, so a call that is no longer waiting (its
+      // deadline passed, or it was answered) can still have been carried out: tell the agent.
+      case ReplyOutcome.Ignored _ when applied -> {
         targets.cases().setStatus(d.exceptionId(), CaseStatus.afterApplied(d.action()));
         targets
             .agent()
@@ -244,11 +255,9 @@ public class DecisionExecutor {
                 new CaseInput.DecisionApplied(
                     d.id(), d.action(), "applied after the approval had expired"));
       }
-      case ReplyOutcome.NotAwaiting _ -> {
+      case ReplyOutcome.Ignored _ -> {
         // Declined or refused, and nobody waits to hear: nothing more to do.
       }
-      case ReplyOutcome.Unreadable _ ->
-          log.error("The reply token for decision {} could not be read", d.id());
     }
   }
 

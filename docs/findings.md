@@ -7,10 +7,10 @@ Nessy 0.4.0 on 2026-10-04.
 
 | Finding | Status |
 |---|---|
-| **F1.** A tool cannot see its own approval. | Open |
+| **F1.** A tool cannot see its own approval. | Answered by the idempotency key: an approval and the call it lets run share one key, so the tool reads the desk's record of the decision by it. |
 | **F2.** An approval has no typed principal. | Open. A deliberate choice in Nessy (facts are untyped by design); fair to discuss. |
-| **F3.** No read API for an agent's history from outside the engine. | Partly fixed: `UsageReports` reads any agent's usage, by model, as a projection over its stored events. Still missing: a public read of an agent's turns. The desk reads them through the engine's `TurnHistories` for the evidence check, the audit trail and the case view's "is the agent in a turn?". |
-| **F4.** A decision that arrives after its approval expired has no channel. | Open. A deliberate choice in Nessy (`NotAwaiting` does not tell expired from answered); fair to discuss. |
+| **F3.** No read API for an agent's history from outside the engine. | Fixed: `AgentStories` replays an agent's story and reads its tool results; `AgentWork` says whether an agent is idle, working or waiting on a person. The desk no longer imports an engine type. |
+| **F4.** A decision that arrives after its approval expired has no channel. | Partly fixed: a call is answered by its agent and key, and an answer that comes too late is `Ignored`. Nessy reports no reason; the agent's story has it. The desk keeps its branch for a decision the ERP carried out after its call stopped waiting. |
 | **F5.** Nessy publishes no scripted model for tests. | Open |
 | **F6.** Narration cannot be joined to a tool call. | Fixed in 0.4.0 (`ActionsRequested` carries each call's id, tool and action). |
 | **F7.** `ApprovalRequest.callKey()` is unique only within one agent. | Fixed in 0.4.0: an `IdempotencyKey` for each call, stable, and shared by its approval and its run. |

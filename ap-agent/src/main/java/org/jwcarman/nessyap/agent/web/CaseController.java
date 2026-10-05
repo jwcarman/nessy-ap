@@ -19,7 +19,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.jwcarman.nessyap.agent.cases.AgentTurns;
+import org.jwcarman.nessy.api.AgentStatus;
+import org.jwcarman.nessy.api.AgentWork;
+import org.jwcarman.nessyap.agent.AgentConfiguration;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
@@ -101,7 +103,7 @@ public class CaseController {
   private final Counterparty counterparty;
   private final Questions questions;
   private final Grounding grounding;
-  private final AgentTurns turns;
+  private final AgentWork work;
 
   public CaseController(
       Cases cases,
@@ -110,8 +112,8 @@ public class CaseController {
       Counterparty counterparty,
       Questions questions,
       Grounding grounding,
-      AgentTurns turns) {
-    this.turns = turns;
+      AgentWork work) {
+    this.work = work;
     this.cases = cases;
     this.timeline = timeline;
     this.decisions = decisions;
@@ -146,8 +148,9 @@ public class CaseController {
         c.reasonCode().name(),
         c.status().name(),
         cases.rulesHandle(exceptionId) ? "rules" : "agent",
-        // A turn in progress may still propose; an input told but not yet started is not seen.
-        turns.inTurn(c.agentId()),
+        // Busy: something can still move on its own. Waiting on a person is not busy.
+        work.status(AgentConfiguration.AGENT_TYPE, c.agentId()).activity()
+            == AgentStatus.Activity.WORKING,
         timeline.of(exceptionId),
         decisions.forCase(exceptionId).stream()
             .map(

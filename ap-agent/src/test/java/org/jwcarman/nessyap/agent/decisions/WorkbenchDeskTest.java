@@ -28,7 +28,6 @@ import org.jwcarman.nessy.api.tool.ApprovalRequest;
 import org.jwcarman.nessy.api.tool.ApprovalResult;
 import org.jwcarman.nessy.api.tool.CallId;
 import org.jwcarman.nessy.api.tool.IdempotencyKey;
-import org.jwcarman.nessy.api.tool.ReplyToken;
 import org.jwcarman.nessy.api.tool.ToolName;
 import org.jwcarman.nessyap.agent.AgentConfiguration;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
@@ -77,7 +76,6 @@ class WorkbenchDeskTest extends ApAgentIntegrationTest {
             "approve-variance: r",
             Instant.now(),
             Instant.now().plusSeconds(60),
-            new ReplyToken("t"),
             JsonNodeFactory.instance.objectNode());
 
     Awaited<ApprovalResult> answer = buyers.approve(request);

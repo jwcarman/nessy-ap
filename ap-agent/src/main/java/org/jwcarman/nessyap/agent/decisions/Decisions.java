@@ -26,7 +26,6 @@ import java.util.Set;
 import java.util.UUID;
 import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.tool.IdempotencyKey;
-import org.jwcarman.nessy.api.tool.ReplyToken;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.type.TypeReference;
@@ -56,14 +55,14 @@ public class Decisions {
             """
             with kept as (
               insert into pending_decision
-                  (id, agent_id, idempotency_key, reply_token, exception_id, invoice_id, action,
+                  (id, agent_id, idempotency_key, proposer, exception_id, invoice_id, action,
                    amount, rationale, evidence, deadline, status, created_at, required_role,
                    required_user)
-              values (:id, :agentId, :idempotencyKey, :replyToken, :exceptionId, :invoiceId,
+              values (:id, :agentId, :idempotencyKey, :proposer, :exceptionId, :invoiceId,
                       :action, :amount, :rationale, :evidence, :deadline, :status, :createdAt,
                       :requiredRole, :requiredUser)
               on conflict (idempotency_key) do update
-                  set reply_token = excluded.reply_token, deadline = excluded.deadline
+                  set deadline = excluded.deadline
               returning id)
             insert into decision_provenance (decision_id, provenance)
             select id, :provenance from kept
@@ -72,7 +71,7 @@ public class Decisions {
         .param("id", d.id())
         .param("agentId", d.agentId().value())
         .param("idempotencyKey", d.idempotencyKey())
-        .param("replyToken", d.replyToken().value())
+        .param("proposer", d.proposer())
         .param("exceptionId", d.exceptionId())
         .param("invoiceId", d.invoiceId())
         .param("action", d.action())
@@ -234,7 +233,7 @@ public class Decisions {
         rs.getObject("id", UUID.class),
         new AgentId(rs.getObject("agent_id", UUID.class)),
         rs.getObject("idempotency_key", UUID.class),
-        new ReplyToken(rs.getString("reply_token")),
+        rs.getString("proposer"),
         rs.getObject("exception_id", UUID.class),
         rs.getObject("invoice_id", UUID.class),
         rs.getString("action"),

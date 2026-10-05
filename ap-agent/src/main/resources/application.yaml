@@ -56,10 +56,6 @@ nessy:
     lmstudio:
       enabled: true
       base-url: ${AP_MODEL_URL:http://localhost:1234/v1}
-  # A fixed key, so a decision that waits on a person survives a restart. It comes from the
-  # environment or .env (scripts/dev-secrets.sh); no key is committed.
-  reply-token-encryption-keys:
-    - ${AP_REPLY_KEY}
 ap:
   # Nessy's stored history, encrypted under a key of its own (NessyStorageEncryption).
   nessy-storage:

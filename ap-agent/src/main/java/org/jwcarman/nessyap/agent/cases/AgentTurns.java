@@ -53,20 +53,6 @@ public class AgentTurns {
     return stories.of(AgentConfiguration.AGENT_TYPE, agentId);
   }
 
-  /** Whether the agent is in a turn: a turn started, and nothing has ended it yet. */
-  public boolean inTurn(AgentId agentId) {
-    return story(agentId)
-        .project(
-            StoryProjection.of(
-                false,
-                (Boolean soFar, Narrated told) ->
-                    switch (told.event()) {
-                      case Narration.TurnStarted _ -> true;
-                      case Narration.TurnEnding _ -> false;
-                      default -> soFar;
-                    }));
-  }
-
   /** How many turns the agent has started. */
   public int started(AgentId agentId) {
     return story(agentId)

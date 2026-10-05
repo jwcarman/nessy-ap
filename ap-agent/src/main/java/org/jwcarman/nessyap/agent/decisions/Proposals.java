@@ -58,7 +58,7 @@ class Proposals {
             Ids.next(),
             request.agentId(),
             request.idempotencyKey().value(),
-            request.replyToken(),
+            stamp.proposer(),
             c.exceptionId(),
             c.invoiceId(),
             proposal.action(),

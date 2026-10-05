@@ -20,14 +20,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.jwcarman.nessy.api.AgentId;
-import org.jwcarman.nessy.api.tool.ReplyToken;
-import org.jwcarman.nessyap.agent.resolver.ResolverDesk;
 
 /**
  * A proposal waiting on, or answered by, a decider.
  *
  * @param idempotencyKey the proposing call's key: Nessy's, shared by its approval and its run
- * @param replyToken the only address the waiting call can be answered at
+ * @param proposer who made the proposal: {@code rules} or {@code agent}
  * @param requiredRole the role the routing policy named to decide it
  * @param requiredUser for the {@code buyer} role only: the one buyer who may decide it
  * @param expectedVersion the invoice version the ERP command was first sent with; reused on every
@@ -37,7 +35,7 @@ public record PendingDecision(
     UUID id,
     AgentId agentId,
     UUID idempotencyKey,
-    ReplyToken replyToken,
+    String proposer,
     UUID exceptionId,
     UUID invoiceId,
     String action,
@@ -60,11 +58,11 @@ public record PendingDecision(
     evidence = List.copyOf(evidence);
   }
 
-  /**
-   * Whether the desk's rules made this proposal, not an agent. The one place that decides it: the
-   * rules' proposals carry a reply token no agent waits on.
-   */
+  /** Who made a proposal from the desk's rules. */
+  public static final String BY_RULES = "rules";
+
+  /** Whether the desk's rules made this proposal, not an agent. */
   public boolean byRules() {
-    return ResolverDesk.TOKEN.equals(replyToken);
+    return BY_RULES.equals(proposer);
   }
 }

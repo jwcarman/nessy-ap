@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessy.api.AgentId;
-import org.jwcarman.nessy.api.tool.ReplyToken;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -36,7 +35,7 @@ class DecisionProvenanceTest extends ApAgentIntegrationTest {
         id,
         new AgentId(UUID.randomUUID()),
         key,
-        new ReplyToken("t"),
+        "agent",
         exceptionId,
         UUID.randomUUID(),
         "hold",

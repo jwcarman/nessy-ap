@@ -23,7 +23,6 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessy.api.AgentId;
-import org.jwcarman.nessy.api.tool.ReplyToken;
 
 class DecidersTest {
 
@@ -32,7 +31,7 @@ class DecidersTest {
         UUID.randomUUID(),
         new AgentId(UUID.randomUUID()),
         UUID.randomUUID(),
-        new ReplyToken("t"),
+        "agent",
         UUID.randomUUID(),
         UUID.randomUUID(),
         "approve-variance",

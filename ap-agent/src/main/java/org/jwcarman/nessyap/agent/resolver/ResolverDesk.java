@@ -31,7 +31,6 @@ import org.jwcarman.nessy.api.tool.ApprovalRequest;
 import org.jwcarman.nessy.api.tool.ApprovalResult;
 import org.jwcarman.nessy.api.tool.CallId;
 import org.jwcarman.nessy.api.tool.IdempotencyKey;
-import org.jwcarman.nessy.api.tool.ReplyToken;
 import org.jwcarman.nessy.api.tool.ToolName;
 import org.jwcarman.nessy.approval.policy.PolicyApprover;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
@@ -78,9 +77,6 @@ public class ResolverDesk {
 
   /** The timeline kind, and the source of a slot, for what the rules did. */
   private static final String BY_RULES = "rules";
-
-  /** The reply token of every proposal the rules make: no agent waits on it. */
-  public static final ReplyToken TOKEN = new ReplyToken(BY_RULES);
 
   private static final Logger log = LoggerFactory.getLogger(ResolverDesk.class);
   private static final ToolName PROPOSE = new ToolName("propose_resolution");
@@ -363,8 +359,7 @@ public class ResolverDesk {
             json.writeValueAsString(proposal),
             resolved.action() + ": " + proposal.rationale(),
             clock.instant(),
-            clock.instant().plus(approvalTimeout),
-            TOKEN);
+            clock.instant().plus(approvalTimeout));
     facts.enrich(request);
     timeline.append(
         c.exceptionId(), BY_RULES, "rule " + resolved.rule() + " proposes " + resolved.action());

@@ -92,7 +92,6 @@ public class ApAgentContainers {
   @Bean
   DynamicPropertyRegistrar secrets() {
     return registry -> {
-      registry.add("nessy.reply-token-encryption-keys[0]", () -> randomKey(32));
       registry.add("occlude.keys.keks.dev", () -> randomKey(32));
       registry.add("ap.nessy-storage.kek", () -> randomKey(32));
       registry.add("occlude.roots.secrets.dev", () -> randomKey(48));

@@ -25,3 +25,5 @@ databaseChangeLog:
       file: db/changelog/012-resolver.sql
   - include:
       file: db/changelog/013-governance.sql
+  - include:
+      file: db/changelog/014-no-reply-token.sql
