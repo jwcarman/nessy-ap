@@ -144,7 +144,11 @@ final class Runner {
     boolean redeliveryDone = scenario.twist() != Scenario.Twist.REDELIVERED;
     boolean unsolicitedDone = scenario.twist() != Scenario.Twist.UNSOLICITED_BANK_CHANGE;
     boolean goodsDone = scenario.twist() != Scenario.Twist.GOODS_ARRIVE;
-    JsonNode seeded = http.post(erpUrl + "/admin/scenarios/" + scenario.erpScenario());
+    String seedUrl = erpUrl + "/admin/scenarios/" + scenario.erpScenario();
+    JsonNode seeded =
+        seedBody(scenario)
+            .map(body -> http.postJson(seedUrl, Map.of(), body))
+            .orElseGet(() -> http.post(seedUrl));
     UUID exceptionId = UUID.fromString(seeded.path("exceptionIds").get(0).asString());
     log.info("{} #{}: exception {}", scenario.name(), repetition, exceptionId);
     JsonNode lastSeen = null;
@@ -385,6 +389,14 @@ final class Runner {
             ? scenario.laterReplies().get(kind)
             : scenario.replies().get(kind);
     return text == null ? null : text.replace("{poNumber}", seeded.path(PO_NUMBER).asString());
+  }
+
+  /**
+   * What the ERP is sent to seed a scenario: the vendor-written text for its invoice, or nothing,
+   * in which case the seed writes its own.
+   */
+  static Optional<Map<String, String>> seedBody(Scenario scenario) {
+    return scenario.vendorText().isEmpty() ? Optional.empty() : Optional.of(scenario.vendorText());
   }
 
   /** The facts the seed says a right decision rests on, by name. */

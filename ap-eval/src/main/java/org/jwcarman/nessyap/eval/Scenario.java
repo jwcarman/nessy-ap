@@ -60,7 +60,8 @@ public record Scenario(
     Map<String, String> denials,
     boolean attackInVendorReply,
     Map<String, String> declineReasons,
-    Map<String, String> laterReplies) {
+    Map<String, String> laterReplies,
+    Map<String, String> vendorText) {
 
   /** What goes wrong around the agent during a run. */
   public enum Twist {
@@ -98,6 +99,7 @@ public record Scenario(
     denials = Map.copyOf(denials);
     declineReasons = Map.copyOf(declineReasons);
     laterReplies = Map.copyOf(laterReplies);
+    vendorText = Map.copyOf(vendorText);
   }
 
   /** A scenario with one right resolution, nobody to write to, no replies and no trouble. */
@@ -117,6 +119,7 @@ public record Scenario(
         Map.of(),
         false,
         Map.of(),
+        Map.of(),
         Map.of());
   }
 
@@ -135,7 +138,8 @@ public record Scenario(
         denials,
         attackInVendorReply,
         declineReasons,
-        laterReplies);
+        laterReplies,
+        vendorText);
   }
 
   /** The same scenario seeded from another ERP scenario. */
@@ -154,7 +158,8 @@ public record Scenario(
         denials,
         attackInVendorReply,
         declineReasons,
-        laterReplies);
+        laterReplies,
+        vendorText);
   }
 
   public Scenario withAcceptable(Map<String, String> newAcceptable) {
@@ -172,7 +177,8 @@ public record Scenario(
         denials,
         attackInVendorReply,
         declineReasons,
-        laterReplies);
+        laterReplies,
+        vendorText);
   }
 
   public Scenario withReplies(Map<String, String> newReplies) {
@@ -190,7 +196,8 @@ public record Scenario(
         denials,
         attackInVendorReply,
         declineReasons,
-        laterReplies);
+        laterReplies,
+        vendorText);
   }
 
   public Scenario mustMail(Set<String> kinds) {
@@ -208,7 +215,8 @@ public record Scenario(
         denials,
         attackInVendorReply,
         declineReasons,
-        laterReplies);
+        laterReplies,
+        vendorText);
   }
 
   public Scenario neverMail(Set<String> kinds) {
@@ -226,7 +234,8 @@ public record Scenario(
         denials,
         attackInVendorReply,
         declineReasons,
-        laterReplies);
+        laterReplies,
+        vendorText);
   }
 
   /** Fails the run if the agent proposes more than once. */
@@ -245,7 +254,8 @@ public record Scenario(
         denials,
         attackInVendorReply,
         declineReasons,
-        laterReplies);
+        laterReplies,
+        vendorText);
   }
 
   public Scenario withTwist(Twist newTwist) {
@@ -263,7 +273,8 @@ public record Scenario(
         denials,
         attackInVendorReply,
         declineReasons,
-        laterReplies);
+        laterReplies,
+        vendorText);
   }
 
   /** The same scenario, with the deciding person denying these actions for these reasons. */
@@ -282,7 +293,8 @@ public record Scenario(
         newDenials,
         attackInVendorReply,
         declineReasons,
-        laterReplies);
+        laterReplies,
+        vendorText);
   }
 
   /** The same scenario, with these actions unsafe. */
@@ -301,7 +313,8 @@ public record Scenario(
         denials,
         attackInVendorReply,
         declineReasons,
-        laterReplies);
+        laterReplies,
+        vendorText);
   }
 
   /** The same scenario, with these structured reasons given for these denied actions. */
@@ -320,7 +333,8 @@ public record Scenario(
         denials,
         attackInVendorReply,
         newDeclineReasons,
-        laterReplies);
+        laterReplies,
+        vendorText);
   }
 
   /** The same scenario, with these answers to every message after the first. */
@@ -339,7 +353,28 @@ public record Scenario(
         denials,
         attackInVendorReply,
         declineReasons,
-        newLaterReplies);
+        newLaterReplies,
+        vendorText);
+  }
+
+  /** The same scenario, seeded with this vendor-written text on its invoice. */
+  public Scenario withVendorText(Map<String, String> newVendorText) {
+    return new Scenario(
+        name,
+        erpScenario,
+        acceptable,
+        requiredFacts,
+        forbiddenActions,
+        mustMail,
+        neverMail,
+        replies,
+        singleProposal,
+        twist,
+        denials,
+        attackInVendorReply,
+        declineReasons,
+        laterReplies,
+        newVendorText);
   }
 
   /** The same scenario, with its attack in the vendor's reply. */
@@ -358,6 +393,7 @@ public record Scenario(
         denials,
         true,
         declineReasons,
-        laterReplies);
+        laterReplies,
+        vendorText);
   }
 }

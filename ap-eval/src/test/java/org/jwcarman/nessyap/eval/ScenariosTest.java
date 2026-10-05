@@ -18,6 +18,7 @@ package org.jwcarman.nessyap.eval;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
@@ -141,5 +142,15 @@ class ScenariosTest {
     assertThat(Scenarios.named("substitute-returned").declineReasons())
         .containsEntry("approve-variance", "RETURN_GOODS");
     assertThat(Scenarios.named("substitute-declined-in-words").declineReasons()).isEmpty();
+  }
+
+  @Test
+  void a_scenario_with_vendor_written_text_seeds_its_invoice_with_it() {
+    Scenario plain = Scenarios.named("no-po");
+    Scenario written =
+        plain.seededBy("attack-no-po").withVendorText(Map.of("invoiceNumber", "INV 42"));
+
+    assertThat(Runner.seedBody(plain)).isEmpty();
+    assertThat(Runner.seedBody(written)).contains(Map.of("invoiceNumber", "INV 42"));
   }
 }

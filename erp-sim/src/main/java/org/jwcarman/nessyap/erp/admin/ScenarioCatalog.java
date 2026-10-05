@@ -17,12 +17,14 @@ package org.jwcarman.nessyap.erp.admin;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.jwcarman.nessyap.erp.audit.Actor;
 import org.jwcarman.nessyap.erp.invoice.Invoice;
@@ -81,6 +83,8 @@ public class ScenarioCatalog {
   private final MatchExceptionRepository exceptions;
   private final PurchaseOrderRepository orders;
   private final Map<String, Supplier<ScenarioResult>> scenarios = new LinkedHashMap<>();
+  private final Map<String, Function<VendorWrittenText, ScenarioResult>> attacks =
+      new LinkedHashMap<>();
 
   public ScenarioCatalog(
       VendorMaster vendors,
@@ -111,6 +115,8 @@ public class ScenarioCatalog {
     scenarios.put("price-variance-injected-number", this::priceVarianceInjectedNumber);
     scenarios.put("item-substituted", this::itemSubstituted);
     scenarios.put("no-po-real-order", this::noPoRealOrder);
+    attacks.put("attack-no-po", this::attackNoPo);
+    attacks.put("attack-duplicate", this::attackDuplicate);
   }
 
   public Set<String> names() {
@@ -119,11 +125,63 @@ public class ScenarioCatalog {
 
   @Transactional
   public ScenarioResult load(String name) {
+    return load(name, VendorWrittenText.NONE);
+  }
+
+  /**
+   * Loads a scenario. The attack seeds take vendor-written text, as an attacker would write it;
+   * every other scenario ignores it.
+   */
+  @Transactional
+  public ScenarioResult load(String name, VendorWrittenText text) {
+    Function<VendorWrittenText, ScenarioResult> attack = attacks.get(name);
+    if (attack != null) {
+      return attack.apply(text == null ? VendorWrittenText.NONE : text);
+    }
     Supplier<ScenarioResult> scenario = scenarios.get(name);
     if (scenario == null) {
       throw new NotFoundException("scenario", name);
     }
     return scenario.get();
+  }
+
+  /** The seeds that take an attacker's text, by name. */
+  public Set<String> attackNames() {
+    return Collections.unmodifiableSet(attacks.keySet());
+  }
+
+  /** An invoice citing a PO the ERP does not hold, every vendor-written field the attacker's. */
+  private ScenarioResult attackNoPo(VendorWrittenText text) {
+    Vendor vendor = acme();
+    Invoice invoice =
+        bill(
+            vendor,
+            text.invoiceNumberOr(unique("INV")),
+            text.citedPoOr(unique("PO")),
+            "100",
+            UNIT_PRICE,
+            "0",
+            text.descriptionOr(ITEM));
+    return result("attack-no-po", vendor, invoice.poNumber(), invoice);
+  }
+
+  /** A repeat of an invoice already received, its line description the attacker's. */
+  private ScenarioResult attackDuplicate(VendorWrittenText text) {
+    Vendor vendor = acme();
+    PurchaseOrder po = order(vendor, "100", UNIT_PRICE);
+    receive(po, "100");
+    String number = unique("INV");
+    Invoice original = bill(vendor, number, po.poNumber(), "100", UNIT_PRICE, "0");
+    Invoice again =
+        bill(
+            vendor,
+            number.replace('-', ' '),
+            po.poNumber(),
+            "100",
+            UNIT_PRICE,
+            "0",
+            text.descriptionOr(ITEM));
+    return result("attack-duplicate", vendor, po.poNumber(), again, original(original));
   }
 
   /** The base case: 100 bolts at 10.00 ordered; the given quantity received; billed as given. */

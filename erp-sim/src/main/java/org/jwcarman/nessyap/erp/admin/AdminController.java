@@ -24,6 +24,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -59,8 +60,9 @@ public class AdminController {
 
   @PostMapping("/scenarios/{name}")
   @ResponseStatus(HttpStatus.CREATED)
-  public ScenarioResult load(@PathVariable String name) {
-    return catalog.load(name);
+  public ScenarioResult load(
+      @PathVariable String name, @RequestBody(required = false) VendorWrittenText text) {
+    return catalog.load(name, text);
   }
 
   @PostMapping("/reset")
