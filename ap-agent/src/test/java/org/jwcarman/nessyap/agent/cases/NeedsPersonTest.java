@@ -21,11 +21,16 @@ import static org.jwcarman.nessyap.agent.ScriptedProvider.call;
 import static org.jwcarman.nessyap.agent.ScriptedProvider.steps;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.Narration;
 import org.jwcarman.nessy.api.QueuedHarness;
+import org.jwcarman.nessy.api.block.Block;
+import org.jwcarman.nessy.inference.Failure;
+import org.jwcarman.nessy.inference.InferenceResult;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -82,6 +87,40 @@ class NeedsPersonTest extends ApAgentIntegrationTest {
         .atMost(Duration.ofSeconds(20))
         .until(
             () -> timeline.of(exceptionId).stream().anyMatch(e -> e.kind().equals("needs-person")));
+  }
+
+  @Test
+  void an_answer_cut_off_at_the_output_limit_tells_the_person_so() {
+    UUID exceptionId = openCase();
+    model.script(
+        request -> new InferenceResult.Truncated(List.of(new Block.Text("The invoice is"))));
+
+    agent.tell(caseIndex.agentFor(exceptionId), new CaseInput.PersonNote("clara", "look"));
+
+    assertThat(needsPersonText(exceptionId)).contains("cut off at its output limit");
+  }
+
+  @Test
+  void a_failed_turn_tells_the_person_what_kind_of_failure_it_was() {
+    UUID exceptionId = openCase();
+    model.script(request -> new InferenceResult.Fault(new Failure.Permanent("bad request")));
+
+    agent.tell(caseIndex.agentFor(exceptionId), new CaseInput.PersonNote("clara", "look"));
+
+    assertThat(needsPersonText(exceptionId)).contains("permanent").contains("bad request");
+  }
+
+  private String needsPersonText(UUID exceptionId) {
+    return await()
+        .atMost(Duration.ofSeconds(20))
+        .until(
+            () ->
+                timeline.of(exceptionId).stream()
+                    .filter(e -> e.kind().equals("needs-person"))
+                    .map(CaseTimeline.CaseEvent::text)
+                    .findFirst(),
+            Optional::isPresent)
+        .orElseThrow();
   }
 
   @Autowired CaseTimeline timeline;

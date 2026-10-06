@@ -15,6 +15,7 @@
  */
 package org.jwcarman.nessyap.agent.cases;
 
+import java.util.Locale;
 import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.Narrated;
 import org.jwcarman.nessy.api.Narration;
@@ -59,10 +60,20 @@ public class NeedsPerson implements NarrationListener {
                   c ->
                       cases.moveStatus(
                           c.exceptionId(), CaseStatus.NEEDS_PERSON, CaseStatus.INVESTIGATING));
+      case Narration.Answered answered when answered.truncated() ->
+          stopped(
+              agentId,
+              "the model's answer was cut off at its output limit, with nothing in motion");
       case Narration.Answered _ ->
           stopped(agentId, "the agent ended its turn with nothing in motion");
       case Narration.TurnFailed failed ->
-          stopped(agentId, "the agent's turn failed (" + failed.reason() + ")");
+          stopped(
+              agentId,
+              "the agent's turn failed ("
+                  + failed.kind().name().toLowerCase(Locale.ROOT)
+                  + ": "
+                  + failed.reason()
+                  + ")");
       case Narration.TurnStopped(var turn, String reason) ->
           stopped(agentId, "a policy stopped the agent's turn (" + reason + ")");
       case Narration.TurnRefused refused ->
