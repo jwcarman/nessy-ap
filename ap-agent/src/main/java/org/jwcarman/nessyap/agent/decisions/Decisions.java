@@ -160,6 +160,22 @@ public class Decisions {
         .list();
   }
 
+  /**
+   * Every agent's proposal whose waiting call has not been answered yet: pending a decision, or
+   * decided and not yet carried through. The rules' proposals are left out: no call waits on them.
+   */
+  public List<PendingDecision> agentsUnanswered() {
+    return jdbc.sql(
+            """
+            select * from pending_decision
+            where status in ('PENDING', 'DECIDED') and proposer <> :rules
+            order by created_at, id
+            """)
+        .param("rules", PendingDecision.BY_RULES)
+        .query(this::decision)
+        .list();
+  }
+
   public List<UUID> pending() {
     return jdbc.sql("select id from pending_decision where status = 'PENDING' order by created_at")
         .query(UUID.class)
