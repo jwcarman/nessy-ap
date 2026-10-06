@@ -25,8 +25,8 @@ import java.util.UUID;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessy.api.AgentId;
+import org.jwcarman.nessy.api.AskOutcome;
 import org.jwcarman.nessy.api.DirectHarness;
-import org.jwcarman.nessy.api.Outcome;
 import org.jwcarman.nessy.api.TerminationOutcome;
 import org.jwcarman.nessy.api.TurnStats;
 import org.jwcarman.nessy.api.block.Block;
@@ -50,14 +50,14 @@ class ModelReplyReaderTest {
   private static final class FakeReader implements DirectHarness<Reply, ModelReading> {
 
     final List<AgentId> askedFor = new ArrayList<>();
-    private final Function<Reply, Outcome<ModelReading>> answer;
+    private final Function<Reply, AskOutcome<ModelReading>> answer;
 
-    FakeReader(Function<Reply, Outcome<ModelReading>> answer) {
+    FakeReader(Function<Reply, AskOutcome<ModelReading>> answer) {
       this.answer = answer;
     }
 
     @Override
-    public Outcome<ModelReading> ask(AgentId agent, Reply input) {
+    public AskOutcome<ModelReading> ask(AgentId agent, Reply input) {
       askedFor.add(agent);
       return answer.apply(input);
     }
@@ -77,7 +77,7 @@ class ModelReplyReaderTest {
     FakeReader fake =
         new FakeReader(
             r ->
-                new Outcome.Answered<>(
+                new AskOutcome.Answered<>(
                     new ModelReading(Intent.GIVES_PO_NUMBER, List.of(), null, "PO-7", false),
                     stats()));
 
@@ -92,7 +92,7 @@ class ModelReplyReaderTest {
     FakeReader fake =
         new FakeReader(
             r ->
-                new Outcome.Answered<>(
+                new AskOutcome.Answered<>(
                     new ModelReading(
                         Intent.SUBSTITUTED_ITEM,
                         List.of(),
@@ -116,7 +116,7 @@ class ModelReplyReaderTest {
     FakeReader fake =
         new FakeReader(
             r ->
-                new Outcome.Answered<>(
+                new AskOutcome.Answered<>(
                     new ModelReading(
                         Intent.SUBSTITUTED_ITEM,
                         List.of(),
@@ -139,7 +139,7 @@ class ModelReplyReaderTest {
     FakeReader fake =
         new FakeReader(
             r ->
-                new Outcome.Answered<>(
+                new AskOutcome.Answered<>(
                     new ModelReading(Intent.OTHER, List.of(), null, null, false), stats()));
     ModelReplyReader reader =
         new ModelReplyReader(fake, TransactionOperations.withoutTransaction());
@@ -166,7 +166,7 @@ class ModelReplyReaderTest {
     FakeReader fake =
         new FakeReader(
             r ->
-                new Outcome.Answered<>(
+                new AskOutcome.Answered<>(
                     new ModelReading(Intent.CONFIRMS_PRICE_AGREED, List.of(), null, "***", false),
                     stats()));
 
@@ -180,7 +180,7 @@ class ModelReplyReaderTest {
     FakeReader fake =
         new FakeReader(
             r ->
-                new Outcome.Answered<>(
+                new AskOutcome.Answered<>(
                     new ModelReading(
                         Intent.JUSTIFIES_CHARGE, List.of(Offer.CREDIT_MEMO), "11.60", null, false),
                     stats()));
@@ -201,7 +201,7 @@ class ModelReplyReaderTest {
     FakeReader fake =
         new FakeReader(
             r ->
-                new Outcome.Answered<>(
+                new AskOutcome.Answered<>(
                     new ModelReading(Intent.OTHER, null, "about ten dollars", null, false),
                     stats()));
 
@@ -215,7 +215,7 @@ class ModelReplyReaderTest {
   @Test
   void anything_but_an_answer_reads_as_needing_a_person() {
     FakeReader fake =
-        new FakeReader(r -> new Outcome.Failed<>("the answer did not fit: not a PO", stats()));
+        new FakeReader(r -> new AskOutcome.Failed<>("the answer did not fit: not a PO", stats()));
 
     assertThat(new ModelReplyReader(fake, TransactionOperations.withoutTransaction()).read(REPLY))
         .isEqualTo(ReplyReader.unread(REPLY));

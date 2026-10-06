@@ -18,6 +18,7 @@ package org.jwcarman.nessyap.agent.oversight;
 import java.util.UUID;
 import org.jwcarman.nessy.api.AgentId;
 import org.jwcarman.nessy.api.QueuedHarness;
+import org.jwcarman.nessy.api.TellOutcome;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.CaseRecord;
 import org.jwcarman.nessyap.agent.cases.CaseStatus;
@@ -66,11 +67,12 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
     this.held = held;
   }
 
+  /** A held input is accepted: it is stored, and a person or a resume passes it on. */
   @Override
-  public void tell(AgentId agentId, CaseInput input) {
+  public TellOutcome tell(AgentId agentId, CaseInput input) {
     if (switches.on(Switches.AGENTS_PAUSED)) {
       hold(agentId, input, PAUSED, "the agents are paused");
-      return;
+      return new TellOutcome.Accepted();
     }
     AgentBudget.Spent spent = agentBudget.spent(agentId);
     if (agentBudget.spentUp(spent)) {
@@ -83,9 +85,9 @@ public class GuardedAgents implements QueuedHarness<CaseInput> {
               + " turns, "
               + spent.inputTokens()
               + " input tokens)");
-      return;
+      return new TellOutcome.Accepted();
     }
-    agents.tell(agentId, input);
+    return agents.tell(agentId, input);
   }
 
   @Override

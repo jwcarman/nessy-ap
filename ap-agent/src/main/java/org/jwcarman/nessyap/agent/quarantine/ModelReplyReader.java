@@ -21,8 +21,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.jwcarman.nessy.api.AgentId;
+import org.jwcarman.nessy.api.AskOutcome;
 import org.jwcarman.nessy.api.DirectHarness;
-import org.jwcarman.nessy.api.Outcome;
 import org.jwcarman.nessy.api.block.Block;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.Intent;
 import org.jwcarman.nessyap.agent.quarantine.Untrusted.ModelReading;
@@ -117,7 +117,7 @@ public class ModelReplyReader implements ReplyReader {
   @Override
   public ReplyReading read(Reply reply) {
     if (!(outsideTransaction.execute(status -> reader.ask(agentFor(reply), reply))
-            instanceof Outcome.Answered<ModelReading>(ModelReading answer, _))
+            instanceof AskOutcome.Answered<ModelReading>(ModelReading answer, _))
         || answer == null) {
       return ReplyReader.unread(reply);
     }
