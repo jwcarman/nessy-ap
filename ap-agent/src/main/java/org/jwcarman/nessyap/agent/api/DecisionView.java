@@ -28,8 +28,9 @@ import tools.jackson.databind.JsonNode;
  *
  * @param provenance what produced the proposal, on the auditor's trail only
  * @param approverFacts the facts the approver was shown when it routed the proposal, as Nessy
- *     recorded them, on the auditor's trail only; null for the rules' proposals, which no agent
- *     makes
+ *     recorded them, on the auditor's trail only. Null for the rules' proposals, which no agent
+ *     makes, and null when the agent's story holds no record of the call: null never means the
+ *     approver was shown nothing
  */
 public record DecisionView(
     UUID id,

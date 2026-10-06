@@ -38,15 +38,22 @@ import org.springframework.stereotype.Component;
  * fact, joined by the call's idempotency key, and each can be wrong without the other:
  *
  * <ul>
- *   <li><b>Unheld:</b> a proposal is pending on the workbench, before its deadline, and no call
- *       waits on it. A person can decide it, and the agent never hears.
- *   <li><b>Unseen:</b> a call waits on a person, and the desk has no unanswered proposal for it. No
- *       person sees it, and the agent waits until its deadline.
+ *   <li><b>Unheld:</b> a proposal is pending on the workbench, before its deadline, and Nessy lists
+ *       no waiting call for it. A decision on it may reach no agent.
+ *   <li><b>Unseen:</b> Nessy lists a call that waits on a person, and the desk has no unanswered
+ *       proposal for it. No person sees it, and the agent waits until its deadline.
  * </ul>
  *
  * <p>Either side is reported only after the settle time, because the desk records a proposal
  * moments before Nessy parks the call. A proposal past its deadline is a late decision, which the
  * desk handles on purpose, not drift.
+ *
+ * <p>The two records are read one after the other, not together, so a proposal decided between the
+ * reads looks like drift. Anything the first reading finds is reported only if a second reading
+ * finds it too.
+ *
+ * <p>Nessy lists at most {@value #MOST_LISTED} waiting approvals. When the list is full, a proposal
+ * missing from it may still have a waiting call, so the unheld side is not judged.
  */
 @Component
 public class ApprovalDrift {
@@ -66,6 +73,9 @@ public class ApprovalDrift {
       unseen = List.copyOf(unseen);
     }
   }
+
+  /** The most waiting approvals Nessy 0.5.0 lists (its {@code StoredAgentWork.MAXIMUM_WAITING}). */
+  public static final int MOST_LISTED = 500;
 
   private final Decisions decisions;
   private final AgentWork work;
@@ -90,30 +100,48 @@ public class ApprovalDrift {
   public void sweep() {
     Drift found = check(clock.instant());
     metrics.approvalDrift(found.unheld().size(), found.unseen().size());
-    found.unheld().forEach(id -> log.warn("Decision {} is pending, and no call waits on it", id));
+    found
+        .unheld()
+        .forEach(
+            id -> log.warn("Decision {} is pending, and Nessy lists no waiting call for it", id));
     found
         .unseen()
-        .forEach(key -> log.warn("A call waits on a person with no proposal for it: {}", key));
+        .forEach(
+            key -> log.warn("Nessy lists a call waiting on a person with no proposal: {}", key));
   }
 
-  /** What disagrees as of {@code now}. */
+  /** What disagrees as of {@code now}, found by two readings in a row. */
   public Drift check(Instant now) {
+    Drift first = read(now);
+    if (first.unheld().isEmpty() && first.unseen().isEmpty()) {
+      return first;
+    }
+    Drift second = read(now);
+    return new Drift(
+        first.unheld().stream().filter(second.unheld()::contains).toList(),
+        first.unseen().stream().filter(second.unseen()::contains).toList());
+  }
+
+  private Drift read(Instant now) {
     Instant settled = now.minus(settle);
     List<PendingDecision> unanswered = decisions.agentsUnanswered();
     List<ApprovalRequest> waiting = work.waitingApprovals(AgentConfiguration.AGENT_TYPE);
 
-    Set<UUID> waitingKeys =
-        waiting.stream()
-            .map(request -> request.idempotencyKey().value())
-            .collect(Collectors.toSet());
-    List<UUID> unheld =
-        unanswered.stream()
-            .filter(d -> d.status() == DecisionStatus.PENDING)
-            .filter(d -> d.createdAt().isBefore(settled))
-            .filter(d -> d.deadline() == null || d.deadline().isAfter(now))
-            .filter(d -> !waitingKeys.contains(d.idempotencyKey()))
-            .map(PendingDecision::id)
-            .toList();
+    List<UUID> unheld = List.of();
+    if (waiting.size() < MOST_LISTED) {
+      Set<UUID> waitingKeys =
+          waiting.stream()
+              .map(request -> request.idempotencyKey().value())
+              .collect(Collectors.toSet());
+      unheld =
+          unanswered.stream()
+              .filter(d -> d.status() == DecisionStatus.PENDING)
+              .filter(d -> d.createdAt().isBefore(settled))
+              .filter(d -> d.deadline().isAfter(now))
+              .filter(d -> !waitingKeys.contains(d.idempotencyKey()))
+              .map(PendingDecision::id)
+              .toList();
+    }
 
     Set<UUID> proposedKeys =
         unanswered.stream().map(PendingDecision::idempotencyKey).collect(Collectors.toSet());

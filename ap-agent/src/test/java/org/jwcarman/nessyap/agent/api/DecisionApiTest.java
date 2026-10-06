@@ -35,8 +35,11 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.nessy.api.AgentId;
+import org.jwcarman.nessy.api.AgentWork;
 import org.jwcarman.nessy.api.Narration;
 import org.jwcarman.nessy.api.QueuedHarness;
+import org.jwcarman.nessy.api.tool.IdempotencyKey;
+import org.jwcarman.nessyap.agent.AgentConfiguration;
 import org.jwcarman.nessyap.agent.ApAgentIntegrationTest;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
 import org.jwcarman.nessyap.agent.cases.Cases;
@@ -64,6 +67,7 @@ class DecisionApiTest extends ApAgentIntegrationTest {
           + "\"approvedAmount\":null},\"exceptions\":[]}";
 
   @Autowired WebApplicationContext web;
+  @Autowired AgentWork work;
   @Autowired QueuedHarness<CaseInput> agent;
   @Autowired Cases cases;
   @Autowired Decisions decisions;
@@ -222,7 +226,14 @@ class DecisionApiTest extends ApAgentIntegrationTest {
 
   @Test
   void the_trail_shows_the_facts_the_approver_was_shown() throws Exception {
-    awaitProposal();
+    // The desk records the proposal before Nessy parks the call and records what it was shown.
+    IdempotencyKey key = IdempotencyKey.of(awaitProposal().idempotencyKey());
+    await()
+        .atMost(PATIENCE)
+        .until(
+            () ->
+                work.waitingApprovals(AgentConfiguration.AGENT_TYPE).stream()
+                    .anyMatch(request -> request.idempotencyKey().equals(key)));
 
     mvc.perform(get("/api/cases/{id}/trail", exceptionId).with(bearer("audrey", "auditor")))
         .andExpect(status().isOk())

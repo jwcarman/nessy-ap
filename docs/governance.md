@@ -85,13 +85,17 @@ The desk publishes these counts through Micrometer and the actuator (`/actuator/
 | `ap.occlude.refusals{reason}` | Operations the quarantine refused |
 | `ap.agents.held{reason}` | Inputs held by a pause or by a spent budget |
 | `ap.agents.paused` | 1 while the agents are paused |
-| `ap.approvals.drift{side}` | At the last check: pending proposals that no call waits on (`unheld`), and calls that wait on a person with no proposal (`unseen`) |
+| `ap.approvals.drift{side}` | At the last check: pending proposals for which Nessy lists no waiting call (`unheld`), and calls Nessy lists as waiting on a person with no proposal (`unseen`). Each is confirmed by a second reading. |
 
 Nessy publishes a meter for each model call, `gen_ai.client.operation.duration`, and the desk
 exposes it with its own. Its tag `gen_ai.response.finish_reasons` is `length` for an answer cut
-off at the output limit, and `error` for a failed call; `error.type` names the failure. Every
-attempt is recorded, so a retried call counts once for each attempt. The desk does not count
-these again.
+off at the output limit, and `error` for a failed call; `error.type` names the failure. The desk
+does not count these again.
+
+- The meter counts the calls of the case agents and of the quarantined reader together.
+- A call that Nessy retries counts once for each attempt. A retry inside the vendor's own SDK
+  is part of one attempt and is not counted apart.
+- A failed call that a retry then fixed still counts as `error`.
 
 Suggested alerts. The thresholds are starting points, set from the full runs:
 
@@ -103,8 +107,8 @@ Suggested alerts. The thresholds are starting points, set from the full runs:
 | A real refusal | `ap.occlude.refusals` with any reason except `DECLINED` | A person tried to read mail they may not, or a derivation failed. |
 | Budgets are spent | `ap.agents.held{reason="budget"}` above zero | An agent loops, or a model changed. Look at the case. |
 | Approvals drift | `ap.approvals.drift` above zero | The workbench and Nessy disagree about what waits on a person. A person may decide a proposal that no call hears, or a call may wait with nobody to see it. Read the desk's WARN log for the ids. |
-| Answers are cut off | `gen_ai.client.operation.duration` with `gen_ai.response.finish_reasons="length"` rises | The model runs into its output limit. The case goes to a person, and the timeline says the answer was cut off. |
-| Model calls fail | `gen_ai.client.operation.duration` with `gen_ai.response.finish_reasons="error"` rises | The provider or the network is failing. Cases go to people with the kind of failure on their timelines. |
+| Answers are cut off | `gen_ai.client.operation.duration` with `gen_ai.response.finish_reasons="length"` rises | A model runs into its output limit. When it is a case agent with nothing in motion, the case goes to a person, and the timeline says the answer was cut off. |
+| Model calls fail | `gen_ai.client.operation.duration` with `gen_ai.response.finish_reasons="error"` rises | The provider or the network is failing. When a case agent's turn fails, the case goes to a person with the kind of failure on its timeline. |
 | The agent parks more | Agent-settled cases that end `ON_HOLD` rise compared with resolved ones | The agent decides less, and people do more. |
 
 Usage for each case, by model, is at `/api/cases/{id}/usage`.
