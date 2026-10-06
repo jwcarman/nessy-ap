@@ -21,10 +21,15 @@ import java.util.List;
 import java.util.UUID;
 import org.jwcarman.nessyap.agent.decisions.PendingDecision;
 import org.jwcarman.nessyap.agent.decisions.Provenance;
+import tools.jackson.databind.JsonNode;
 
 /**
- * A decision as the API shows it. Never the reply token: that is the credential that answers the
- * waiting call, and it stays in the database.
+ * A decision as the API shows it.
+ *
+ * @param provenance what produced the proposal, on the auditor's trail only
+ * @param approverFacts the facts the approver was shown when it routed the proposal, as Nessy
+ *     recorded them, on the auditor's trail only; null for the rules' proposals, which no agent
+ *     makes
  */
 public record DecisionView(
     UUID id,
@@ -42,14 +47,16 @@ public record DecisionView(
     String erpResult,
     Instant createdAt,
     Instant deadline,
-    Provenance.Stamp provenance) {
+    Provenance.Stamp provenance,
+    JsonNode approverFacts) {
 
   public static DecisionView of(PendingDecision d) {
-    return of(d, null);
+    return of(d, null, null);
   }
 
   /** The decision with what produced it, as the auditor's trail shows it. */
-  public static DecisionView of(PendingDecision d, Provenance.Stamp provenance) {
+  public static DecisionView of(
+      PendingDecision d, Provenance.Stamp provenance, JsonNode approverFacts) {
     return new DecisionView(
         d.id(),
         d.exceptionId(),
@@ -66,6 +73,7 @@ public record DecisionView(
         d.erpResult(),
         d.createdAt(),
         d.deadline(),
-        provenance);
+        provenance,
+        approverFacts);
   }
 }

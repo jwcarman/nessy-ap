@@ -221,6 +221,15 @@ class DecisionApiTest extends ApAgentIntegrationTest {
   }
 
   @Test
+  void the_trail_shows_the_facts_the_approver_was_shown() throws Exception {
+    awaitProposal();
+
+    mvc.perform(get("/api/cases/{id}/trail", exceptionId).with(bearer("audrey", "auditor")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.decisions[0].approverFacts.reasonCode").value("NO_RECEIPT"));
+  }
+
+  @Test
   void a_clerk_cannot_read_the_trail() throws Exception {
     awaitProposal();
 
