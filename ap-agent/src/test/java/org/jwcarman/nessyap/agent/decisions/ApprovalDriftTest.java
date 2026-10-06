@@ -252,6 +252,8 @@ class ApprovalDriftTest extends ApAgentIntegrationTest {
             });
 
     // Other tests leave proposals in the shared database; only this one is under test.
-    assertThat(racing.check(Instant.now().plus(LATER)).unheld().contains(answered.id())).isFalse();
+    assertThat(racing.check(Instant.now().plus(LATER)).unheld())
+        .filteredOn(answered.id()::equals)
+        .isEmpty();
   }
 }
