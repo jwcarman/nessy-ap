@@ -29,7 +29,7 @@ concentrated where it earns its keep.
 | Module | Code lines | Nessy in it |
 |---|---|---|
 | `erp-sim` (the ERP simulator) | 2,624 | none |
-| `ap-agent` (the desk) | 5,572 | 31 of 91 files |
+| `ap-agent` (the desk) | 5,710 | 33 of 92 files |
 | `ap-eval` (the evaluation) | 1,744 | none |
 | `ap-contracts` (shared events) | 55 | none |
 
@@ -39,16 +39,16 @@ Inside `ap-agent`, the code divides like this, by package:
 
 | Package | Lines | Files that use Nessy | What it is |
 |---|---|---|---|
-| `decisions` | 818 | 9 | A person decides, and the decision runs as that person in the ERP. The approver desk, the facts for the policy, the evidence check. About 100 lines exist only because of Nessy gaps (F1, F4). |
-| `cases` | 656 | 6 | The case index, the timeline, the input renderer, the case's usage and turns. |
+| `decisions` | 909 | 10 | A person decides, and the decision runs as that person in the ERP. The approver desk, the facts for the policy, the evidence check, the drift check. About 100 lines exist only because of Nessy gaps (F1, F4). |
+| `cases` | 666 | 6 | The case index, the timeline, the input renderer, the case's usage and turns. |
 | `resolver` | 649 | 1 | The DMN rules. Nessy is used only to propose through the same approver. |
 | `mail` | 546 | 1 | The Camel mail route. |
 | `tools` | 481 | 3 | Mostly application logic: ERP reads, mail rules, limits. About a fifth is the `Tool` interface around it. |
 | `workbench` | 427 | 0 | The pages people decide on. |
 | `quarantine` | 404 | 2 | The quarantined reader, a direct harness. |
 | `questions` | 359 | 2 | Questions to people, and their answers. |
-| `oversight` | 277 | 3 | The pause, the budget and the metrics. |
-| everything else | 955 | 4 | The ERP client, the event listener, the APIs, security. |
+| `oversight` | 291 | 3 | The pause, the budget and the metrics. |
+| everything else | 978 | 5 | The ERP client, the event listener, the APIs, security. |
 
 The application imports 42 Nessy types. All of them come from public packages: `api` (for example
 `QueuedHarness`, `Tool`, `ApprovalRequest`, `Replies`, `AgentStories` and `AgentWork`), and the

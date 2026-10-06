@@ -49,7 +49,8 @@ final class Settled {
    */
   static boolean of(JsonNode view, Instant now, Duration quiet, Instant lastAnswered) {
     String status = view.path(STATUS).asString();
-    // An agent in the middle of a turn may still propose: nothing is final until it stops.
+    // An agent that is working may still propose: nothing is final until it stops. Working is
+    // Nessy's answer, and counts an input told but not yet started.
     if (view.path("agentActive").asBoolean(false)) {
       return false;
     }

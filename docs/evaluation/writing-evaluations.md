@@ -171,13 +171,20 @@ to fail. The mail path alone found three problems that no unit test found.
 An agent works in turns, and a case can wait for days. The evaluation must decide when to stop
 and score. A case is finished (settled) when one of these is true:
 
-- It is resolved or on hold, its agent is not in a turn, and nothing has happened for a quiet
+- It is resolved or on hold, its agent is not working, and nothing has happened for a quiet
   period. A quiet period alone is a guess: in the first full run on the rules-first desk, an agent
   proposed again 13 seconds after its hold was applied, and the case had already been scored.
+  "Not working" is Nessy's answer (`AgentWork`): an agent in a turn is working, and so is one with
+  an input told and not yet started. An agent that waits on a person is not.
 - It waits on an answer that will not come, because the scenario's person is silent.
 - The desk put it in front of a person (`NEEDS_PERSON`): the agent stopped with nothing in
   motion.
 - It is still investigating, with nothing pending and no move for two minutes: it stalled.
+
+Whatever the case's status, an answer the evaluation just gave must reach the case first. A reply
+goes by SMTP and an IMAP poll, so a case that waits for it is not finished until its timeline shows
+the reply, or two minutes pass. In the second full run, the evaluation scored a case before the
+vendor's reply arrived, and counted the agent's right answer as a failure.
 
 A case that never settles times out after five minutes and fails. Without these rules the
 evaluation waits forever or scores a case before the agent finishes.

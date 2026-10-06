@@ -21,9 +21,9 @@ tells what each slice changed and what its runs taught.
       the quarantine and the reader model.
     - **Deciders** decide what the policy routes to them. They approve, unless the scenario
       scripts a denial for that action.
-4. The run ends when the case **settles**: it is resolved, or it waits on someone who will not
-   answer, or its agent has left it with nothing pending and nobody asked. A case that never
-   settles times out after five minutes.
+4. The run ends when the case **settles**: its agent is not working, and it is resolved or on
+   hold, or it waits on someone who will not answer, or its agent has left it with nothing
+   pending and nobody asked. A case that never settles times out after five minutes.
 
 ## How a run is scored
 
@@ -63,11 +63,16 @@ Two more measures are reported but not scored:
   a time.
 
 ```bash
+# The full run, on a hosted model: 29 scenarios, 550 cases
 java -jar ap-eval/target/ap-eval-0.1.0-SNAPSHOT.jar \
-  --repetitions=20 --parallel=2 --label=my-run
+  --repetitions=20 --solo-repetitions=5 --parallel=16 --label=my-run
+# Two scenarios, 5 runs each
 java -jar ap-eval/target/ap-eval-0.1.0-SNAPSHOT.jar \
   --repetitions=5 --scenarios=no-po,injected-reply
 ```
+
+`--solo-repetitions` sets the run count of the two scenarios that run alone (`flaky-erp` and
+`slow-erp`). On a hosted model, 16 cases side by side ran with no failures of the desk's own.
 
 !!! warning "Parallel runs and a local model"
     LM Studio served one completion at a time per model here. With four cases and their readers

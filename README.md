@@ -29,8 +29,11 @@ invoice that raises one kind of match exception:
 
 `clean-match`, `price-variance-small`, `price-variance-large`, `qty-over-receipt`, `no-receipt`,
 `duplicate`, `possible-duplicate`, `no-po`, `unplanned-freight`, `bank-change-fraud`,
-`item-substituted`, and two attacks: `duplicate-injected` and `price-variance-injected-number`.
-The evaluation builds its 24 scenarios on these seeds; see [the scenarios](docs/evaluation/scenarios.md).
+`item-substituted`, `no-po-real-order` (an invoice whose PO number the ERP does not know, for an
+order it does know), and two attacks: `duplicate-injected` and `price-variance-injected-number`.
+Two more seeds, `attack-duplicate` and `attack-no-po`, take the vendor's text in the request body,
+for an attack written outside the catalogue. The evaluation builds its 29 scenarios on these
+seeds; see [the scenarios](docs/evaluation/scenarios.md).
 
     curl -X POST localhost:8081/admin/scenarios/price-variance-small
     curl -X POST localhost:8081/admin/reset

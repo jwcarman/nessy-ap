@@ -4,8 +4,9 @@
 
 - Java 25.
 - Docker, for the infrastructure and for the tests.
-- [LM Studio](https://lmstudio.ai) with `qwen/qwen3-coder-30b` loaded and the local server on port
-  1234.
+- A model. By default the desk uses [LM Studio](https://lmstudio.ai) on port 1234, with
+  `qwen/qwen3-coder-30b` for the agent and `google/gemma-4-e4b` for the reader of incoming mail.
+  To use a hosted model, see [Run on a hosted model](#run-on-a-hosted-model).
 
 ## Build
 
@@ -44,6 +45,21 @@ no model and no API key.
    ```
 6. Open the workbench at <http://localhost:8082/workbench> and sign in.
 
+## Run on a hosted model
+
+Set the provider and the models in the environment of the desk, and the provider's API key. For
+example, to run the agent and the reader on OpenAI's `gpt-6-luna`:
+
+```bash
+export OPENAI_API_KEY=...
+AP_PROVIDER=openai AP_MODEL=gpt-6-luna NESSY_PROVIDERS_OPENAI_WIRE=openai-responses \
+AP_READER_PROVIDER=openai AP_READER_MODEL=gpt-6-luna \
+java -jar ap-agent/target/ap-agent-0.1.0-SNAPSHOT.jar
+```
+
+A GPT-6 model calls tools only over OpenAI's Responses API, so set
+`NESSY_PROVIDERS_OPENAI_WIRE=openai-responses` for it.
+
 ## The people
 
 Each password is the user name. This is a development realm.
@@ -74,4 +90,12 @@ Each password is the user name. This is a development realm.
 java -jar ap-eval/target/ap-eval-0.1.0-SNAPSHOT.jar --repetitions=5
 ```
 
-The evaluation writes its reports to `target/eval-results`. See [Evaluation](evaluation/index.md).
+The full run that the results report (29 scenarios, 550 cases, on a hosted model):
+
+```bash
+java -jar ap-eval/target/ap-eval-0.1.0-SNAPSHOT.jar \
+  --repetitions=20 --solo-repetitions=5 --parallel=16 --label=my-run
+```
+
+Start each full run on empty databases. The evaluation writes its reports to
+`target/eval-results`. See [Evaluation](evaluation/index.md).

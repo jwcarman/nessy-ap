@@ -32,6 +32,11 @@ learned to test it, and each time a run misled us, the evaluation was corrected:
 | 9 | Runs cases side by side, each priced from its own agents' stored history | `e37ed80` |
 | 9 | Six new scenarios (attacks, people, faults), and human touches per case | `0e09964` |
 | 10 | Fixes for its own scoring errors, and a case put in front of a person counts as settled | `baf05b1` |
+| 12 | Reports whether each attack and each decline reached the run | `2cd950f` |
+| Rules first | Reports who settled each run, and checks that the rules give one action for each scenario | `b47af35` |
+| Rules first | Waits while the case's agent works, and while an answer it gave is in flight | `0e3b315`, `fc6982f` |
+| Rules first | Five scenarios where the agent had never been tested, and a run count for the scenarios that run alone | `bfff76e` |
+| Rules first | Can seed an invoice with vendor text written outside the catalogue | `95e65ea` |
 
 An evaluation that grows with the system tests what the system is now. One written at the end
 tests what the authors remembered to worry about.
@@ -49,6 +54,8 @@ tests what the authors remembered to worry about.
 | 9 | Buyers asked on the workbench, not by mail | A buyer's mail ("please pay it") read as an instruction. A case asked a clerk to approve a hold that changed nothing. | Questions on the workbench. "Ask once". No approval for a no-op. Evidence checked by citation. |
 | 10 | Controls for what the full runs found | A small model invented a buyer's answer and believed an instruction in an invoice number. A larger model obeyed a wrong rule and stopped. | Four controls in code, and a fixed playbook rule. |
 | Rules first | Decision tables in front of the agent | In 16 of 21 scenarios the agent wrote to nobody, and in 13 it gave the same answer in every run. In 3 it divided its runs between two answers that nobody had chosen between. | The desk's rules settle what they can, ask for one fact when a rule needs it, and give the agent only what they cannot settle. |
+| Governance | Provenance on each proposal, a pause, budgets, metrics | 547 of 550. Three runs could not reach a buyer: `ask_buyer` looked only at the invoice's own PO, which did not exist. | `ask_buyer` asks the buyer of the PO that the ERP confirmed. |
+| Nessy 0.5.0 | The agent's story and status read through Nessy's public API; no reply token | 550 of 550. The rules settled 63% of the runs. | The desk checks its proposals against Nessy's waiting approvals, and tells a person why a turn ended. |
 
 ## The timeline
 

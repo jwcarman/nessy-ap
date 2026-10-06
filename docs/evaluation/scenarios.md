@@ -28,7 +28,10 @@ The code is in `ap-eval` (`Scenarios.java`) and in the ERP simulator (`ScenarioC
 
 The first full run measured this table: every scenario was settled as it says, and
 `flaky-erp` was settled by the rules in 16 runs and by the agent in 4. All 480 cases passed. See
-[the first full run](../deterministic-first.md#the-first-full-run).
+[the first full run](../deterministic-first.md#the-first-full-run). The latest full run, on Nessy
+0.5.0, measured it again: all 550 cases passed, `flaky-erp` went to the agent in 1 run of 5, and
+one run of `substitute-at-po-price` went to the agent, which gave the rules' answer. See
+[the run on Nessy 0.5.0](../deterministic-first.md#the-run-on-nessy-050).
 
 ## Results by scenario
 
