@@ -88,6 +88,7 @@ public class CaseController {
       String status,
       String handledBy,
       boolean agentActive,
+      int queued,
       List<CaseTimeline.CaseEvent> timeline,
       List<CaseDecision> decisions,
       List<CaseMail> mail,
@@ -141,6 +142,7 @@ public class CaseController {
             .find(exceptionId)
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No case " + exceptionId));
+    AgentStatus agentStatus = work.status(AgentConfiguration.AGENT_TYPE, c.agentId());
     return new CaseView(
         c.exceptionId(),
         c.agentId().value(),
@@ -149,8 +151,9 @@ public class CaseController {
         c.status().name(),
         cases.rulesHandle(exceptionId) ? "rules" : "agent",
         // Busy: something can still move on its own. Waiting on a person is not busy.
-        work.status(AgentConfiguration.AGENT_TYPE, c.agentId()).activity()
-            == AgentStatus.Activity.WORKING,
+        agentStatus.activity() == AgentStatus.Activity.WORKING,
+        // Inputs told to the agent that wait for its next turn.
+        agentStatus.queued(),
         timeline.of(exceptionId),
         decisions.forCase(exceptionId).stream()
             .map(
