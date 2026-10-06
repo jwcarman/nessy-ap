@@ -169,19 +169,18 @@ Two smaller points:
   deterministic controls easy to add around the model, and the policy approver does that well:
   the gate on ungrounded citations was one enricher fact and one policy rule.
 
-## What the desk does not use yet
+## What the desk reads from Nessy's record
 
-Nessy 0.5.0 records more than the desk reads. These would help, and none needs a change in Nessy:
-- **Why a call or a turn failed.** `Answered` says when the model was cut off at its output limit,
-  `TurnFailed` and `CallFailed` carry a kind (for example `PAST_DEADLINE`), and a retried model
-  call is told as `InferenceRetried`. The desk keeps only the reason text, so it cannot count
-  truncated answers or retries.
-- **The approvals that wait on people.** `AgentWork.waitingApprovals()` lists them. The desk could
-  check its decision table against that list and report any difference.
-- **The facts an approver was shown.** `StoryContent.approvalFacts` reads them back for each call.
-  The audit trail could show them beside each decision.
-- **The inputs that wait.** `AgentStatus` counts the inputs queued for an agent. The case view
-  could show them.
+Nessy records more than an application must read. The desk reads these parts as well:
+- **Why a turn ended.** `Answered` says when the model was cut off at its output limit, and
+  `TurnFailed` carries the kind of failure. The case's timeline gives a person both.
+- **Model calls, as metrics.** Nessy's meter for each model call is tagged with its finish reason
+  and its failure type, so the desk's alerts read it and count nothing again.
+- **The approvals that wait on people.** `AgentWork.waitingApprovals()` lists them. Every minute
+  the desk checks its proposals against that list and reports any difference (`ApprovalDrift`).
+- **The facts an approver was shown.** `StoryContent.approvalFacts` reads them back for each
+  call, and the audit trail shows them beside each decision.
+- **The inputs that wait.** The case view counts the inputs queued for the case's agent.
 
 ## What would make Nessy a better fit
 
