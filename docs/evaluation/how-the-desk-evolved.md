@@ -55,7 +55,7 @@ tests what the authors remembered to worry about.
 | 10 | Controls for what the full runs found | A small model invented a buyer's answer and believed an instruction in an invoice number. A larger model obeyed a wrong rule and stopped. | Four controls in code, and a fixed playbook rule. |
 | Rules first | Decision tables in front of the agent | In 16 of 21 scenarios the agent wrote to nobody, and in 13 it gave the same answer in every run. In 3 it divided its runs between two answers that nobody had chosen between. | The desk's rules settle what they can, ask for one fact when a rule needs it, and give the agent only what they cannot settle. |
 | Governance | Provenance on each proposal, a pause, budgets, metrics | 547 of 550. Three runs could not reach a buyer: `ask_buyer` looked only at the invoice's own PO, which did not exist. | `ask_buyer` asks the buyer of the PO that the ERP confirmed. |
-| Nessy 0.5.0 | The agent's story and status read through Nessy's public API; no reply token | 550 of 550. The rules settled 63% of the runs. | The desk checks its proposals against Nessy's waiting approvals, and tells a person why a turn ended. |
+| Nessy 0.5.0 | The agent's story and status read through Nessy's public API; no reply token | 550 of 550 on the snapshot. 549 of 550 on the release; the one failure cited the exception's id for the invoice's. | The desk checks its proposals against Nessy's waiting approvals, and tells a person why a turn ended. |
 
 ## The timeline
 

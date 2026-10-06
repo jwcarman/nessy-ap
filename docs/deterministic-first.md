@@ -303,12 +303,13 @@ buyer first.
 The new metrics agreed with the evaluation: `ap.rules.escalated` counted 202 cases given to the
 agent, the same 202 runs the report counts as settled by the agent.
 
-## The run on Nessy 0.5.0
+## The runs on Nessy 0.5.0
 
 Nessy 0.5.0 gave the desk a public read of an agent's story and status, and removed the reply
 token. The desk moved to it: the audit trail, the evidence check, the budget and `agentActive` read
-Nessy's public API, and a late decision is answered by the agent and the call's key. The run had
-the same 550 cases, on `gpt-6-luna`, 16 side by side, from empty databases.
+Nessy's public API, and a late decision is answered by the agent and the call's key. The first run
+was on the 0.5.0 snapshot, with the same 550 cases, on `gpt-6-luna`, 16 side by side, from empty
+databases.
 
 **550 of 550 passed.** The rules settled 348 runs (63%) and the agent 202 (37%). Every scenario
 that the rules settled ended the same way in every run. The run took 25 minutes.
@@ -323,6 +324,20 @@ that the rules settled ended the same way in every run. The run took 25 minutes.
 
 The approvals answered late and the approvals declined and proposed again all reached their
 agents under 16-way concurrency.
+
+The second run was on the released 0.5.0, with the desk's new reads of Nessy's record: the reason
+a turn ended, the check of the desk's proposals against Nessy's waiting approvals, the facts each
+approver was shown, and the inputs that wait.
+
+**549 of 550 passed.** The rules settled 350 runs (64%) and the agent 200 (36%), every scenario
+exactly as [the scenarios](evaluation/scenarios.md#who-settles-each-scenario-now) say. The run took
+26 minutes. The drift check read 0 on both sides in each of its 26 samples.
+
+- The one failure, `substitution-unclear` #2, asked for a credit memo, which is acceptable. Its
+  evidence cited the exception's id where the invoice's id belonged. The agent had read that id
+  from a tool, so the grounding gate let it through, and the evaluation's evidence check failed
+  the run.
+- The full table for each scenario is in [the results](evaluation/results.md#the-desk-now-550-cases).
 
 ## What is not done
 
