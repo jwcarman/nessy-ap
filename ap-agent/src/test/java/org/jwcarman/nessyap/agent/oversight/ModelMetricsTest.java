@@ -44,7 +44,7 @@ class ModelMetricsTest extends ApAgentIntegrationTest {
   private double cutOff() {
     Timer timer =
         registry.find(MODEL_CALLS).tag("gen_ai.response.finish_reasons", "length").timer();
-    return timer == null ? 0 : timer.count();
+    return timer == null ? 0 : (double) timer.count();
   }
 
   @Test

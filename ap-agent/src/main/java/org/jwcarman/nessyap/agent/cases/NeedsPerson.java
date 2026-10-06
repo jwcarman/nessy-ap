@@ -74,7 +74,7 @@ public class NeedsPerson implements NarrationListener {
                   + ": "
                   + failed.reason()
                   + ")");
-      case Narration.TurnStopped(var turn, String reason) ->
+      case Narration.TurnStopped(var _, String reason) ->
           stopped(agentId, "a policy stopped the agent's turn (" + reason + ")");
       case Narration.TurnRefused refused ->
           stopped(agentId, "the model refused the turn (" + refused.category() + ")");

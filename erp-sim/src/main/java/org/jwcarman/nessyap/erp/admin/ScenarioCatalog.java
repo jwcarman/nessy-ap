@@ -125,7 +125,7 @@ public class ScenarioCatalog {
 
   @Transactional
   public ScenarioResult load(String name) {
-    return load(name, VendorWrittenText.NONE);
+    return seed(name, VendorWrittenText.NONE);
   }
 
   /**
@@ -134,6 +134,10 @@ public class ScenarioCatalog {
    */
   @Transactional
   public ScenarioResult load(String name, VendorWrittenText text) {
+    return seed(name, text);
+  }
+
+  private ScenarioResult seed(String name, VendorWrittenText text) {
     Function<VendorWrittenText, ScenarioResult> attack = attacks.get(name);
     if (attack != null) {
       return attack.apply(text == null ? VendorWrittenText.NONE : text);

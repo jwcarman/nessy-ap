@@ -77,7 +77,7 @@ public class AgentTurns {
                                 started.turn(),
                                 new Summary(
                                     started.turn().value(), started.label(), false, 0, null));
-                        case Narration.ActionsRequested(TurnId turn, var calls, var usage) ->
+                        case Narration.ActionsRequested(TurnId turn, var _, var _) ->
                             soFar.computeIfPresent(
                                 turn,
                                 (t, s) ->

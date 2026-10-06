@@ -33,13 +33,20 @@ final class Http {
       HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
   private final JsonMapper json;
 
+  private static final String CONTENT_TYPE = "Content-Type";
+  private static final String APPLICATION_JSON = "application/json";
+
+  private static IllegalStateException nothingFound(String url) {
+    return new IllegalStateException("POST " + url + " found nothing");
+  }
+
   Http(JsonMapper json) {
     this.json = json;
   }
 
   JsonNode post(String url) {
     return send(HttpRequest.newBuilder(URI.create(url)).POST(HttpRequest.BodyPublishers.noBody()))
-        .orElseThrow(() -> new IllegalStateException("POST " + url + " found nothing"));
+        .orElseThrow(() -> nothingFound(url));
   }
 
   Optional<JsonNode> get(String url) {
@@ -54,26 +61,25 @@ final class Http {
   JsonNode postJson(String url, String bearer, Object body) {
     return send(HttpRequest.newBuilder(URI.create(url))
             .header("Authorization", "Bearer " + bearer)
-            .header("Content-Type", "application/json")
+            .header(CONTENT_TYPE, APPLICATION_JSON)
             .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))))
-        .orElseThrow(() -> new IllegalStateException("POST " + url + " found nothing"));
+        .orElseThrow(() -> nothingFound(url));
   }
 
-  /** A JSON POST with the given headers, for the ERP's admin calls and the attacker's model. */
+  /** A JSON POST with the given headers, for the ERP's admin calls. */
   JsonNode postJson(String url, Map<String, String> headers, Object body) {
     HttpRequest.Builder request =
         HttpRequest.newBuilder(URI.create(url))
-            .header("Content-Type", "application/json")
+            .header(CONTENT_TYPE, APPLICATION_JSON)
             .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
     headers.forEach(request::header);
-    return send(request)
-        .orElseThrow(() -> new IllegalStateException("POST " + url + " found nothing"));
+    return send(request).orElseThrow(() -> nothingFound(url));
   }
 
   void put(String url, Object body) {
     send(
         HttpRequest.newBuilder(URI.create(url))
-            .header("Content-Type", "application/json")
+            .header(CONTENT_TYPE, APPLICATION_JSON)
             .PUT(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))));
   }
 

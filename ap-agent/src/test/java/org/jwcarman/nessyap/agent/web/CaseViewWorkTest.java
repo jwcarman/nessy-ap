@@ -55,7 +55,7 @@ class CaseViewWorkTest extends ApAgentIntegrationTest {
           inTurn.countDown();
           try {
             release.await(20, TimeUnit.SECONDS);
-          } catch (InterruptedException e) {
+          } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
           }
           return new InferenceResult.Answer(List.of(new Block.Text("Noted.")));

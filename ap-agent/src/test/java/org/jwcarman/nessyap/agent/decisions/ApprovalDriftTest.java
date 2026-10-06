@@ -237,8 +237,7 @@ class ApprovalDriftTest extends ApAgentIntegrationTest {
             .mapToObj(i -> waitingOn(IdempotencyKey.of(UUID.randomUUID())))
             .toList();
 
-    assertThat(over(() -> full).check(Instant.now().plus(LATER)).unheld())
-        .doesNotContain(beyond.id());
+    assertThat(over(() -> full).check(Instant.now().plus(LATER)).unheld()).isEmpty();
   }
 
   @Test
@@ -252,6 +251,7 @@ class ApprovalDriftTest extends ApAgentIntegrationTest {
               return List.of();
             });
 
-    assertThat(racing.check(Instant.now().plus(LATER)).unheld()).doesNotContain(answered.id());
+    // Other tests leave proposals in the shared database; only this one is under test.
+    assertThat(racing.check(Instant.now().plus(LATER)).unheld().contains(answered.id())).isFalse();
   }
 }
