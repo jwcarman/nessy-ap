@@ -60,7 +60,7 @@ decisions and audit.
   RabbitMQ message, the case index and the `tell` to the agent commit together. It is also a
   coupling: Nessy's tables live in the application's schema, and an engine upgrade is a schema
   change.
-- **Nessy is a released dependency.** Nessy AP builds against Nessy 0.4.0 from Maven Central.
+- **Nessy is a released dependency.** Nessy AP builds against Nessy 0.5.0 from Maven Central.
 
 ## What was easy
 
