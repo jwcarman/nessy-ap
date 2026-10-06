@@ -7,9 +7,9 @@ a true rate above 84%.
 
 !!! note "These results are from before the rules came first"
     Every run on this page had the agent settle every case. Since then, the desk's decision
-    tables settle most scenarios before the agent sees them. The first full run on the new desk
-    (480 of 480 on `gpt-6-luna`) is in
-    [Stay deterministic as long as you can](../deterministic-first.md#the-first-full-run).
+    tables settle most scenarios before the agent sees them. The full runs on the new desk are in
+    [Stay deterministic as long as you can](../deterministic-first.md#the-first-full-run). The
+    latest, on Nessy 0.5.0, passed 550 of 550 on `gpt-6-luna`.
 
 [Writing an evaluation](writing-evaluations.md) explains the method and the mistakes it
 corrected. [The scenarios](scenarios.md) gives the result of each scenario in each run.

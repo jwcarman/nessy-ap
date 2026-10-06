@@ -3,7 +3,7 @@
 Nessy AP uses only Nessy's public API. Where that API was awkward or missing, the gap is written
 down here instead of worked around in silence. The full text is in section 10 of the design spec.
 Each finding was checked against Nessy's source on 2026-10-03, and its status against the released
-Nessy 0.4.0 on 2026-10-04.
+Nessy 0.5.0 on 2026-10-06.
 
 | Finding | Status |
 |---|---|

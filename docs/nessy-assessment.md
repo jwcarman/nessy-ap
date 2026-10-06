@@ -2,64 +2,76 @@
 
 Nessy AP is the first enterprise application built on Nessy. This page is a critique: how easy
 Nessy was to use, how far it reached into the application, how much code it needed, and where it
-failed us. The measurements are from the `main` branch on 2026-10-03. Each finding was checked against Nessy's
-source, and two were corrected: a claimed gap that Nessy does not have was removed, and F3 was
-narrowed. On 2026-10-04 each finding's status was checked again against the released 0.4.0, which
-the desk now uses.
+failed us. The measurements are from the `main` branch on 2026-10-06, which builds against the
+released Nessy 0.5.0. Each finding was checked against Nessy's source and against that release.
 
 ## The verdict
 
 Nessy fits case-based work, where one agent works one case for days and people decide. The
 queued door, the transactional `tell` and the policy approver do real work that we did not have to
-write. The gaps are in three areas:
-- the approval life cycle after a person decides;
-- reading an agent's history and usage from outside the engine;
-- trust in the input.
+write. The desk uses only Nessy's public API: the agent's story, its status and its usage are all
+public reads.
 
-Each gap cost us application code. Nessy 0.4.0 fixed six of the fifteen findings, the dispatcher
-stall (F8) among them, which was a release blocker.
+The gaps are in two areas:
+- the approval life cycle after a person decides (F1, F4, F9);
+- trust in the input (F11, F13).
+
+Each gap costs us application code. Of the fifteen findings, eight are fixed or answered and one
+(F4) is partly fixed. Among them are the dispatcher stall (F8), which was a release blocker, and the read API for an agent's story
+(F3), which was the reason the desk once imported an engine type.
 
 Since the desk's rules came first ([Stay deterministic as long as you can](deterministic-first.md)),
-the agent settles about a third of the cases, the ones that need judgment. Nessy's work is now
+the agent settles about a third of the cases, the ones that need judgment. Nessy's work is
 concentrated where it earns its keep.
 
 ## How much code, and whose
 
 | Module | Code lines | Nessy in it |
 |---|---|---|
-| `erp-sim` (the ERP simulator) | 2,383 | none |
-| `ap-agent` (the desk) | 2,829 | 17 of 51 files |
-| `ap-eval` (the evaluation) | 932 | none |
-| `ap-contracts` (shared events) | 54 | none |
+| `erp-sim` (the ERP simulator) | 2,624 | none |
+| `ap-agent` (the desk) | 5,572 | 31 of 91 files |
+| `ap-eval` (the evaluation) | 1,744 | none |
+| `ap-contracts` (shared events) | 55 | none |
 
 "Code lines" excludes blank lines, comments, imports and package lines.
 
-Inside `ap-agent`, the code divides like this (estimates by file):
+Inside `ap-agent`, the code divides like this, by package:
 
-| Kind of code | About | Note |
-|---|---|---|
-| Glue to Nessy | 250 lines | The agent type, the approver desk, the facts for the policy, the input renderer. |
-| Tools | 430 lines | Mostly application logic: ERP reads, mail rules, limits. About a fifth is the `Tool` interface around it. |
-| Decisions and their execution | 460 lines | Most of it any framework needs: a person decides, and the decision runs as that person in the ERP. About 100 lines exist only because of Nessy gaps (F1, F4, F7). |
-| Everything else | 1,690 lines | The workbench, the mail route, the ERP client, the event listener, the case index. None of it depends on the framework. |
+| Package | Lines | Files that use Nessy | What it is |
+|---|---|---|---|
+| `decisions` | 818 | 9 | A person decides, and the decision runs as that person in the ERP. The approver desk, the facts for the policy, the evidence check. About 100 lines exist only because of Nessy gaps (F1, F4). |
+| `cases` | 656 | 6 | The case index, the timeline, the input renderer, the case's usage and turns. |
+| `resolver` | 649 | 1 | The DMN rules. Nessy is used only to propose through the same approver. |
+| `mail` | 546 | 1 | The Camel mail route. |
+| `tools` | 481 | 3 | Mostly application logic: ERP reads, mail rules, limits. About a fifth is the `Tool` interface around it. |
+| `workbench` | 427 | 0 | The pages people decide on. |
+| `quarantine` | 404 | 2 | The quarantined reader, a direct harness. |
+| `questions` | 359 | 2 | Questions to people, and their answers. |
+| `oversight` | 277 | 3 | The pause, the budget and the metrics. |
+| everything else | 955 | 4 | The ERP client, the event listener, the APIs, security. |
 
-The application uses 23 Nessy types. Most of them come from the `api` package: `QueuedHarness`,
-`Tool`, `ToolCallRequest`, `ToolResult`, `Awaited`, `ApprovalRequest`, `Replies`, `AgentStories`
-and `AgentWork`. None comes from an internal package: the agent's story and its status are public
-reads since Nessy's agent-story work.
+The application imports 42 Nessy types. All of them come from public packages: `api` (for example
+`QueuedHarness`, `Tool`, `ApprovalRequest`, `Replies`, `AgentStories` and `AgentWork`), and the
+`PolicyApprover` and `OpaPolicyEngine` of the approval modules. None comes from the engine.
 
-**About 90% of `ap-agent` would exist with any agent framework.** The part that is Nessy's is
-small. The part that Nessy made us write is smaller, but it is in the places that matter most:
-decisions and audit.
+**Most of `ap-agent` would exist with any agent framework.** The part that is Nessy's is small.
+The part that Nessy made us write is smaller, but it is in the places that matter most: decisions
+and audit.
 
 ## How invasive it is
 
 - **Nessy stays in one module.** The ERP, the evaluation, the Camel route, Keycloak and OPA know
   nothing about it. The domain has no Nessy types.
+- **The desk uses only the public API.** The audit trail, the evidence check, the case view's
+  "is the agent busy?" and the agent budget read the agent's story and status through
+  `AgentStories` and `AgentWork`.
 - **Nessy shares the application's database and its transactions.** This is a strength: a
   RabbitMQ message, the case index and the `tell` to the agent commit together. It is also a
   coupling: Nessy's tables live in the application's schema, and an engine upgrade is a schema
   change.
+- **Nessy needs no secret of its own.** A late decision is answered by the agent and the call's
+  idempotency key, which the desk already stores. The endpoint that answers is guarded by the
+  desk's own security.
 - **Nessy is a released dependency.** Nessy AP builds against Nessy 0.5.0 from Maven Central.
 
 ## What was easy
@@ -69,12 +81,17 @@ decisions and audit.
 - **Exactly-once intake.** `tell` joins the caller's transaction. The event listener records the
   event id and tells the agent in one transaction, with no outbox of our own.
 - **People in the loop.** `PolicyApprover` with OPA's `delegate` routes each proposal to a role,
-  and `Replies` answers it days later, by the agent and the call's idempotency key. We did not
-  invent an approval engine.
+  and `Replies` answers it days later, by the agent and the call's idempotency key. The approval
+  records who decided. We did not invent an approval engine.
 - **Approvals with no agent behind them.** The desk's rules propose through the same
   `PolicyApprover`, the same enricher and the same workbench, under an agent type of their own, and
   no agent waits on their answer. Nessy's approval stack needed no change for a proposer that
   is not a model.
+- **What an agent is doing.** `AgentWork.status` says whether an agent is idle, working, waiting
+  on a person or terminated. It counts an input that is told but not yet started as work, which a
+  check of the last turn missed.
+- **How a turn ended.** Each turn ends in one event: `Answered`, `TurnFailed`, `TurnStopped` or
+  `TurnRefused`. The desk tells a person which one, with its reason.
 - **Any model.** The agent ran on a local model through LM Studio with no change to the
   application. Tool schemas come from Java records.
 - **A one-shot is a direct harness.** The quarantined reader is a `DirectHarness` with no tools
@@ -98,37 +115,39 @@ records it.
   worked it. Because the cost comes from the record, not from a global counter, cases can run
   side by side, and a restart loses nothing.
 - **What the agent read is on the record.** The evidence check asks whether the agent read each
-  id it cites. The desk answers that from the agent's turn history: what each tool returned. A
-  framework that kept only the final answer could not support this check.
+  id it cites. The desk answers that from the agent's story: every result its tools returned,
+  read through `AgentStories`. A framework that kept only the final answer could not support this
+  check.
 - **Decisions are records, not callbacks.** Each proposal is an approval request with an action,
   a rationale, evidence and the role the policy chose. Scoring "correct", "routed" and "evidence"
   is reading those records.
 - **Agents have stable identities.** A case's agent is named from the exception id, and a
   reader's from the reply's Message-ID. The evaluation and the desk find every agent of a case
   without a lookup table in memory.
-- **Narration made the tests deterministic.** Integration tests wait for `TurnEnded` instead of
-  sleeping. A scripted model drives the real engine, so the tests cover the real queued door,
+- **The evaluation knows when a case is finished.** A case is finished when no agent on it is
+  working. `AgentWork` answers that, and waiting on a person does not count as working.
+- **Narration made the tests deterministic.** Integration tests wait for a turn's ending instead
+  of sleeping. A scripted model drives the real engine, so the tests cover the real queued door,
   approvals and the backlog.
 - **The queued door's guarantees are testable as scenarios.** Exactly-once intake made the
   `redelivered` scenario meaningful: a repeated event must not start the case over, and 20 of
   20 runs proved it.
 
-Where Nessy made the evaluation harder:
-- **The story has no public read API (F3).** The evidence check, the audit trail and the case
-  view's "is the agent in a turn?" use an internal engine type (`TurnHistories`). The number of
-  model requests does not: the public `UsageReports` counts them (`inferences`). The evaluation cannot know when a case is finished without that last one.
-- **A failed turn was quiet (F15).** A dropped connection to the model ended turns, and the cases
-  looked like an agent that gave up. Separating the system's failures from the model's took
-  digging through logs. Fixed in 0.4.0: such a failure now reaches the retry policy.
+Where Nessy makes the evaluation harder:
+- **A turn summary is a fold the application writes.** The audit trail lists each turn: what
+  started it, how many times it asked for tools, and how it ended. The budget counts the turns.
+  The desk writes both as folds over the story (`AgentTurns`, 105 lines), and each fold reads the
+  whole story, because there is no read from the end. Every application with an audit view will
+  write this again. The request is with Nessy.
 - **No published test kit (F5).** Every application writes its own scripted model.
 
 ## Where it fought us
 
 | Finding | What it cost us |
 |---|---|
-| **F1.** A tool cannot see its own approval. | A table of decisions, keyed by the call's idempotency key, so that `propose_resolution` can find the decision that let it run. Simpler since 0.4.0 (see F7), still open. |
-| **F3.** No read API for an agent's story. | The audit trail, the evidence check and the case view's turn state use an internal engine type. Usage is readable, by model, through `UsageReports`; the story itself is not. Open. |
-| **F4.** A late decision has no channel. | A separate path that tells the agent after its approval expired. |
+| **F1.** A tool cannot see its own approval. | A table of decisions, keyed by the call's idempotency key, so that `propose_resolution` can find the decision that let it run. Answered by the key: the table is ours, and the key joins it to the call. |
+| **F3.** No read API for an agent's story. | Until it was fixed, the audit trail, the evidence check and the case view's turn state used an internal engine type. Fixed: `AgentStories` and `AgentWork`. What is left is the turn fold above. |
+| **F4.** A late decision has no channel. | A separate path that tells the agent when the ERP carried out a decision after its call stopped waiting. Partly fixed: a late answer is `Ignored`, by key, with no secret to keep. |
 | **F5.** No scripted model for tests. | About 90 lines of test support that every Nessy application will write again. |
 | **F6.** Narration cannot be joined to a tool call. | The application writes its own timeline for people to read. Fixed in 0.4.0: `ActionsRequested` carries each call. |
 | **F7.** A call key is unique only within one agent. | A composite key in our own table. A silent collision if we had not read the code. Fixed in 0.4.0: an `IdempotencyKey` for each call, shared by its approval and its run. |
@@ -150,16 +169,30 @@ Two smaller points:
   deterministic controls easy to add around the model, and the policy approver does that well:
   the gate on ungrounded citations was one enricher fact and one policy rule.
 
+## What the desk does not use yet
+
+Nessy 0.5.0 records more than the desk reads. These would help, and none needs a change in Nessy:
+- **Why a call or a turn failed.** `Answered` says when the model was cut off at its output limit,
+  `TurnFailed` and `CallFailed` carry a kind (for example `PAST_DEADLINE`), and a retried model
+  call is told as `InferenceRetried`. The desk keeps only the reason text, so it cannot count
+  truncated answers or retries.
+- **The approvals that wait on people.** `AgentWork.waitingApprovals()` lists them. The desk could
+  check its decision table against that list and report any difference.
+- **The facts an approver was shown.** `StoryContent.approvalFacts` reads them back for each call.
+  The audit trail could show them beside each decision.
+- **The inputs that wait.** `AgentStatus` counts the inputs queued for an agent. The case view
+  could show them.
+
 ## What would make Nessy a better fit
 
 In order of value to this application:
-1. **A read API for an agent's story (F3).** Usage is done (`UsageReports`); the story is not.
-   Audit and cost are the first questions an enterprise asks, and "is this agent in a turn?" is
-   the first one an evaluation asks.
-2. **Make approvals complete:** a tool sees its approval (F1), and a late decision has a channel
-   (F4). Unique call keys (F7) shipped in 0.4.0.
-3. **Provenance on input (F11).** Let an application say how far each input is trusted, so that
+1. **Make approvals complete:** a late decision that was carried out has a channel to the agent
+   (F4), and a person can reach an agent while its proposal waits (F9).
+2. **Provenance on input (F11).** Let an application say how far each input is trusted, so that
    the renderer, the policy and the trail can use it. The Occlude experiment in this repository
    is a candidate design.
+3. **Ready-made turn summaries, and a read from the end of the story.** Audit and cost are the
+   first questions an enterprise asks. Today each application folds the whole story to answer
+   them.
 4. **A published test kit (F5)** with a scripted model and a narration tap.
-5. **Input while a proposal waits (F9).**
+5. **Retention for stored history (F13).**
