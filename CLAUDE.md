@@ -3,9 +3,10 @@
 - Spec of record: `docs/superpowers/specs/2026-10-02-ap-exception-desk-design.md`.
   Anything awkward or missing in Nessy goes in its §10 findings log; never patch
   around Nessy silently.
-- Nessy is consumed as the local `0.4.0-SNAPSHOT`. After any Nessy change, run
-  `./mvnw install -DskipTests` in `~/IdeaProjects/nessy` before building here, or a
-  stale jar in `~/.m2` shadows the source.
+- Nessy is consumed as the released `0.5.0` from Maven Central. To build against a
+  Nessy snapshot, set `nessy.version` to it and run `./mvnw install -DskipTests` in
+  `~/IdeaProjects/nessy` first. Do this again after each Nessy change, or a stale jar
+  in `~/.m2` shadows the source.
 - Before any build: `./mvnw spotless:apply license:format`. Iterate with
   `./mvnw -q -pl :<artifactId> -am test`; run `./mvnw -q clean verify` once per task
   before its last commit. Check exit codes, never grep Maven output.
