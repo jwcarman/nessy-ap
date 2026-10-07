@@ -339,6 +339,24 @@ exactly as [the scenarios](evaluation/scenarios.md#who-settles-each-scenario-now
   the run.
 - The full table for each scenario is in [the results](evaluation/results.md#the-desk-now-550-cases).
 
+## The runs on Nessy 0.6.0 and 0.7.0
+
+Nessy 0.6.0 gave every completed turn a trajectory, and 0.7.0 put the label of the turn's input
+beside it. The desk labels every input from closed sets. Two full runs on 2026-10-07, same 550
+cases, `gpt-6-luna`, 16 side by side, from empty databases:
+
+- **0.6.0: 550 of 550 passed.** The rules settled 350 and the agent 200. The trajectory table,
+  joined to the case timeline for the scenario, found a model call wasted in every `goods-arrive`
+  case, an invoice id the agent typed when told to leave it out, and that an injected instruction
+  changes the agent's method and not its decision.
+- **0.7.0: 548 of 550 passed.** The rules settled 350 and the agent 200. The two failures were a
+  dropped model stream that nothing retried, because the desk had never chosen an inference
+  retry policy and Nessy's default is one attempt. The desk's agent now gets three attempts.
+
+The labels made the second analysis a `group by` instead of a join. The full account is in
+[the results](evaluation/results.md#what-the-trajectories-showed), and the runs are in the
+[run ledger](evaluation/runs.md).
+
 ## What is not done
 
 - **A second reading for facts that move money.** The design reads a reply twice for such a fact

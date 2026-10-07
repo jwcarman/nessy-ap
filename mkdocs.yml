@@ -84,6 +84,7 @@ nav:
       - "The scenarios": evaluation/scenarios.md
       - "The evaluation results": evaluation/results.md
       - "How the desk evolved": evaluation/how-the-desk-evolved.md
+      - "The run ledger": evaluation/runs.md
   - Nessy:
       - Assessing Nessy for this use case: nessy-assessment.md
       - Findings: findings.md

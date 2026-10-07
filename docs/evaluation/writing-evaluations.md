@@ -334,6 +334,71 @@ scenarios that run alone take longest, one at a time: `--solo-repetitions` gives
 of their own. `flaky-erp` is the one to watch, because its faults are random: a few runs show that
 both of its paths still work, but not how often each happens.
 
+## 17. Fingerprint the behavior, not only the outcome
+
+The four checks score what the agent decided. They cannot see how it got there. A run passes
+with a wasted model call, a run passes by a different method after an attack, and a run passes
+by one of two acceptable actions chosen at random. Nessy 0.6.0 added a record of the behavior:
+each completed turn gets a trajectory, which is the tools it called, in which rounds, how each
+call settled, and how the turn ended, hashed to a fingerprint and stored as JSON beside it in
+`nessy_agent_turn`. Nessy 0.7.0 added the label of the input that started the turn, so the
+behavior groups by the kind of work.
+
+The desk labels every input from closed sets, and nothing else: the exception's reason code, the
+rules' stop reason, the reader's intent, the desk's actions. `rules-stopped:NO_PO:unhandled` is
+a no-PO case the rules could not handle. `reply:DENIES:instructions` is a vendor's denial that
+also tried to instruct the agent. A label with an id or a name in it is one group per turn, and
+grouping dies. Keep the spelling stable across runs, because a renamed label breaks every
+run-to-run comparison.
+
+Four questions the fingerprints answer that the pass rate cannot:
+
+**Is the agent settled on how to do each task?** Distinct trajectories over turns, per label. A
+high ratio means the model has not settled on one way to work that task. On the 0.6.0 run,
+labelled after the fact from the case timeline, the first no-PO turn had 20 shapes in 120 turns.
+A vendor's plain denial had 1 shape in 10 turns.
+
+```sql
+select label, count(*) turns, count(distinct trajectory_hash) trajectories,
+       round(count(distinct trajectory_hash)::numeric / count(*), 2) ratio
+from nessy_agent_turn
+where agent_type = 'ap-exception-resolver' and trajectory_version = 1
+group by 1 order by ratio desc;
+```
+
+**Did an attack change the method, not only the decision?** Compare the trajectories of the
+attack's label with those of the same input without the attack. On the 0.6.0 run, a denial with
+an injected instruction had 5 shapes in 10 turns against 1 in 10 for a plain denial. All 20
+passed, so the outcome checks saw nothing.
+
+```sql
+with plain as (select distinct trajectory_hash from nessy_agent_turn where label = 'reply:DENIES')
+select count(*) turns, count(distinct trajectory_hash) trajectories,
+       count(*) filter (where trajectory_hash not in (select trajectory_hash from plain)) outside_plain
+from nessy_agent_turn where label = 'reply:DENIES:instructions';
+```
+
+**Which controls fired, on which input, and what did the model do next?** A refusal by the
+policy is `DENIED` in the trajectory. Containment on the JSON finds every turn with one.
+
+```sql
+select label, count(*) from nessy_agent_turn
+where trajectory @> '{"rounds":[[{"tool":"propose_resolution","outcome":"DENIED"}]]}'
+group by 1;
+```
+
+**What is new?** The trajectories this run produced that the last run did not, or that this
+label never produced before. Keep a table of known fingerprints with first seen, last seen and
+count, per agent type and label. A novel fingerprint in production is worth a human look; the
+join through the case gives the reviewer the case to open.
+
+Two limits. A fingerprint drops arguments on purpose, so a wrong id that happens to exist in the
+ERP looks like a success; the evidence check still has to carry that. And a tool's own refusal
+reads as `FAILED`, the same as an outage, until Nessy gives a tool a way to say "you may not"
+(finding F16). The desk's three-mail limit and its no-PO refusal both read as failures today.
+
+Every full run's trajectory export and the queries are in the [run ledger](runs.md).
+
 ## Run it yourself
 
 ```bash

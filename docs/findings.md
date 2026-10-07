@@ -3,7 +3,7 @@
 Nessy AP uses only Nessy's public API. Where that API was awkward or missing, the gap is written
 down here instead of worked around in silence. The full text is in section 10 of the design spec.
 Each finding was checked against Nessy's source on 2026-10-03, and its status against the released
-Nessy 0.5.0 on 2026-10-06.
+Nessy 0.7.0 on 2026-10-07.
 
 | Finding | Status |
 |---|---|
@@ -22,3 +22,6 @@ Nessy 0.5.0 on 2026-10-06.
 | **F13.** Stored agent history has no retention or cleanup. | Open. The quarantined reader stores every read, untrusted text included, with no way to expire it. |
 | **F14.** The direct door fails inside a caller's transaction, and nothing anticipated it. | Fixed in 0.4.0: the direct harness refuses to be called inside an active transaction, with a clear error. |
 | **F15.** A dropped connection to the model ends the turn, and nothing retries it. | Fixed in 0.4.0: an `Unknown` model failure reaches the retry policy. |
+| **F16.** A tool cannot say "you may not". | Open. `ToolResult` has two arms, success and failure. The desk's own refusals (the three-mail limit, "this case cites no PO") are failures, so a trajectory counts them as FAILED, the same as an ERP outage. Only the approval policy's refusals count as DENIED. |
+| **F17.** The turn table had no task label. | Fixed in 0.7.0: `nessy_agent_turn.label` carries the label the application gives each input, so trajectories group by the kind of work. The desk labels every input from closed sets (`CaseInputLabels`). |
+| **F18.** A backlog policy cannot see that a turn in flight already answers a waiting input. | Open, and mostly the desk's own doing: it sends two inputs five milliseconds apart, and the second runs as a turn that does nothing. 20 of 20 `goods-arrive` cases paid one model call for it. The trajectory table is what showed it. |

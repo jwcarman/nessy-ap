@@ -2,8 +2,8 @@
 
 Nessy AP is the first enterprise application built on Nessy. This page is a critique: how easy
 Nessy was to use, how far it reached into the application, how much code it needed, and where it
-failed us. The measurements are from the `main` branch on 2026-10-06, which builds against the
-released Nessy 0.5.0. Each finding was checked against Nessy's source and against that release.
+failed us. The measurements are from the `main` branch on 2026-10-07, which builds against the
+released Nessy 0.7.0. Each finding was checked against Nessy's source and against that release.
 
 ## The verdict
 
@@ -16,7 +16,7 @@ The gaps are in two areas:
 - the approval life cycle after a person decides (F1, F4, F9);
 - trust in the input (F11, F13).
 
-Each gap costs us application code. Of the fifteen findings, eight are fixed or answered and one
+Each gap costs us application code. Of the eighteen findings, nine are fixed or answered and one
 (F4) is partly fixed. Among them are the dispatcher stall (F8), which was a release blocker, and the read API for an agent's story
 (F3), which was the reason the desk once imported an engine type.
 
@@ -72,7 +72,7 @@ and audit.
 - **Nessy needs no secret of its own.** A late decision is answered by the agent and the call's
   idempotency key, which the desk already stores. The endpoint that answers is guarded by the
   desk's own security.
-- **Nessy is a released dependency.** Nessy AP builds against Nessy 0.5.0 from Maven Central.
+- **Nessy is a released dependency.** Nessy AP builds against Nessy 0.7.0 from Maven Central.
 
 ## What was easy
 
@@ -132,13 +132,23 @@ records it.
 - **The queued door's guarantees are testable as scenarios.** Exactly-once intake made the
   `redelivered` scenario meaningful: a repeated event must not start the case over, and 20 of
   20 runs proved it.
+- **Every turn's behavior is a row.** Since 0.6.0, `nessy_agent_turn` holds each completed
+  turn's trajectory: the tools it called, in which rounds, how each settled, how the turn ended,
+  as a fingerprint and as JSON. Since 0.7.0 the row carries the label of the input that started
+  the turn. The evaluation gained a measure the pass rate cannot give: whether the agent is
+  settled on how to do each task, and whether an attack changed its method. See
+  [rule 17](evaluation/writing-evaluations.md#17-fingerprint-the-behavior-not-only-the-outcome)
+  and [the results](evaluation/results.md).
 
 Where Nessy makes the evaluation harder:
 - **A turn summary is a fold the application writes.** The audit trail lists each turn: what
   started it, how many times it asked for tools, and how it ended. The budget counts the turns.
   The desk writes both as folds over the story (`AgentTurns`, 105 lines), and each fold reads the
-  whole story, because there is no read from the end. Every application with an audit view will
-  write this again. The request is with Nessy.
+  whole story, because there is no read from the end. Since 0.6.0, `nessy_agent_turn` holds the
+  counts and the ending per turn, and since 0.7.0 the label, so most of this fold can become a
+  read of that table. The desk has not moved yet.
+- **A tool's refusal reads as a failure (F16).** The trajectory counts the desk's own limits as
+  `FAILED`, the same as an ERP outage, because a tool can answer only success or failure.
 - **No published test kit (F5).** Every application writes its own scripted model.
 
 ## Where it fought us
@@ -190,8 +200,9 @@ In order of value to this application:
 2. **Provenance on input (F11).** Let an application say how far each input is trusted, so that
    the renderer, the policy and the trail can use it. The Occlude experiment in this repository
    is a candidate design.
-3. **Ready-made turn summaries, and a read from the end of the story.** Audit and cost are the
-   first questions an enterprise asks. Today each application folds the whole story to answer
-   them.
-4. **A published test kit (F5)** with a scripted model and a narration tap.
-5. **Retention for stored history (F13).**
+3. **A tool that can say "you may not" (F16).** Then the desk's limits read as `DENIED` in the
+   trajectory, and a control's firing rate is one query.
+4. **A read from the end of the story.** `nessy_agent_turn` now answers most of the audit view's
+   questions per turn. The cost per model still needs the whole story.
+5. **A published test kit (F5)** with a scripted model and a narration tap.
+6. **Retention for stored history (F13).**

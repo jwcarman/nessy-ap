@@ -508,6 +508,27 @@ Nessy design conversations, not changes made from this repo.
   left with nobody acting on it. Nessy should let an inference retry policy cover unknown
   outcomes; the desk should put a case whose turn failed in front of a person.
 
+- **F16 — A tool cannot say "you may not".** `ToolResult` has two arms, `Success` and
+  `Failure`. The desk's own refusals, the three-mails-per-case limit and "this case cites no
+  purchase order", come back as `Failure`, so Nessy's trajectory (0.6.0) counts them as `FAILED`,
+  indistinguishable from an ERP outage. Only the approval policy's refusals count as `DENIED`.
+  Nessy's own rule for the trajectory is to keep a distinction when it changes what the model can
+  do next: "try again or not" against "you may not". A limit the application enforces is the
+  second. Measured on the 0.6.0 run: 12 policy denials read clean, 3 mail-limit refusals did not.
+  Nessy should give a tool a third arm that the fold counts as `DENIED`.
+- **F17 — The turn table had no task label.** `nessy_agent_turn` (0.6.0) said what a turn did but
+  not what it was asked to do, so trajectories grouped only by agent type and the scenario had to
+  be joined in from the evaluation's log. Fixed in 0.7.0: the row carries the input's label. The
+  desk's `CaseInputLabels` builds it from closed sets only (reason code, stop reason, intent,
+  action), so it is a category and never content.
+- **F18 — A backlog policy cannot see that a turn in flight already answers a waiting input.**
+  The desk sends `RulesStopped` and then `ReceiptArrived` five milliseconds apart when goods
+  arrive while a hold waits. The first turn does the work; the second waits, then runs as a turn
+  of its own: one model call, no tool call, an empty trajectory, in 20 of 20 `goods-arrive`
+  cases. The redundancy is the desk's, and the trajectory table is what exposed it. Nessy's
+  backlog policies see inputs, not the turn in flight, so an application that sends a burst sees a
+  turn per input; the doc on backlog policies could say so.
+
 Confirmed capabilities (were open questions in r1): `tell` joins the caller's
 transaction, so consume-and-tell is atomic (§6); `Replies` + `NotAwaiting`
 give an idempotent answer path (§3.3); `PolicyApprover` + `Verdict.Delegate`
