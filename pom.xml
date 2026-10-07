@@ -60,6 +60,7 @@
     <!-- Boot 4.1.1 manages JUnit 6.0.3; 6.1.3 is the latest GA. -->
     <junit-jupiter.version>6.1.3</junit-jupiter.version>
     <spotless.version>3.10.3</spotless.version>
+    <enforcer.version>3.6.3</enforcer.version>
     <license.plugin.version>5.1.2</license.plugin.version>
     <git-commit-id.plugin.version>10.0.1</git-commit-id.plugin.version>
     <license.owner>James Carman</license.owner>
@@ -139,6 +140,31 @@
         <configuration>
           <argLine>@{jacocoArgLine}</argLine>
         </configuration>
+      </plugin>
+      <plugin>
+        <!-- Nessy ships Java 25 class files, and the code uses Java 22 syntax. On an older JDK,
+             Spotless fails first with a message about the keyword '_'; this rule says what is
+             wrong before any plugin runs. -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>${enforcer.version}</version>
+        <executions>
+          <execution>
+            <id>require-java-25</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireJavaVersion>
+                  <version>[25,)</version>
+                  <message>nessy-ap needs Java 25 or later to build and run: Nessy is compiled for Java 25. See docs/getting-started.md.</message>
+                </requireJavaVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>com.diffplug.spotless</groupId>

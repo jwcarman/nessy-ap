@@ -17,6 +17,9 @@ Design of record: `docs/superpowers/specs/2026-10-02-ap-exception-desk-design.md
 
 ## Run
 
+You need **Java 25** (Nessy is compiled for it; the build refuses an older JDK) and Docker.
+[Getting started](docs/getting-started.md) has the full procedure. In short:
+
     docker compose up -d
     ./mvnw -pl :erp-sim spring-boot:run
 
