@@ -3,7 +3,7 @@
 - Spec of record: `docs/superpowers/specs/2026-10-02-ap-exception-desk-design.md`.
   Anything awkward or missing in Nessy goes in its §10 findings log; never patch
   around Nessy silently.
-- Nessy is consumed as the released `0.5.0` from Maven Central. To build against a
+- Nessy is consumed as the released `0.7.0` from Maven Central. To build against a
   Nessy snapshot, set `nessy.version` to it and run `./mvnw install -DskipTests` in
   `~/IdeaProjects/nessy` first. Do this again after each Nessy change, or a stale jar
   in `~/.m2` shadows the source.

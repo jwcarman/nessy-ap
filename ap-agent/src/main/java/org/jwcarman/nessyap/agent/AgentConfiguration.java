@@ -23,8 +23,10 @@ import org.jwcarman.nessy.api.AgentType;
 import org.jwcarman.nessy.api.BacklogPolicy;
 import org.jwcarman.nessy.api.QueuedHarness;
 import org.jwcarman.nessy.api.QueuedHarnessFactory;
+import org.jwcarman.nessy.api.RetryPolicy;
 import org.jwcarman.nessy.approval.policy.PolicyApprover;
 import org.jwcarman.nessyap.agent.cases.CaseInput;
+import org.jwcarman.nessyap.agent.cases.CaseInputLabels;
 import org.jwcarman.nessyap.agent.cases.CaseInputRenderer;
 import org.jwcarman.nessyap.agent.cases.CaseTimeline;
 import org.jwcarman.nessyap.agent.cases.Cases;
@@ -49,6 +51,10 @@ import org.springframework.core.io.Resource;
 /** The AP exception agent: one agent type, one agent per case. */
 @Configuration(proxyBeanMethods = false)
 public class AgentConfiguration {
+
+  /** Three attempts, two seconds apart give or take one: enough for a dropped stream. */
+  static final RetryPolicy INFERENCE_RETRY =
+      new RetryPolicy.FixedDelay(3, Duration.ofSeconds(2), Duration.ofSeconds(1));
 
   public static final AgentType AGENT_TYPE = new AgentType("ap-exception-resolver");
 
@@ -95,7 +101,12 @@ public class AgentConfiguration {
           config
               .systemPrompt(systemPrompt)
               .inputRenderer(new CaseInputRenderer())
-              .backlogPolicy(BacklogPolicy.keepAll());
+              .inputLabel(new CaseInputLabels())
+              .backlogPolicy(BacklogPolicy.keepAll())
+              // Nessy's default is one attempt, the safe choice for an effect that changes the
+              // world. An inference that failed before it answered changed nothing, and a dropped
+              // stream ended four turns of the 2026-10-07 run with no proposal on the case.
+              .inference(inference -> inference.retryPolicy(INFERENCE_RETRY));
           // Every tool goes through the policy, so a tool the policy does not name is refused
           // there: an app newer than its policy fails closed. The reads need no case facts.
           erpTools.all().forEach(tool -> config.tool(tool, binding -> binding.approver(routing)));

@@ -220,7 +220,7 @@ class DecisionApiTest extends ApAgentIntegrationTest {
         .andExpect(jsonPath("$.decisions[0].requiredRole").value("ap-clerk"))
         .andExpect(jsonPath("$.decisions[0].replyToken").doesNotExist())
         .andExpect(jsonPath("$.turns[0].exchanges").isNumber())
-        .andExpect(jsonPath("$.turns[0].input").value("ExceptionRaised"))
+        .andExpect(jsonPath("$.turns[0].input").value("exception-raised:NO_RECEIPT"))
         .andExpect(jsonPath("$.timeline").isNotEmpty());
   }
 
