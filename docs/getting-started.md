@@ -15,7 +15,10 @@
 ```
 
 The build runs every test against real containers: Postgres, RabbitMQ, OPA and GreenMail. It needs
-no model and no API key.
+no model and no API key. Build the whole project this way before you start an app: the modules
+depend on each other, and a build of one module alone (`-pl`) looks for the others in your local
+Maven repository, where a fresh clone has nothing. On a JDK older than 25 the build stops at once
+and says so.
 
 ## Run
 

@@ -17,13 +17,19 @@ Design of record: `docs/superpowers/specs/2026-10-02-ap-exception-desk-design.md
 
 ## Run
 
-You need **Java 25** (Nessy is compiled for it; the build refuses an older JDK) and Docker.
-[Getting started](docs/getting-started.md) has the full procedure. In short:
+You need **Java 25** (Nessy is compiled for it, and the build refuses an older JDK), Docker, and
+a model: by default LM Studio on port 1234, or a hosted provider as
+[Getting started](docs/getting-started.md#run-on-a-hosted-model) describes. The full procedure
+is on that page. In short, from a fresh clone:
 
-    docker compose up -d
-    ./mvnw -pl :erp-sim spring-boot:run
+    ./mvnw -q clean verify                            # every module, every test; needs Docker
+    ./scripts/dev-secrets.sh                          # once: writes .env, which git ignores
+    docker compose up -d                              # Postgres, RabbitMQ, Keycloak, OPA, GreenMail
+    java -jar erp-sim/target/erp-sim-0.1.0-SNAPSHOT.jar
+    java -jar ap-agent/target/ap-agent-0.1.0-SNAPSHOT.jar
 
-`erp-sim` listens on http://localhost:8081.
+`erp-sim` listens on http://localhost:8081, and the desk's workbench is at
+http://localhost:8082/workbench. Seed a case with the first `curl` below.
 
 ## Admin
 
