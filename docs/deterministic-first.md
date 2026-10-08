@@ -352,6 +352,9 @@ cases, `gpt-6-luna`, 16 side by side, from empty databases:
 - **0.7.0: 548 of 550 passed.** The rules settled 350 and the agent 200. The two failures were a
   dropped model stream that nothing retried, because the desk had never chosen an inference
   retry policy and Nessy's default is one attempt. The desk's agent now gets three attempts.
+- **0.7.0 with retry, 2026-10-08: 550 of 550 passed.** The rules settled 349 and the agent 201.
+  The provider dropped no stream this time, so the policy was never exercised: 1,216 model calls,
+  no retry.
 
 The labels made the second analysis a `group by` instead of a join. The full account is in
 [the results](evaluation/results.md#what-the-trajectories-showed), and the runs are in the

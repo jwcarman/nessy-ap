@@ -10,6 +10,7 @@ The queries that read the export are in `trajectory-queries.sql` beside this pag
 
 | Run | Date | Nessy | Models | Passed | Agent settled | Folder |
 |---|---|---|---|---|---|---|
+| `luna-070-retry` | 2026-10-08 | 0.7.0 | gpt-6-luna, agent and reader | 550 of 550 | 201 | [20261008-luna-070-retry](runs/20261008-luna-070-retry/README.md) |
 | `luna-070` | 2026-10-07 | 0.7.0 | gpt-6-luna, agent and reader | 548 of 550 | 200 | [20261007-luna-070](runs/20261007-luna-070/README.md) |
 | `luna-060` | 2026-10-07 | 0.6.0 | gpt-6-luna, agent and reader | 550 of 550 | 200 | [20261007-luna-060](runs/20261007-luna-060/README.md) |
 
